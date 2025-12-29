@@ -1,5 +1,7 @@
+val pkg: String = "net.pangolin.Pangolin.PacketTunnel"
+
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
 }
 
 android {
@@ -9,16 +11,25 @@ android {
     }
 
     defaultConfig {
-        applicationId = "net.pangolin.Pangolin.PacketTunnel"
-        minSdk = 24
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        minSdk = 21
+    }
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    externalNativeBuild {
+        cmake {
+            path("tools/CMakeLists.txt")
+        }
     }
 
     buildTypes {
+        all {
+           externalNativeBuild {
+                cmake {
+                    targets("libwg-go.so", "libwg.so", "libwg-quick.so")
+                    arguments("-DGRADLE_USER_HOME=${project.gradle.gradleUserHomeDir}")
+                    arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+                }
+            }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

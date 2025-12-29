@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Pangolin</string>
+    <string name="permission_label">control WireGuard tunnels</string>
+    <string name="permission_description">control WireGuard tunnels, enabling and disabling tunnels at will, potentially misdirecting Internet traffic</string>
 </resources>
