@@ -13,7 +13,7 @@ extern char *stopTunnel();
 extern long getNetworkSettingsVersion();
 extern char *getNetworkSettings();
 
-JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
 {
 	const char *config_str = (*env)->GetStringUTFChars(env, configJSON, 0);
 	char *result = initOlm((char *)config_str);
@@ -25,7 +25,7 @@ JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBack
 	return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_startTunnel(JNIEnv *env, jclass c, jint fd, jstring configJSON)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_startTunnel(JNIEnv *env, jclass c, jint fd, jstring configJSON)
 {
 	const char *config_str = (*env)->GetStringUTFChars(env, configJSON, 0);
 	char *result = startTunnel(fd, (char *)config_str);
@@ -37,7 +37,7 @@ JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBack
 	return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_stopTunnel(JNIEnv *env, jclass c)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_stopTunnel(JNIEnv *env, jclass c)
 {
 	char *result = stopTunnel();
 	if (!result)
@@ -47,12 +47,12 @@ JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBack
 	return ret;
 }
 
-JNIEXPORT jlong JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_getNetworkSettingsVersion(JNIEnv *env, jclass c)
+JNIEXPORT jlong JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_getNetworkSettingsVersion(JNIEnv *env, jclass c)
 {
 	return (jlong)getNetworkSettingsVersion();
 }
 
-JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_getNetworkSettings(JNIEnv *env, jclass c)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_getNetworkSettings(JNIEnv *env, jclass c)
 {
 	char *result = getNetworkSettings();
 	if (!result)

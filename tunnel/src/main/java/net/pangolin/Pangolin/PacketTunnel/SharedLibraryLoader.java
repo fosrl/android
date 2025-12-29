@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package net.pangolin.Pangolin.PacketTunnel.util;
+package net.pangolin.Pangolin.PacketTunnel;
 
 import android.content.Context;
 import android.os.Build;

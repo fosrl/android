@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package net.pangolin.Pangolin.PacketTunnel.backend;
+package net.pangolin.Pangolin.PacketTunnel;
 
 /**
  * A subclass of {@link Exception} that encapsulates the reasons for a failure originating in

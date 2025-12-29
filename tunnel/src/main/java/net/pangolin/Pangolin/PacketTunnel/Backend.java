@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package net.pangolin.Pangolin.PacketTunnel.backend;
+package net.pangolin.Pangolin.PacketTunnel;
 
 import java.util.Set;
-
-import androidx.annotation.Nullable;
 
 /**
  * Interface for implementations of the WireGuard secure network tunnel.
