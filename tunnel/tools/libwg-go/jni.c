@@ -7,65 +7,57 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct go_string { const char *str; long n; };
-extern int wgTurnOn(struct go_string ifname, int tun_fd, struct go_string settings);
-extern void wgTurnOff(int handle);
-extern int wgGetSocketV4(int handle);
-extern int wgGetSocketV6(int handle);
-extern char *wgGetConfig(int handle);
-extern char *wgVersion();
+extern char *initOlm(char *configJSON);
+extern char *startTunnel(int fd, char *configJSON);
+extern char *stopTunnel();
+extern long getNetworkSettingsVersion();
+extern char *getNetworkSettings();
 
-JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgTurnOn(JNIEnv *env, jclass c, jstring ifname, jint tun_fd, jstring settings)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
 {
-	const char *ifname_str = (*env)->GetStringUTFChars(env, ifname, 0);
-	size_t ifname_len = (*env)->GetStringUTFLength(env, ifname);
-	const char *settings_str = (*env)->GetStringUTFChars(env, settings, 0);
-	size_t settings_len = (*env)->GetStringUTFLength(env, settings);
-	int ret = wgTurnOn((struct go_string){
-		.str = ifname_str,
-		.n = ifname_len
-	}, tun_fd, (struct go_string){
-		.str = settings_str,
-		.n = settings_len
-	});
-	(*env)->ReleaseStringUTFChars(env, ifname, ifname_str);
-	(*env)->ReleaseStringUTFChars(env, settings, settings_str);
+	const char *config_str = (*env)->GetStringUTFChars(env, configJSON, 0);
+	char *result = initOlm((char *)config_str);
+	(*env)->ReleaseStringUTFChars(env, configJSON, config_str);
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
 	return ret;
 }
 
-JNIEXPORT void JNICALL Java_com_wireguard_android_backend_GoBackend_wgTurnOff(JNIEnv *env, jclass c, jint handle)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_startTunnel(JNIEnv *env, jclass c, jint fd, jstring configJSON)
 {
-	wgTurnOff(handle);
-}
-
-JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV4(JNIEnv *env, jclass c, jint handle)
-{
-	return wgGetSocketV4(handle);
-}
-
-JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV6(JNIEnv *env, jclass c, jint handle)
-{
-	return wgGetSocketV6(handle);
-}
-
-JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetConfig(JNIEnv *env, jclass c, jint handle)
-{
-	jstring ret;
-	char *config = wgGetConfig(handle);
-	if (!config)
+	const char *config_str = (*env)->GetStringUTFChars(env, configJSON, 0);
+	char *result = startTunnel(fd, (char *)config_str);
+	(*env)->ReleaseStringUTFChars(env, configJSON, config_str);
+	if (!result)
 		return NULL;
-	ret = (*env)->NewStringUTF(env, config);
-	free(config);
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
 	return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgVersion(JNIEnv *env, jclass c)
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_stopTunnel(JNIEnv *env, jclass c)
 {
-	jstring ret;
-	char *version = wgVersion();
-	if (!version)
+	char *result = stopTunnel();
+	if (!result)
 		return NULL;
-	ret = (*env)->NewStringUTF(env, version);
-	free(version);
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
+}
+
+JNIEXPORT jlong JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_getNetworkSettingsVersion(JNIEnv *env, jclass c)
+{
+	return (jlong)getNetworkSettingsVersion();
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_backend_GoBackend_getNetworkSettings(JNIEnv *env, jclass c)
+{
+	char *result = getNetworkSettings();
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
 	return ret;
 }

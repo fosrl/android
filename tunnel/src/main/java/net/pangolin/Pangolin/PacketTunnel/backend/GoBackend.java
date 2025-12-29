@@ -38,7 +38,6 @@ public final class GoBackend implements Backend {
     private static CompletableFuture<VpnService> vpnService = new CompletableFuture<>();
     private final Context context;
     @Nullable private Tunnel currentTunnel;
-    private int currentTunnelHandle = -1;
 
     /**
      * Public constructor for GoBackend.
@@ -60,17 +59,15 @@ public final class GoBackend implements Backend {
         alwaysOnCallback = cb;
     }
 
-    @Nullable private static native String wgGetConfig(int handle);
+    private static native String initOlm(String configJSON);
 
-    private static native int wgGetSocketV4(int handle);
+    private static native String startTunnel(int fd, String configJSON);
 
-    private static native int wgGetSocketV6(int handle);
+    private static native String stopTunnel();
 
-    private static native void wgTurnOff(int handle);
+    private static native long getNetworkSettingsVersion();
 
-    private static native int wgTurnOn(String ifName, int tunFd, String settings);
-
-    private static native String wgVersion();
+    private static native String getNetworkSettings();
 
     /**
      * Method to get the names of running tunnels.
@@ -99,13 +96,51 @@ public final class GoBackend implements Backend {
     }
 
     /**
-     * Get the version of the underlying wireguard-go library.
+     * Initialize OLM with the given configuration.
      *
-     * @return {@link String} value of the version of the wireguard-go library.
+     * @param configJSON JSON configuration string
+     * @return Result string from initialization
      */
-    @Override
-    public String getVersion() {
-        return wgVersion();
+    public String initializeOlm(String configJSON) {
+        return initOlm(configJSON);
+    }
+
+    /**
+     * Start the tunnel with the given file descriptor and configuration.
+     *
+     * @param fd The tunnel file descriptor
+     * @param configJSON JSON configuration string
+     * @return Result string from starting the tunnel
+     */
+    public String startTunnelWithConfig(int fd, String configJSON) {
+        return startTunnel(fd, configJSON);
+    }
+
+    /**
+     * Stop the currently running tunnel.
+     *
+     * @return Result string from stopping the tunnel
+     */
+    public String stopCurrentTunnel() {
+        return stopTunnel();
+    }
+
+    /**
+     * Get the current network settings version number.
+     *
+     * @return The network settings version number
+     */
+    public long getNetworkSettingsVersionNumber() {
+        return getNetworkSettingsVersion();
+    }
+
+    /**
+     * Get the current network settings as a JSON string.
+     *
+     * @return JSON string containing network settings
+     */
+    public String getNetworkSettingsJSON() {
+        return getNetworkSettings();
     }
 
     /**
@@ -156,10 +191,8 @@ public final class GoBackend implements Backend {
             if (owner != null) {
                 final Tunnel tunnel = owner.currentTunnel;
                 if (tunnel != null) {
-                    if (owner.currentTunnelHandle != -1)
-                        wgTurnOff(owner.currentTunnelHandle);
+                    stopTunnel();
                     owner.currentTunnel = null;
-                    owner.currentTunnelHandle = -1;
                     tunnel.onStateChange(State.DOWN);
                 }
             }

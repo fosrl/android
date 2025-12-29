@@ -30,22 +30,6 @@ public interface Backend {
      */
     Tunnel.State getState(Tunnel tunnel) throws Exception;
 
-    /**
-     * Get statistics about traffic and errors on this tunnel. If the tunnel is not running, the
-     * statistics object will be filled with zero values.
-     *
-     * @param tunnel The tunnel to retrieve statistics for.
-     * @return The statistics for the tunnel.
-     * @throws Exception Exception raised when retrieving statistics.
-     */
-
-    /**
-     * Determine version of underlying backend.
-     *
-     * @return The version of the backend.
-     * @throws Exception Exception raised while retrieving version.
-     */
-    String getVersion() throws Exception;
 
     /**
      * Determines whether the service is running in always-on VPN mode.

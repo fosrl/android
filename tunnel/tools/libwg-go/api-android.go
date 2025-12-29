@@ -1,227 +1,207 @@
-/* SPDX-License-Identifier: Apache-2.0
- *
- * Copyright © 2017-2022 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- */
-
 package main
 
-// #cgo LDFLAGS: -llog
-// #include <android/log.h>
-import "C"
-
+/*
+#include <stdint.h>
+#include <stdlib.h>
+*/
 import (
+	"C"
+	"context"
+	"encoding/json"
 	"fmt"
-	"math"
-	"net"
-	"os"
-	"os/signal"
-	"runtime"
-	"runtime/debug"
-	"strings"
-	"unsafe"
+	"sync"
 
-	"golang.org/x/sys/unix"
-	"golang.zx2c4.com/wireguard/conn"
-	"golang.zx2c4.com/wireguard/device"
-	"golang.zx2c4.com/wireguard/ipc"
-	"golang.zx2c4.com/wireguard/tun"
+	olmpkg "github.com/fosrl/olm/olm"
+)
+import "time"
+
+// InitOlmConfig represents the JSON configuration for initOlm
+type InitOlmConfig struct {
+	EnableAPI  bool   `json:"enableAPI"`
+	SocketPath string `json:"socketPath"`
+	LogLevel   string `json:"logLevel"`
+	Version    string `json:"version"`
+	Agent      string `json:"agent"`
+}
+
+// StartTunnelConfig represents the JSON configuration for startTunnel
+type StartTunnelConfig struct {
+	Endpoint            string   `json:"endpoint"`
+	ID                  string   `json:"id"`
+	Secret              string   `json:"secret"`
+	MTU                 int      `json:"mtu"`
+	DNS                 string   `json:"dns"`
+	Holepunch           bool     `json:"holepunch"`
+	PingIntervalSeconds int      `json:"pingIntervalSeconds"`
+	PingTimeoutSeconds  int      `json:"pingTimeoutSeconds"`
+	UserToken           string   `json:"userToken"`
+	OrgID               string   `json:"orgId"`
+	UpstreamDNS         []string `json:"upstreamDNS"`
+	OverrideDNS         bool     `json:"overrideDNS"`
+	TunnelDNS           bool     `json:"tunnelDNS"`
+}
+
+var (
+	tunnelRunning bool
+	tunnelMutex   sync.Mutex
+	olmContext    context.Context
 )
 
-type AndroidLogger struct {
-	level C.int
-	tag   *C.char
-}
+//export initOlm
+func initOlm(configJSON *C.char) *C.char {
+	appLogger.Debug("Initializing with config")
 
-func cstring(s string) *C.char {
-	b, err := unix.BytePtrFromString(s)
-	if err != nil {
-		b := [1]C.char{}
-		return &b[0]
+	// Parse JSON configuration
+	configStr := C.GoString(configJSON)
+	var config InitOlmConfig
+	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
+		appLogger.Error("Failed to parse init config JSON: %v", err)
+		return C.CString(fmt.Sprintf("Error: Failed to parse config JSON: %v", err))
 	}
-	return (*C.char)(unsafe.Pointer(b))
+
+	// Initialize OLM logger with current log level
+	InitOLMLogger()
+
+	// Create context for OLM
+	olmContext = context.Background()
+
+	// Create OLM GlobalConfig with values from Swift
+	olmConfig := olmpkg.GlobalConfig{
+		LogLevel:   GetLogLevelString(),
+		EnableAPI:  config.EnableAPI,
+		SocketPath: config.SocketPath,
+		Version:    config.Version,
+		Agent:      config.Agent,
+	}
+
+	// Initialize OLM with context and GlobalConfig
+	olmpkg.Init(olmContext, olmConfig)
+
+	appLogger.Debug("Init completed successfully")
+	return C.CString("Init completed successfully")
 }
 
-func (l AndroidLogger) Printf(format string, args ...interface{}) {
-	C.__android_log_write(l.level, l.tag, cstring(fmt.Sprintf(format, args...)))
-}
+//export startTunnel
+func startTunnel(fd C.int, configJSON *C.char) *C.char {
+	appLogger.Debug("Starting tunnel")
 
-type TunnelHandle struct {
-	device *device.Device
-	uapi   net.Listener
-}
+	tunnelMutex.Lock()
+	defer tunnelMutex.Unlock()
 
-var tunnelHandles map[int32]TunnelHandle
+	// Check if tunnel is already running
+	if tunnelRunning {
+		appLogger.Warn("Tunnel is already running")
+		return C.CString("Error: Tunnel already running")
+	}
 
-func init() {
-	tunnelHandles = make(map[int32]TunnelHandle)
-	signals := make(chan os.Signal)
-	signal.Notify(signals, unix.SIGUSR2)
+	tunnelRunning = true
+
+	// Parse JSON configuration
+	configStr := C.GoString(configJSON)
+	var config StartTunnelConfig
+	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
+		appLogger.Error("Failed to parse tunnel config JSON: %v", err)
+		tunnelRunning = false
+		return C.CString(fmt.Sprintf("Error: Failed to parse config JSON: %v", err))
+	}
+
+	// Create OLM Config with tunnel parameters
+	olmConfig := olmpkg.TunnelConfig{
+		Endpoint:             config.Endpoint,
+		ID:                   config.ID,
+		Secret:               config.Secret,
+		MTU:                  config.MTU,
+		DNS:                  config.DNS,
+		Holepunch:            config.Holepunch,
+		PingIntervalDuration: time.Duration(config.PingIntervalSeconds) * time.Second,
+		PingTimeoutDuration:  time.Duration(config.PingTimeoutSeconds) * time.Second,
+		FileDescriptorTun:    uint32(fd),
+		UserToken:            config.UserToken,
+		OverrideDNS:          config.OverrideDNS,
+		TunnelDNS:            config.TunnelDNS,
+		UpstreamDNS:          config.UpstreamDNS,
+		OrgID:                config.OrgID,
+	}
+
+	// print the config for debugging
+	appLogger.Debug("Tunnel config: %+v", olmConfig)
+
+	olmpkg.StartApi()
+
+	// Start OLM tunnel with config
+	appLogger.Info("Starting OLM tunnel...")
 	go func() {
-		buf := make([]byte, os.Getpagesize())
-		for {
-			select {
-			case <-signals:
-				n := runtime.Stack(buf, true)
-				if n == len(buf) {
-					n--
-				}
-				buf[n] = 0
-				C.__android_log_write(C.ANDROID_LOG_ERROR, cstring("WireGuard/GoBackend/Stacktrace"), (*C.char)(unsafe.Pointer(&buf[0])))
-			}
-		}
+		olmpkg.StartTunnel(olmConfig)
+		appLogger.Info("OLM tunnel stopped")
+
+		// Update tunnel state when OLM stops
+		tunnelMutex.Lock()
+		tunnelRunning = false
+		tunnelMutex.Unlock()
 	}()
+
+	appLogger.Debug("Start tunnel completed successfully")
+	return C.CString("Tunnel started")
 }
 
-//export wgTurnOn
-func wgTurnOn(interfaceName string, tunFd int32, settings string) int32 {
-	tag := cstring("WireGuard/GoBackend/" + interfaceName)
-	logger := &device.Logger{
-		Verbosef: AndroidLogger{level: C.ANDROID_LOG_DEBUG, tag: tag}.Printf,
-		Errorf:   AndroidLogger{level: C.ANDROID_LOG_ERROR, tag: tag}.Printf,
+//export stopTunnel
+func stopTunnel() *C.char {
+	appLogger.Debug("Stopping tunnel")
+
+	tunnelMutex.Lock()
+	defer tunnelMutex.Unlock()
+
+	// Check if tunnel is not running
+	if !tunnelRunning {
+		appLogger.Warn("Tunnel is not running")
+		return C.CString("Error: Tunnel not running")
 	}
 
-	tun, name, err := tun.CreateUnmonitoredTUNFromFD(int(tunFd))
-	if err != nil {
-		unix.Close(int(tunFd))
-		logger.Errorf("CreateUnmonitoredTUNFromFD: %v", err)
-		return -1
-	}
+	// Stop OLM tunnel
+	olmpkg.StopTunnel()
+	olmpkg.StopApi()
 
-	logger.Verbosef("Attaching to interface %v", name)
-	device := device.NewDevice(tun, conn.NewStdNetBind(), logger)
-
-	err = device.IpcSet(settings)
-	if err != nil {
-		unix.Close(int(tunFd))
-		logger.Errorf("IpcSet: %v", err)
-		return -1
-	}
-	device.DisableSomeRoamingForBrokenMobileSemantics()
-
-	var uapi net.Listener
-
-	uapiFile, err := ipc.UAPIOpen(name)
-	if err != nil {
-		logger.Errorf("UAPIOpen: %v", err)
-	} else {
-		uapi, err = ipc.UAPIListen(name, uapiFile)
-		if err != nil {
-			uapiFile.Close()
-			logger.Errorf("UAPIListen: %v", err)
-		} else {
-			go func() {
-				for {
-					conn, err := uapi.Accept()
-					if err != nil {
-						return
-					}
-					go device.IpcHandle(conn)
-				}
-			}()
-		}
-	}
-
-	err = device.Up()
-	if err != nil {
-		logger.Errorf("Unable to bring up device: %v", err)
-		uapiFile.Close()
-		device.Close()
-		return -1
-	}
-	logger.Verbosef("Device started")
-
-	var i int32
-	for i = 0; i < math.MaxInt32; i++ {
-		if _, exists := tunnelHandles[i]; !exists {
-			break
-		}
-	}
-	if i == math.MaxInt32 {
-		logger.Errorf("Unable to find empty handle")
-		uapiFile.Close()
-		device.Close()
-		return -1
-	}
-	tunnelHandles[i] = TunnelHandle{device: device, uapi: uapi}
-	return i
+	tunnelRunning = false
+	appLogger.Debug("Tunnel stopped successfully")
+	return C.CString("Tunnel stopped")
 }
 
-//export wgTurnOff
-func wgTurnOff(tunnelHandle int32) {
-	handle, ok := tunnelHandles[tunnelHandle]
-	if !ok {
-		return
+// getNetworkSettingsVersion returns the current network settings version number
+//
+//export getNetworkSettingsVersion
+func getNetworkSettingsVersion() C.long {
+	tunnelMutex.Lock()
+	running := tunnelRunning
+	tunnelMutex.Unlock()
+
+	if !running {
+		return C.long(0)
 	}
-	delete(tunnelHandles, tunnelHandle)
-	if handle.uapi != nil {
-		handle.uapi.Close()
-	}
-	handle.device.Close()
+
+	incrementor := olmpkg.GetNetworkSettingsIncrementor()
+	return C.long(incrementor)
 }
 
-//export wgGetSocketV4
-func wgGetSocketV4(tunnelHandle int32) int32 {
-	handle, ok := tunnelHandles[tunnelHandle]
-	if !ok {
-		return -1
+// getNetworkSettings returns the current network settings as a JSON string
+//
+//export getNetworkSettings
+func getNetworkSettings() *C.char {
+	tunnelMutex.Lock()
+	running := tunnelRunning
+	tunnelMutex.Unlock()
+
+	if !running {
+		return C.CString("{}")
 	}
-	bind, _ := handle.device.Bind().(conn.PeekLookAtSocketFd)
-	if bind == nil {
-		return -1
-	}
-	fd, err := bind.PeekLookAtSocketFd4()
+
+	settingsJSON, err := olmpkg.GetNetworkSettingsJSON()
 	if err != nil {
-		return -1
+		appLogger.Error("Failed to get network settings JSON: %v", err)
+		return C.CString("{}")
 	}
-	return int32(fd)
+
+	return C.CString(settingsJSON)
 }
 
-//export wgGetSocketV6
-func wgGetSocketV6(tunnelHandle int32) int32 {
-	handle, ok := tunnelHandles[tunnelHandle]
-	if !ok {
-		return -1
-	}
-	bind, _ := handle.device.Bind().(conn.PeekLookAtSocketFd)
-	if bind == nil {
-		return -1
-	}
-	fd, err := bind.PeekLookAtSocketFd6()
-	if err != nil {
-		return -1
-	}
-	return int32(fd)
-}
-
-//export wgGetConfig
-func wgGetConfig(tunnelHandle int32) *C.char {
-	handle, ok := tunnelHandles[tunnelHandle]
-	if !ok {
-		return nil
-	}
-	settings, err := handle.device.IpcGet()
-	if err != nil {
-		return nil
-	}
-	return C.CString(settings)
-}
-
-//export wgVersion
-func wgVersion() *C.char {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return C.CString("unknown")
-	}
-	for _, dep := range info.Deps {
-		if dep.Path == "golang.zx2c4.com/wireguard" {
-			parts := strings.Split(dep.Version, "-")
-			if len(parts) == 3 && len(parts[2]) == 12 {
-				return C.CString(parts[2][:7])
-			}
-			return C.CString(dep.Version)
-		}
-	}
-	return C.CString("unknown")
-}
-
+// We need an entry point; it's ok for this to be empty
 func main() {}
