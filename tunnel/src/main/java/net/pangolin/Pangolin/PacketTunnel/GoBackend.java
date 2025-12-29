@@ -26,6 +26,8 @@ import java.util.concurrent.TimeoutException;
 import androidx.annotation.Nullable;
 import androidx.collection.ArraySet;
 
+import org.json.JSONException;
+
 /**
  * Implementation of {@link Backend} that uses the wireguard-go userspace implementation to provide
  * WireGuard tunnels.
@@ -37,6 +39,7 @@ public final class GoBackend implements Backend {
     private static CompletableFuture<VpnService> vpnService = new CompletableFuture<>();
     private final Context context;
     @Nullable private Tunnel currentTunnel;
+    @Nullable private NetworkSettingsPoller networkSettingsPoller;
 
     /**
      * Public constructor for GoBackend.
@@ -140,6 +143,92 @@ public final class GoBackend implements Backend {
      */
     public String getNetworkSettingsJSON() {
         return getNetworkSettings();
+    }
+
+    /**
+     * Start polling for network settings changes.
+     * Settings changes will be applied to the VPN service automatically.
+     *
+     * @param tunnelName The name of the tunnel for the VPN session
+     */
+    public void startNetworkSettingsPolling(final String tunnelName) {
+        if (networkSettingsPoller == null) {
+            networkSettingsPoller = new NetworkSettingsPoller(this);
+        }
+
+        networkSettingsPoller.setCallback(settings -> {
+            Log.d(TAG, "Network settings updated: " + settings);
+            try {
+                final VpnService service = vpnService.getNow(null);
+                if (service != null) {
+                    applyNetworkSettings(service, settings, tunnelName);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to apply network settings", e);
+            }
+            return null;
+        });
+
+        networkSettingsPoller.startPolling();
+        Log.d(TAG, "Started network settings polling");
+    }
+
+    /**
+     * Stop polling for network settings changes.
+     */
+    public void stopNetworkSettingsPolling() {
+        if (networkSettingsPoller != null) {
+            networkSettingsPoller.stopPolling();
+            Log.d(TAG, "Stopped network settings polling");
+        }
+    }
+
+    /**
+     * Apply network settings to the VPN service.
+     *
+     * @param service The VPN service
+     * @param settings The network settings to apply
+     * @param tunnelName The name of the tunnel
+     * @return The new tunnel file descriptor, or null if failed
+     */
+    @Nullable
+    public ParcelFileDescriptor applyNetworkSettings(VpnService service, NetworkSettings settings, String tunnelName) {
+        try {
+            final VpnService.Builder builder = service.getBuilder();
+            NetworkSettingsPoller.applySettingsToBuilder(builder, settings, tunnelName);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                service.setUnderlyingNetworks(null);
+            }
+
+            ParcelFileDescriptor tun = builder.establish();
+            if (tun != null) {
+                Log.d(TAG, "Successfully applied network settings and established tunnel");
+            }
+            return tun;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to apply network settings", e);
+            return null;
+        }
+    }
+
+    /**
+     * Get the current network settings parsed from JSON.
+     *
+     * @return NetworkSettings object, or null if parsing fails or no settings available
+     */
+    @Nullable
+    public NetworkSettings getCurrentNetworkSettings() {
+        String json = getNetworkSettingsJSON();
+        if (json == null || json.isEmpty() || json.equals("{}")) {
+            return null;
+        }
+        try {
+            return NetworkSettings.fromJson(json);
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to parse network settings", e);
+            return null;
+        }
     }
 
     /**
@@ -350,6 +439,9 @@ public final class GoBackend implements Backend {
         @Override
         public void onDestroy() {
             if (owner != null) {
+                // Stop network settings polling
+                owner.stopNetworkSettingsPolling();
+                
                 final Tunnel tunnel = owner.currentTunnel;
                 if (tunnel != null) {
                     stopTunnel();
