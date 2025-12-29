@@ -24,7 +24,7 @@ android {
         all {
            externalNativeBuild {
                 cmake {
-                    targets("libwg-go.so")
+                    targets("libpangolin-go.so")
                     arguments("-DGRADLE_USER_HOME=${project.gradle.gradleUserHomeDir}")
                     arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
                 }
