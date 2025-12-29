@@ -8,8 +8,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 add_link_options(LINKER:--build-id=none)
 add_compile_options(-Wall -Werror)
 
-
-
 add_custom_target(libwg-go.so WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libwg-go" COMMENT "Building wireguard-go" VERBATIM COMMAND "${ANDROID_HOST_PREBUILTS}/bin/make"
     ANDROID_ARCH_NAME=${ANDROID_ARCH_NAME}
     ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME}
@@ -22,6 +20,3 @@ add_custom_target(libwg-go.so WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib
     DESTDIR=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
     BUILDDIR=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../generated-src
 )
-
-
-

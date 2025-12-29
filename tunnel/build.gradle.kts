@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 21
+        minSdk = 24
     }
 
     externalNativeBuild {
@@ -24,7 +24,7 @@ android {
         all {
            externalNativeBuild {
                 cmake {
-                    targets("libwg-go.so", "libwg.so", "libwg-quick.so")
+                    targets("libwg-go.so")
                     arguments("-DGRADLE_USER_HOME=${project.gradle.gradleUserHomeDir}")
                     arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
                 }
