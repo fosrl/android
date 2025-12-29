@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Pangolin"
 include(":app")
+include(":app:tunnel")
