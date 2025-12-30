@@ -7,6 +7,8 @@ package net.pangolin.Pangolin.PacketTunnel;
 
 import java.util.Set;
 
+import androidx.annotation.Nullable;
+
 /**
  * Interface for implementations of the WireGuard secure network tunnel.
  */
@@ -28,6 +30,18 @@ public interface Backend {
      */
     Tunnel.State getState(Tunnel tunnel) throws Exception;
 
+    /**
+     * Change the state of a given {@link Tunnel}, optionally applying a given {@link TunnelConfig}.
+     *
+     * @param tunnel The tunnel to control the state of.
+     * @param state  The new state for this tunnel. Must be {@code UP}, {@code DOWN}, or
+     *               {@code TOGGLE}.
+     * @param config The configuration for this tunnel, may be null if state is {@code DOWN}.
+     * @param initConfig The initialization configuration for OLM, may be null if state is {@code DOWN}.
+     * @return {@link Tunnel.State} of the tunnel after state changes are applied.
+     * @throws Exception Exception raised while changing tunnel state.
+     */
+    Tunnel.State setState(Tunnel tunnel, Tunnel.State state, @Nullable TunnelConfig config, @Nullable InitConfig initConfig) throws Exception;
 
     /**
      * Determines whether the service is running in always-on VPN mode.

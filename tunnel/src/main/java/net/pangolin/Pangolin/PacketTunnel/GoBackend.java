@@ -260,6 +260,7 @@ public final class GoBackend implements Backend {
     * @return {@link State} of the tunnel after state changes are applied.
     * @throws Exception Exception raised while changing tunnel state.
     */
+   @Override
    public State setState(final Tunnel tunnel, State state, @Nullable final TunnelConfig config, @Nullable final InitConfig initConfig) throws Exception {
        final State originalState = getState(tunnel);
 
