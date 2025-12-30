@@ -32,3 +32,5 @@ require (
 )
 
 replace github.com/fosrl/olm => /home/owen/fossorial/olm
+
+replace github.com/fosrl/newt => /home/owen/fossorial/newt

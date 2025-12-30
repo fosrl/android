@@ -321,7 +321,7 @@ public final class GoBackend implements Backend {
            if (initConfig != null) {
                try {
                    String initConfigJson = initConfig.toJson();
-                   Log.d(TAG, "Initializing OLM with config");
+                   Log.d(TAG, "Initializing OLM with config: " + initConfigJson);
                    String initResult = initOlm(initConfigJson);
                    Log.d(TAG, "OLM init result: " + initResult);
                    if (initResult != null && initResult.startsWith("Error:")) {

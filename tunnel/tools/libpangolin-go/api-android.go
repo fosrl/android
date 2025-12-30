@@ -49,7 +49,10 @@ var (
 
 //export initOlm
 func initOlm(configJSON *C.char) *C.char {
-	appLogger.Debug("Initializing with config")
+	// Initialize OLM logger with current log level
+	InitOLMLogger()
+	
+	appLogger.Info("Initializing with config")
 
 	// Parse JSON configuration
 	configStr := C.GoString(configJSON)
@@ -59,8 +62,8 @@ func initOlm(configJSON *C.char) *C.char {
 		return C.CString(fmt.Sprintf("Error: Failed to parse config JSON: %v", err))
 	}
 
-	// Initialize OLM logger with current log level
-	InitOLMLogger()
+	// print out the config we got
+	appLogger.Debug("Init config: %+v", config)
 
 	// Create context for OLM
 	olmContext = context.Background()
@@ -68,8 +71,8 @@ func initOlm(configJSON *C.char) *C.char {
 	// Create OLM GlobalConfig with values from Swift
 	olmConfig := olmpkg.GlobalConfig{
 		LogLevel:   GetLogLevelString(),
-		EnableAPI:  config.EnableAPI,
-		SocketPath: config.SocketPath,
+		// EnableAPI:  config.EnableAPI,
+		// SocketPath: config.SocketPath,
 		Version:    config.Version,
 		Agent:      config.Agent,
 	}
@@ -77,7 +80,7 @@ func initOlm(configJSON *C.char) *C.char {
 	// Initialize OLM with context and GlobalConfig
 	olmpkg.Init(olmContext, olmConfig)
 
-	appLogger.Debug("Init completed successfully")
+	appLogger.Info("Init completed successfully")
 	return C.CString("Init completed successfully")
 }
 

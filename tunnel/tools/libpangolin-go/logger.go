@@ -6,7 +6,11 @@ import "C"
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"time"
+	"runtime/debug"
+	
 	"unsafe"
 
 	"github.com/fosrl/newt/logger"
@@ -44,8 +48,8 @@ type Logger struct {
 func NewLogger(prefix string) *Logger {
 	return &Logger{
 		prefix:   prefix,
-		logLevel: LogLevelInfo,
-		tag:      cstring("WireGuard/GoBackend/" + prefix),
+		logLevel: LogLevelDebug,
+		tag:      cstring("GoBackend/" + prefix),
 	}
 }
 
@@ -160,6 +164,24 @@ func init() {
 	appLogger = NewLogger("PangolinGo")
 	// Log level will be set via setLogLevel
 	appLogger.Info("Logger initialized")
+	
+    // This makes unexpected faults (like nil pointer) call panic instead
+    // of immediately crashing, giving recover() a chance
+    debug.SetPanicOnFault(true)
+    
+    // Also set crash output
+    debug.SetTraceback("all")
+    
+    // Your existing signal handlers can stay for SIGUSR2
+    signals := make(chan os.Signal, 1)
+    signal.Notify(signals, unix.SIGUSR2)
+    go func() {
+        for range signals {
+            buf := make([]byte, 1<<20)
+            C.__android_log_write(C.ANDROID_LOG_ERROR, cstring("GoBackend/Stacktrace"), (*C.char)(unsafe.Pointer(&buf[0])))
+        }
+    }()
+	
 }
 
 // setLogLevel sets the log level for the Go logger

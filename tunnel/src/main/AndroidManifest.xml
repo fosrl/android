@@ -3,7 +3,7 @@
 
     <application>
     <service
-        android:name="net.pangolin.Pangolin.PacketTunnel$VpnService"
+        android:name="net.pangolin.Pangolin.PacketTunnel.GoBackend$VpnService"
         android:permission="android.permission.BIND_VPN_SERVICE"
         android:exported="false">
         <intent-filter>
