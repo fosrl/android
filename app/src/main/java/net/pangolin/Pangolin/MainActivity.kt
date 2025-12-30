@@ -112,6 +112,7 @@ fun TunnelControlScreen(
                     secret = secret,
                     mtu = mtu.toIntOrNull() ?: 1280,
                     dns = dns,
+                    upstreamDnsPrimary = "$dns:53",
                     pingInterval = pingInterval.toIntOrNull() ?: 10,
                     pingTimeout = pingTimeout.toIntOrNull() ?: 30,
                     holepunch = holepunchEnabled,
@@ -346,6 +347,7 @@ fun TunnelControlScreen(
                                 secret = secret,
                                 mtu = mtu.toIntOrNull() ?: 1280,
                                 dns = dns,
+                                upstreamDnsPrimary = "$dns:53",
                                 pingInterval = pingInterval.toIntOrNull() ?: 10,
                                 pingTimeout = pingTimeout.toIntOrNull() ?: 30,
                                 holepunch = holepunchEnabled,
@@ -386,6 +388,8 @@ private suspend fun startTunnel(
     secret: String,
     mtu: Int,
     dns: String,
+    upstreamDnsPrimary: String? = null,
+    upstreamDnsSecondary: String? = null,
     pingInterval: Int,
     pingTimeout: Int,
     holepunch: Boolean,
@@ -407,6 +411,14 @@ private suspend fun startTunnel(
                 .setVersion("1.0.0-test")
                 .build()
 
+            val upstreamDns = mutableListOf<String>()
+            if (upstreamDnsPrimary != null) {
+                upstreamDns.add(upstreamDnsPrimary)
+            }
+            if (upstreamDnsSecondary != null) {
+                upstreamDns.add(upstreamDnsSecondary)
+            }
+
             // Build tunnel config
             val tunnelConfig = TunnelConfig.Builder()
                 .setEndpoint(endpoint)
@@ -414,6 +426,7 @@ private suspend fun startTunnel(
                 .setSecret(secret)
                 .setMtu(mtu)
                 .setDns(dns)
+                .setUpstreamDNS(upstreamDns)
                 .setPingIntervalSeconds(pingInterval)
                 .setPingTimeoutSeconds(pingTimeout)
                 .setHolepunch(holepunch)

@@ -346,7 +346,10 @@ public final class GoBackend implements Backend {
                service.setUnderlyingNetworks(null);
 
            builder.setBlocking(true);
-           
+
+           // add a dummy address so we can get the interface up. We will change it later...
+           builder.addAddress("169.254.169.254", 32);
+
            // Establish the tunnel to get a file descriptor
            currentTunFd = builder.establish();
            if (currentTunFd == null)
@@ -439,7 +442,7 @@ public final class GoBackend implements Backend {
             if (owner != null) {
                 // Stop network settings polling
                 owner.stopNetworkSettingsPolling();
-                
+
                 final Tunnel tunnel = owner.currentTunnel;
                 if (tunnel != null) {
                     stopTunnel();
