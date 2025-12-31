@@ -9,6 +9,7 @@
 
 extern char *initOlm(char *configJSON);
 extern char *startTunnel(int fd, char *configJSON);
+extern char *addDevice(int fd);
 extern char *stopTunnel();
 extern long getNetworkSettingsVersion();
 extern char *getNetworkSettings();
@@ -30,6 +31,16 @@ JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_star
 	const char *config_str = (*env)->GetStringUTFChars(env, configJSON, 0);
 	char *result = startTunnel(fd, (char *)config_str);
 	(*env)->ReleaseStringUTFChars(env, configJSON, config_str);
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_addDevice(JNIEnv *env, jclass c, jint fd)
+{
+	char *result = addDevice(fd);
 	if (!result)
 		return NULL;
 	jstring ret = (*env)->NewStringUTF(env, result);

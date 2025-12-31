@@ -147,6 +147,17 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 	return C.CString("Tunnel started")
 }
 
+//export addDevice
+func addDevice(fd C.int) *C.char {
+	// call olmpkg.AddDevice with the file descriptor as a uint32
+	err := olmpkg.AddDevice(uint32(fd))
+	if err != nil {
+		appLogger.Error("Failed to add device: %v", err)
+		return C.CString(fmt.Sprintf("Error: Failed to add device: %v", err))
+	}
+	return C.CString("Device added successfully")
+}
+
 //export stopTunnel
 func stopTunnel() *C.char {
 	appLogger.Debug("Stopping tunnel")

@@ -155,16 +155,19 @@ public final class GoBackend implements Backend {
             networkSettingsPoller = new NetworkSettingsPoller(this);
         }
 
+        // Set callback to log settings changes without recreating the tunnel
+        // Note: We don't recreate the tunnel interface here because:
+        // 1. The Go backend already owns the tunnel FD after detachFd()
+        // 2. Calling establish() again creates a second interface (tun0 vs tun1)
+        // 3. The new FD would need to be passed to Go, requiring tunnel restart
+        // 4. The Go backend should handle interface configuration via netlink
         networkSettingsPoller.setCallback(settings -> {
-            Log.d(TAG, "Network settings updated: " + settings);
-            try {
-                final VpnService service = vpnService.getNow(null);
-                if (service != null) {
-                    applyNetworkSettings(service, settings, tunnelName);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to apply network settings", e);
-            }
+            Log.d(TAG, "Network settings updated from Go backend: " + settings);
+            Log.d(TAG, "Settings include: " + 
+                  (settings.getIpv4Addresses() != null ? settings.getIpv4Addresses().size() + " IPv4 addresses, " : "") +
+                  (settings.getIpv6Addresses() != null ? settings.getIpv6Addresses().size() + " IPv6 addresses, " : "") +
+                  (settings.getDnsServers() != null ? settings.getDnsServers().size() + " DNS servers" : ""));
+            // Don't create a new tunnel interface - just monitor the changes
             return null;
         });
 
@@ -317,7 +320,7 @@ public final class GoBackend implements Backend {
                return;
            }
 
-           // Initialize OLM first
+           // Initialize OLM first to get network settings
            if (initConfig != null) {
                try {
                    String initConfigJson = initConfig.toJson();
@@ -333,7 +336,7 @@ public final class GoBackend implements Backend {
                }
            }
 
-           // Create a minimal VPN builder - the Go API will configure the interface
+           // Create VPN builder
            final VpnService.Builder builder = service.getBuilder();
            builder.setSession(tunnel.getName());
 
