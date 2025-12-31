@@ -27,7 +27,7 @@ import androidx.annotation.Nullable;
 
 /**
  * Polls for network settings changes from the Go backend and applies them to the VPN service.
- * 
+ *
  * Uses a HandlerThread with THREAD_PRIORITY_FOREGROUND to ensure the polling continues
  * reliably while the VPN service is running. The VPN service itself is a foreground service,
  * which provides protection against most Android background restrictions.
@@ -41,7 +41,7 @@ public class NetworkSettingsPoller {
     private final AtomicLong lastSettingsVersion = new AtomicLong(0);
     private final AtomicBoolean isPolling = new AtomicBoolean(false);
     private final Object lock = new Object();
-    
+
     @Nullable private HandlerThread handlerThread;
     @Nullable private Handler handler;
     @Nullable private NetworkSettingsCallback callback;
@@ -89,15 +89,15 @@ public class NetworkSettingsPoller {
             Log.d(TAG, "Starting network settings polling");
             lastSettingsVersion.set(0);
             consecutiveErrors = 0;
-            
+
             // Create a HandlerThread with foreground priority
             // This helps ensure the thread gets CPU time while VPN is active
             handlerThread = new HandlerThread("NetworkSettingsPoller", Process.THREAD_PRIORITY_FOREGROUND);
             handlerThread.start();
-            
+
             handler = new Handler(handlerThread.getLooper());
             isPolling.set(true);
-            
+
             // Schedule the first poll
             handler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
         }
@@ -111,14 +111,14 @@ public class NetworkSettingsPoller {
             if (!isPolling.getAndSet(false)) {
                 return;
             }
-            
+
             Log.d(TAG, "Stopping network settings polling");
-            
+
             if (handler != null) {
                 handler.removeCallbacks(pollRunnable);
                 handler = null;
             }
-            
+
             if (handlerThread != null) {
                 handlerThread.quitSafely();
                 try {
@@ -128,7 +128,7 @@ public class NetworkSettingsPoller {
                 }
                 handlerThread = null;
             }
-            
+
             lastSettingsVersion.set(0);
             consecutiveErrors = 0;
         }
@@ -148,7 +148,7 @@ public class NetworkSettingsPoller {
     public void shutdown() {
         stopPolling();
     }
-    
+
     /**
      * Runnable that performs the polling and reschedules itself.
      */
@@ -158,14 +158,14 @@ public class NetworkSettingsPoller {
             if (!isPolling.get()) {
                 return;
             }
-            
+
             try {
                 checkForSettingsUpdate();
                 consecutiveErrors = 0; // Reset on success
             } catch (Exception e) {
                 consecutiveErrors++;
                 Log.e(TAG, "Error in poll runnable (attempt " + consecutiveErrors + ")", e);
-                
+
                 if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
                     Log.e(TAG, "Too many consecutive errors, stopping poller");
                     // Post to main thread to avoid deadlock
@@ -173,7 +173,7 @@ public class NetworkSettingsPoller {
                     return;
                 }
             }
-            
+
             // Reschedule for the next poll if still running
             synchronized (lock) {
                 if (isPolling.get() && handler != null) {
@@ -225,6 +225,9 @@ public class NetworkSettingsPoller {
         } else {
             builder.setMtu(1280); // Default MTU
         }
+
+        builder.allowFamily(OsConstants.AF_INET);
+        builder.allowFamily(OsConstants.AF_INET6);
 
         // Add IPv4 addresses
         List<String> ipv4Addresses = settings.getIpv4Addresses();
@@ -318,13 +321,6 @@ public class NetworkSettingsPoller {
             }
         }
 
-        // Allow traffic to bypass VPN if no default route
-        if (!sawDefaultRoute) {
-            builder.allowFamily(OsConstants.AF_INET);
-            builder.allowFamily(OsConstants.AF_INET6);
-        }
-
-        // Set metered to false on supported versions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             builder.setMetered(false);
         }

@@ -66,6 +66,8 @@ public final class GoBackend implements Backend {
 
     private static native String stopTunnel();
 
+    private static native String addDevice(int fd);
+
     private static native long getNetworkSettingsVersion();
 
     private static native String getNetworkSettings();
@@ -155,19 +157,16 @@ public final class GoBackend implements Backend {
             networkSettingsPoller = new NetworkSettingsPoller(this);
         }
 
-        // Set callback to log settings changes without recreating the tunnel
-        // Note: We don't recreate the tunnel interface here because:
-        // 1. The Go backend already owns the tunnel FD after detachFd()
-        // 2. Calling establish() again creates a second interface (tun0 vs tun1)
-        // 3. The new FD would need to be passed to Go, requiring tunnel restart
-        // 4. The Go backend should handle interface configuration via netlink
         networkSettingsPoller.setCallback(settings -> {
-            Log.d(TAG, "Network settings updated from Go backend: " + settings);
-            Log.d(TAG, "Settings include: " + 
-                  (settings.getIpv4Addresses() != null ? settings.getIpv4Addresses().size() + " IPv4 addresses, " : "") +
-                  (settings.getIpv6Addresses() != null ? settings.getIpv6Addresses().size() + " IPv6 addresses, " : "") +
-                  (settings.getDnsServers() != null ? settings.getDnsServers().size() + " DNS servers" : ""));
-            // Don't create a new tunnel interface - just monitor the changes
+            Log.d(TAG, "Network settings updated: " + settings);
+            try {
+                final VpnService service = vpnService.getNow(null);
+                if (service != null) {
+                    applyNetworkSettings(service, settings, tunnelName);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to apply network settings", e);
+            }
             return null;
         });
 
@@ -206,8 +205,32 @@ public final class GoBackend implements Backend {
             ParcelFileDescriptor tun = builder.establish();
             if (tun != null) {
                 Log.d(TAG, "Successfully applied network settings and established tunnel");
+                
+                // Hot-swap the new tunnel interface into the Go backend
+                // We need to detach the fd to pass ownership to the Go side
+                int fd = tun.detachFd();
+                String result = addDevice(fd);
+                if (result != null && result.startsWith("Error:")) {
+                    Log.e(TAG, "Failed to add device to Go backend: " + result);
+                    // The fd was detached, so we can't return it as a ParcelFileDescriptor anymore
+                    // The Go side should handle cleanup if addDevice fails
+                    return null;
+                }
+                Log.d(TAG, "Successfully hot-swapped tunnel interface to Go backend: " + result);
+                
+                // Update the current tunnel fd reference
+                // Note: Since we detached the fd, we create a new ParcelFileDescriptor if needed
+                // but typically after addDevice, the Go backend owns the fd
+                if (currentTunFd != null) {
+                    try {
+                        currentTunFd.close();
+                    } catch (Exception ignored) {}
+                }
+                currentTunFd = null; // Go backend now owns the fd
             }
-            return tun;
+            // After detachFd(), the ParcelFileDescriptor is no longer valid
+            // Return null to indicate the fd has been transferred to Go backend
+            return null;
         } catch (Exception e) {
             Log.e(TAG, "Failed to apply network settings", e);
             return null;
@@ -320,7 +343,7 @@ public final class GoBackend implements Backend {
                return;
            }
 
-           // Initialize OLM first to get network settings
+           // Initialize OLM first
            if (initConfig != null) {
                try {
                    String initConfigJson = initConfig.toJson();
