@@ -158,15 +158,21 @@ public final class GoBackend implements Backend {
         }
 
         networkSettingsPoller.setCallback(settings -> {
+            Log.d(TAG, "=== Network settings callback invoked ===");
             Log.d(TAG, "Network settings updated: " + settings);
             try {
                 final VpnService service = vpnService.getNow(null);
                 if (service != null) {
+                    Log.d(TAG, "VpnService available, applying network settings");
                     applyNetworkSettings(service, settings, tunnelName);
+                    Log.d(TAG, "Network settings application completed");
+                } else {
+                    Log.w(TAG, "VpnService is null, cannot apply network settings");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Failed to apply network settings", e);
             }
+            Log.d(TAG, "=== Network settings callback completed ===");
             return null;
         });
 
@@ -194,22 +200,33 @@ public final class GoBackend implements Backend {
      */
     @Nullable
     public ParcelFileDescriptor applyNetworkSettings(VpnService service, NetworkSettings settings, String tunnelName) {
+        Log.d(TAG, "applyNetworkSettings called for tunnel: " + tunnelName);
         try {
             final VpnService.Builder builder = service.getBuilder();
+            Log.d(TAG, "Got VpnService.Builder");
+            
             NetworkSettingsPoller.applySettingsToBuilder(builder, settings, tunnelName);
+            Log.d(TAG, "Applied settings to builder");
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 service.setUnderlyingNetworks(null);
+                Log.d(TAG, "Set underlying networks to null");
             }
 
+            Log.d(TAG, "Calling builder.establish()...");
             ParcelFileDescriptor tun = builder.establish();
+            
             if (tun != null) {
-                Log.d(TAG, "Successfully applied network settings and established tunnel");
+                Log.d(TAG, "Successfully established tunnel, got ParcelFileDescriptor");
                 
                 // Hot-swap the new tunnel interface into the Go backend
                 // We need to detach the fd to pass ownership to the Go side
                 int fd = tun.detachFd();
+                Log.d(TAG, "Detached fd=" + fd + ", calling addDevice()...");
+                
                 String result = addDevice(fd);
+                Log.d(TAG, "addDevice() returned: " + result);
+                
                 if (result != null && result.startsWith("Error:")) {
                     Log.e(TAG, "Failed to add device to Go backend: " + result);
                     // The fd was detached, so we can't return it as a ParcelFileDescriptor anymore
@@ -222,11 +239,17 @@ public final class GoBackend implements Backend {
                 // Note: Since we detached the fd, we create a new ParcelFileDescriptor if needed
                 // but typically after addDevice, the Go backend owns the fd
                 if (currentTunFd != null) {
+                    Log.d(TAG, "Closing old currentTunFd");
                     try {
                         currentTunFd.close();
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error closing old tunFd", e);
+                    }
                 }
                 currentTunFd = null; // Go backend now owns the fd
+                Log.d(TAG, "Network settings application completed successfully");
+            } else {
+                Log.e(TAG, "builder.establish() returned null - failed to establish tunnel");
             }
             // After detachFd(), the ParcelFileDescriptor is no longer valid
             // Return null to indicate the fd has been transferred to Go backend

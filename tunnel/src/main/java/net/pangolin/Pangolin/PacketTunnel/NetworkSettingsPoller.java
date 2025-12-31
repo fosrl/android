@@ -188,21 +188,38 @@ public class NetworkSettingsPoller {
             long currentVersion = goBackend.getNetworkSettingsVersionNumber();
             long lastVersion = lastSettingsVersion.get();
 
+            // Log.v(TAG, "Polling: currentVersion=" + currentVersion + ", lastVersion=" + lastVersion + ", isPolling=" + isPolling.get());
+
             if (currentVersion > lastVersion) {
                 Log.d(TAG, "Network settings version changed: " + lastVersion + " -> " + currentVersion);
-                lastSettingsVersion.set(currentVersion);
 
                 String settingsJson = goBackend.getNetworkSettingsJSON();
+                Log.d(TAG, "Retrieved settings JSON (length=" + (settingsJson != null ? settingsJson.length() : 0) + ")");
+                
                 if (settingsJson != null && !settingsJson.isEmpty() && !settingsJson.equals("{}")) {
                     try {
                         NetworkSettings settings = NetworkSettings.fromJson(settingsJson);
+                        Log.d(TAG, "Parsed network settings, invoking callback (callback=" + (callback != null ? "present" : "null") + ")");
+                        
                         if (callback != null) {
                             callback.onNetworkSettingsUpdated(settings);
+                            Log.d(TAG, "Callback invoked successfully");
+                        } else {
+                            Log.w(TAG, "Callback is null, cannot apply settings");
                         }
+                        
+                        // Only update the version after successfully applying settings
+                        lastSettingsVersion.set(currentVersion);
+                        Log.d(TAG, "Updated lastSettingsVersion to " + currentVersion);
                     } catch (JSONException e) {
                         Log.e(TAG, "Failed to parse network settings JSON", e);
                     }
+                } else {
+                    Log.d(TAG, "Skipping empty or null settings JSON, will retry on next poll");
                 }
+            } else if (currentVersion < lastVersion) {
+                Log.w(TAG, "Version went backwards! currentVersion=" + currentVersion + ", lastVersion=" + lastVersion + ". Resetting.");
+                lastSettingsVersion.set(currentVersion);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error checking for settings update", e);
