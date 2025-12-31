@@ -430,6 +430,9 @@ private suspend fun startTunnel(
                 .setPingIntervalSeconds(pingInterval)
                 .setPingTimeoutSeconds(pingTimeout)
                 .setHolepunch(holepunch)
+                // TODO: make these configurable
+                .setOverrideDNS(true)
+                .setTunnelDNS(false)
                 .build()
 
             Log.d("MainActivity", "Starting tunnel with config: $tunnelConfig")

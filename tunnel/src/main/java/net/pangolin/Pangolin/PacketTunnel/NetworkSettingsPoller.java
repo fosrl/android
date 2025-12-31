@@ -270,13 +270,19 @@ public class NetworkSettingsPoller {
         // Add DNS servers
         List<String> dnsServers = settings.getDnsServers();
         if (dnsServers != null) {
+        	boolean hasValidDns = false;
             for (String dns : dnsServers) {
                 try {
                     builder.addDnsServer(dns);
+                    hasValidDns = true;
                     Log.d(TAG, "Added DNS server: " + dns);
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to add DNS server: " + dns, e);
                 }
+            }
+            if (hasValidDns) { // we added at least one dns server
+	            // Add a search domain that matches everything to ensure all DNS queries go into the tunnel
+	            builder.addSearchDomain(".");
             }
         }
 
