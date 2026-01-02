@@ -133,52 +133,61 @@ class MainActivity : BaseNavigationActivity() {
     }
 
     private fun updateTunnelState(newState: TunnelState) {
-//        tunnelState = newState
-//
-//        // Update status text
-//        contentBinding.tvStatus.text = "Status: ${newState.statusMessage}"
-//
-//        // Update error message
-//        if (newState.errorMessage != null) {
-//            contentBinding.tvError.text = "Error: ${newState.errorMessage}"
-//            contentBinding.tvError.visibility = View.VISIBLE
-//        } else {
-//            contentBinding.tvError.visibility = View.GONE
-//        }
-//
-//        // Update progress indicator
-//        contentBinding.progressIndicator.visibility = if (newState.isConnecting) View.VISIBLE else View.GONE
-//
-//        // Update button
-//        contentBinding.btnConnect.isEnabled = !newState.isConnecting
-//        contentBinding.btnConnect.text = when {
-//            newState.isConnecting -> "Connecting..."
-//            newState.isConnected -> "Disconnect"
-//            else -> "Connect"
-//        }
-//
-//        // Update button color
-//        if (newState.isConnected) {
-//            contentBinding.btnConnect.setBackgroundColor(
-//                MaterialColors.getColor(contentBinding.btnConnect, com.google.android.material.R.attr.colorError)
-//            )
-//        } else {
-//            contentBinding.btnConnect.setBackgroundColor(
-//                MaterialColors.getColor(contentBinding.btnConnect, com.google.android.material.R.attr.colorPrimary)
-//            )
-//        }
-//
-//        // Update card background color
-//        val cardColorAttr = when {
-//            newState.isConnected -> com.google.android.material.R.attr.colorPrimaryContainer
-//            newState.isConnecting -> com.google.android.material.R.attr.colorSecondaryContainer
-//            newState.errorMessage != null -> com.google.android.material.R.attr.colorErrorContainer
-//            else -> com.google.android.material.R.attr.colorSurfaceVariant
-//        }
-//
-//        contentBinding.statusCard.setCardBackgroundColor(
-//            MaterialColors.getColor(contentBinding.statusCard, cardColorAttr)
-//        )
+        runOnUiThread {
+            tunnelState = newState
+
+            // Update status text
+            contentBinding.tvStatus.text = "Status: ${newState.statusMessage}"
+
+            // Update error message
+            if (newState.errorMessage != null) {
+                contentBinding.tvError.text = "Error: ${newState.errorMessage}"
+                contentBinding.tvError.visibility = View.VISIBLE
+            } else {
+                contentBinding.tvError.visibility = View.GONE
+            }
+
+            // Update progress indicator
+            contentBinding.progressIndicator.visibility =
+                if (newState.isConnecting) View.VISIBLE else View.GONE
+
+            // Update button
+            contentBinding.btnConnect.isEnabled = !newState.isConnecting
+            contentBinding.btnConnect.text = when {
+                newState.isConnecting -> "Connecting..."
+                newState.isConnected -> "Disconnect"
+                else -> "Connect"
+            }
+
+            // Update button color
+            if (newState.isConnected) {
+                contentBinding.btnConnect.setBackgroundColor(
+                    MaterialColors.getColor(
+                        contentBinding.btnConnect,
+                        com.google.android.material.R.attr.colorError
+                    )
+                )
+            } else {
+                contentBinding.btnConnect.setBackgroundColor(
+                    MaterialColors.getColor(
+                        contentBinding.btnConnect,
+                        com.google.android.material.R.attr.colorPrimary
+                    )
+                )
+            }
+
+            // Update card background color
+            val cardColorAttr = when {
+                newState.isConnected -> com.google.android.material.R.attr.colorPrimaryContainer
+                newState.isConnecting -> com.google.android.material.R.attr.colorSecondaryContainer
+                newState.errorMessage != null -> com.google.android.material.R.attr.colorErrorContainer
+                else -> com.google.android.material.R.attr.colorSurfaceVariant
+            }
+
+            contentBinding.statusCard.setCardBackgroundColor(
+                MaterialColors.getColor(contentBinding.statusCard, cardColorAttr)
+            )
+        }
     }
 
     // Simple tunnel implementation
@@ -200,8 +209,6 @@ data class TunnelState(
     val statusMessage: String = "Disconnected",
     val errorMessage: String? = null
 )
-
-
 
 private suspend fun startTunnelWithConfig(
     context: Context,
