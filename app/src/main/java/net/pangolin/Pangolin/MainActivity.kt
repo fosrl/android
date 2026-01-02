@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
@@ -29,6 +30,7 @@ import net.pangolin.Pangolin.PacketTunnel.GoBackend
 import net.pangolin.Pangolin.PacketTunnel.InitConfig
 import net.pangolin.Pangolin.PacketTunnel.Tunnel
 import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
+import java.io.File
 import net.pangolin.Pangolin.ui.theme.PangolinTheme
 
 class MainActivity : ComponentActivity() {
@@ -105,6 +107,7 @@ fun TunnelControlScreen(
             // Permission granted, start the tunnel
             scope.launch {
                 startTunnel(
+                    context = context,
                     goBackend = goBackend,
                     tunnel = tunnel,
                     endpoint = endpoint,
@@ -340,6 +343,7 @@ fun TunnelControlScreen(
                         // Permission already granted
                         scope.launch {
                             startTunnel(
+                                context = context,
                                 goBackend = goBackend,
                                 tunnel = tunnel,
                                 endpoint = endpoint,
@@ -381,6 +385,7 @@ fun TunnelControlScreen(
 }
 
 private suspend fun startTunnel(
+    context: Context,
     goBackend: GoBackend,
     tunnel: Tunnel,
     endpoint: String,
@@ -409,6 +414,8 @@ private suspend fun startTunnel(
                 .setLogLevel(logLevel)
                 .setAgent("android")
                 .setVersion("1.0.0-test")
+                .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
+                .setEnableAPI(true)
                 .build()
 
             val upstreamDns = mutableListOf<String>()

@@ -71,8 +71,8 @@ func initOlm(configJSON *C.char) *C.char {
 	// Create OLM GlobalConfig with values from Swift
 	olmConfig := olmpkg.GlobalConfig{
 		LogLevel:   GetLogLevelString(),
-		// EnableAPI:  config.EnableAPI,
-		// SocketPath: config.SocketPath,
+		EnableAPI:  config.EnableAPI,
+		SocketPath: config.SocketPath,
 		Version:    config.Version,
 		Agent:      config.Agent,
 	}
