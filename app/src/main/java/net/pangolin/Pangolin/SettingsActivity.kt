@@ -1,14 +1,10 @@
 package net.pangolin.Pangolin
 
-import android.content.Intent
 import android.os.Bundle
-import androidx.appcompat.app.ActionBarDrawerToggle
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.GravityCompat
 import androidx.preference.PreferenceFragmentCompat
 import net.pangolin.Pangolin.databinding.SettingsActivityBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : BaseNavigationActivity() {
 
     private lateinit var binding: SettingsActivityBinding
 
@@ -18,34 +14,8 @@ class SettingsActivity : AppCompatActivity() {
         binding = SettingsActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.toolbar)
-
-        val toggle = ActionBarDrawerToggle(
-            this, binding.drawerLayout, binding.toolbar,
-            R.string.app_name, R.string.app_name
-        )
-        binding.drawerLayout.addDrawerListener(toggle)
-        toggle.syncState()
-
-        binding.navView.setNavigationItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.nav_main -> {
-                    startActivity(Intent(this, MainActivity::class.java))
-                    finish()
-                }
-                R.id.nav_settings -> {
-                    // Already here
-                }
-                R.id.nav_about -> {
-                    startActivity(Intent(this, AboutActivity::class.java))
-                    finish()
-                }
-            }
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
-            true
-        }
-
-        binding.navView.setCheckedItem(R.id.nav_settings)
+        // Setup navigation using base class
+        setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
 
         if (savedInstanceState == null) {
             supportFragmentManager
@@ -55,12 +25,8 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            super.onBackPressed()
-        }
+    override fun getSelectedNavItemId(): Int {
+        return R.id.nav_settings
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {

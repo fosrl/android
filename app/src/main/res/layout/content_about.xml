@@ -17,9 +17,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Pangolin"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"/>
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_version"

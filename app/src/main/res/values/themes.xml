@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.Pangolin" parent="android:Theme.Material.Light.NoActionBar" />
-  <!-- Base application theme. -->
+    <!-- Base application theme using Material3 -->
     <style name="Base.Theme.Pangolin" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
+
+    <!-- Main theme that inherits from base -->
+    <style name="Theme.Pangolin" parent="Base.Theme.Pangolin" />
 </resources>

@@ -6,20 +6,12 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,85 +29,39 @@ import net.pangolin.Pangolin.PacketTunnel.GoBackend
 import net.pangolin.Pangolin.PacketTunnel.InitConfig
 import net.pangolin.Pangolin.PacketTunnel.Tunnel
 import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
-import java.io.File
+import net.pangolin.Pangolin.databinding.ActivityMainBinding
 import net.pangolin.Pangolin.ui.theme.PangolinTheme
+import java.io.File
 
-class MainActivity : ComponentActivity() {
+class MainActivity : BaseNavigationActivity() {
     private var goBackend: GoBackend? = null
+    private lateinit var binding: ActivityMainBinding
 
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Setup navigation using base class
+        setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
 
         goBackend = GoBackend(applicationContext)
 
-        setContent {
-            PangolinTheme {
-                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-                val scope = rememberCoroutineScope()
-                val context = LocalContext.current
-
-                ModalNavigationDrawer(
-                    drawerState = drawerState,
-                    drawerContent = {
-                        ModalDrawerSheet {
-                            Spacer(Modifier.height(12.dp))
-                            NavigationDrawerItem(
-                                label = { Text("Home") },
-                                selected = true,
-                                onClick = {
-                                    scope.launch { drawerState.close() }
-                                },
-                                icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                            )
-                            NavigationDrawerItem(
-                                label = { Text("Settings") },
-                                selected = false,
-                                onClick = {
-                                    scope.launch { drawerState.close() }
-                                    context.startActivity(Intent(context, SettingsActivity::class.java))
-                                },
-                                icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                            )
-                            NavigationDrawerItem(
-                                label = { Text("About") },
-                                selected = false,
-                                onClick = {
-                                    scope.launch { drawerState.close() }
-                                    context.startActivity(Intent(context, AboutActivity::class.java))
-                                },
-                                icon = { Icon(Icons.Default.Info, contentDescription = null) },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                            )
-                        }
-                    }
-                ) {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        topBar = {
-                            CenterAlignedTopAppBar(
-                                title = { Text("Pangolin") },
-                                navigationIcon = {
-                                    IconButton(onClick = {
-                                        scope.launch { drawerState.open() }
-                                    }) {
-                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
-                                    }
-                                }
-                            )
-                        }
-                    ) { innerPadding ->
-                        TunnelControlScreen(
-                            goBackend = goBackend!!,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
+        // Setup Compose content in the main_content FrameLayout
+        val composeView = ComposeView(this).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                PangolinTheme {
+                    TunnelControlScreen(goBackend = goBackend!!)
                 }
             }
         }
+        binding.mainContent.addView(composeView)
+    }
+
+    override fun getSelectedNavItemId(): Int {
+        return R.id.nav_main
     }
 }
 

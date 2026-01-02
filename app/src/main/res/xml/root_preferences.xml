@@ -12,6 +12,7 @@
             app:summary="When enabled, DNS queries are sent through the tunnel to a resource. A private resource must be created for the address for it to work and resolve to the correct site."
             app:title="DNS Tunnel" />
         <EditTextPreference
+            app:defaultValue="1.1.1.1"
             app:key="primaryDNSServer"
             app:title="Primary Upstream DNS Server"
             app:useSimpleSummaryProvider="true" />
