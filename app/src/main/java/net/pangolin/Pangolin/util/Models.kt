@@ -1,4 +1,3 @@
-@file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
 package net.pangolin.Pangolin.util
 
 import kotlinx.serialization.SerialName
@@ -206,15 +205,27 @@ data class CreateOlmResponse(
 // MARK: - Tunnel Status
 
 @Serializable
-enum class TunnelStatus(val displayText: String) {
-    @SerialName("Disconnected") DISCONNECTED("Disconnected"),
-    @SerialName("Connecting...") CONNECTING("Connecting..."),
-    @SerialName("Registering...") REGISTERING("Registering..."),
-    @SerialName("Connected") CONNECTED("Connected"),
-    @SerialName("Reconnecting...") RECONNECTING("Reconnecting..."),
-    @SerialName("Disconnecting...") DISCONNECTING("Disconnecting..."),
-    @SerialName("Invalid") INVALID("Invalid"),
-    @SerialName("Error") ERROR("Error")
+enum class TunnelStatus {
+    @SerialName("Disconnected") DISCONNECTED,
+    @SerialName("Connecting...") CONNECTING,
+    @SerialName("Registering...") REGISTERING,
+    @SerialName("Connected") CONNECTED,
+    @SerialName("Reconnecting...") RECONNECTING,
+    @SerialName("Disconnecting...") DISCONNECTING,
+    @SerialName("Invalid") INVALID,
+    @SerialName("Error") ERROR;
+
+    val displayText: String
+        get() = when (this) {
+            DISCONNECTED -> "Disconnected"
+            CONNECTING -> "Connecting..."
+            REGISTERING -> "Registering..."
+            CONNECTED -> "Connected"
+            RECONNECTING -> "Reconnecting..."
+            DISCONNECTING -> "Disconnecting..."
+            INVALID -> "Invalid"
+            ERROR -> "Error"
+        }
 }
 
 // MARK: - Socket API

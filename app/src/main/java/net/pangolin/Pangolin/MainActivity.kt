@@ -15,6 +15,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +41,7 @@ import net.pangolin.Pangolin.ui.theme.PangolinTheme
 class MainActivity : ComponentActivity() {
     private var goBackend: GoBackend? = null
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -44,11 +50,67 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PangolinTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    TunnelControlScreen(
-                        goBackend = goBackend!!,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                val context = LocalContext.current
+
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    drawerContent = {
+                        ModalDrawerSheet {
+                            Spacer(Modifier.height(12.dp))
+                            NavigationDrawerItem(
+                                label = { Text("Home") },
+                                selected = true,
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                },
+                                icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                            )
+                            NavigationDrawerItem(
+                                label = { Text("Settings") },
+                                selected = false,
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                    context.startActivity(Intent(context, SettingsActivity::class.java))
+                                },
+                                icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                            )
+                            NavigationDrawerItem(
+                                label = { Text("About") },
+                                selected = false,
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                    context.startActivity(Intent(context, AboutActivity::class.java))
+                                },
+                                icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                            )
+                        }
+                    }
+                ) {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        topBar = {
+                            CenterAlignedTopAppBar(
+                                title = { Text("Pangolin") },
+                                navigationIcon = {
+                                    IconButton(onClick = {
+                                        scope.launch { drawerState.open() }
+                                    }) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                    }
+                                }
+                            )
+                        }
+                    ) { innerPadding ->
+                        TunnelControlScreen(
+                            goBackend = goBackend!!,
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
                 }
             }
         }
@@ -138,11 +200,6 @@ fun TunnelControlScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Pangolin Tunnel Test",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
         // Status card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -474,7 +531,7 @@ private suspend fun stopTunnel(
         statusMessage = "Disconnecting..."
     ))
 
-    try {4
+    try {
         withContext(Dispatchers.IO) {
             goBackend.setState(tunnel, Tunnel.State.DOWN, null, null)
         }
