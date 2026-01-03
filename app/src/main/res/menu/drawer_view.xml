@@ -6,6 +6,10 @@
             android:icon="@drawable/ic_home"
             android:title="Home" />
         <item
+            android:id="@+id/nav_status"
+            android:icon="@drawable/ic_status"
+            android:title="Status" /> 
+        <item
             android:id="@+id/nav_settings"
             android:icon="@drawable/ic_settings"
             android:title="Settings" />
