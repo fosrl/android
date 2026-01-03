@@ -73,6 +73,12 @@ abstract class BaseNavigationActivity : AppCompatActivity() {
                     finish()
                 }
             }
+            R.id.nav_status -> {
+                if (this !is StatusActivity) {
+                    startActivity(Intent(this, StatusActivity::class.java))
+                    finish()
+                }
+            }
             R.id.nav_settings -> {
                 if (this !is SettingsActivity) {
                     startActivity(Intent(this, SettingsActivity::class.java))
