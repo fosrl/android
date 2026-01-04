@@ -48,7 +48,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="Main">
+            android:label="Pangolin">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
