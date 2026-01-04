@@ -21,6 +21,7 @@ import net.pangolin.Pangolin.PacketTunnel.Tunnel
 import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
 import net.pangolin.Pangolin.databinding.ActivityMainBinding
 import net.pangolin.Pangolin.databinding.ContentMainBinding
+import net.pangolin.Pangolin.util.StatusPollingManager
 import java.io.File
 
 class MainActivity : BaseNavigationActivity() {
@@ -29,6 +30,7 @@ class MainActivity : BaseNavigationActivity() {
     private lateinit var contentBinding: ContentMainBinding
 
     private var tunnelState = TunnelState()
+    private var statusPollingManager: StatusPollingManager? = null
 
     // VPN permission launcher
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -56,6 +58,10 @@ class MainActivity : BaseNavigationActivity() {
 
         goBackend = GoBackend(applicationContext)
 
+        // Initialize StatusPollingManager
+        val socketPath = File(applicationContext.filesDir, "pangolin.sock").absolutePath
+        statusPollingManager = StatusPollingManager(socketPath)
+
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
 
@@ -70,6 +76,13 @@ class MainActivity : BaseNavigationActivity() {
 
         // Initialize UI state
         updateTunnelState(tunnelState)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clean up the polling manager
+        statusPollingManager?.cleanup()
+        statusPollingManager = null
     }
 
     override fun getSelectedNavItemId(): Int {
@@ -194,11 +207,21 @@ class MainActivity : BaseNavigationActivity() {
     private val tunnel = object : Tunnel {
         override fun getName(): String = "pangolin"
         override fun onStateChange(newState: Tunnel.State) {
+            val isConnected = newState == Tunnel.State.UP
             updateTunnelState(tunnelState.copy(
-                isConnected = newState == Tunnel.State.UP,
+                isConnected = isConnected,
                 isConnecting = false,
-                statusMessage = if (newState == Tunnel.State.UP) "Connected" else "Disconnected"
+                statusMessage = if (isConnected) "Connected" else "Disconnected"
             ))
+            
+            // Start or stop status polling based on tunnel state
+            if (isConnected) {
+                Log.d("MainActivity", "Tunnel connected, starting status polling")
+                statusPollingManager?.startPolling()
+            } else {
+                Log.d("MainActivity", "Tunnel disconnected, stopping status polling")
+                statusPollingManager?.stopPolling()
+            }
         }
     }
 }

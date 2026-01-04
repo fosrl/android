@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <TextView
+        android:id="@+id/jsonStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:fontFamily="monospace"
+        android:textIsSelectable="true"
+        android:text="JSON output will appear here" />
+
+</androidx.core.widget.NestedScrollView>
