@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#000000"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="#000000"
+            app:title="Sign In"
+            app:titleTextColor="#FFFFFF" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="40dp"
+            android:paddingBottom="40dp">
+
+            <!-- Back Button -->
+            <Button
+                android:id="@+id/backButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#333333"
+                android:text="Back"
+                android:textColor="#999999"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Logo Placeholder -->
+            <ImageView
+                android:id="@+id/logoImage"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginTop="60dp"
+                android:src="@mipmap/ic_launcher"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/backButton"
+                tools:ignore="ContentDescription" />
+
+            <!-- Pangolin Text -->
+            <TextView
+                android:id="@+id/pangolinText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="PANGOLIN"
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toEndOf="@id/logoImage"
+                app:layout_constraintTop_toTopOf="@id/logoImage"
+                app:layout_constraintBottom_toBottomOf="@id/logoImage" />
+
+            <!-- Instruction Text -->
+            <TextView
+                android:id="@+id/instructionText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="60dp"
+                android:text="Enter this code on the login page"
+                android:textColor="#CCCCCC"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/logoImage" />
+
+            <!-- Code Container -->
+            <LinearLayout
+                android:id="@+id/codeContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:orientation="horizontal"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/instructionText">
+
+                <!-- Code Character 1 -->
+                <TextView
+                    android:id="@+id/codeChar1"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="V"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar2"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="C"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar3"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="2"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar4"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="W"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <!-- Dash separator -->
+                <TextView
+                    android:id="@+id/codeDash"
+                    android:layout_width="20dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:text="-"
+                    android:textColor="#666666"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar5"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="G"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar6"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="W"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar7"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="C"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/codeChar8"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:text="G"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <!-- Extra character in case needed -->
+                <TextView
+                    android:id="@+id/codeChar9"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="4dp"
+                    android:background="#333333"
+                    android:gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Copy Code Button -->
+            <Button
+                android:id="@+id/copyCodeButton"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="32dp"
+                android:layout_marginTop="48dp"
+                android:layout_marginEnd="32dp"
+                android:backgroundTint="#333333"
+                android:text="Copy Code"
+                android:textAllCaps="false"
+                android:textColor="#FF6B35"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/codeContainer" />
+
+            <!-- Open Login Page Button -->
+            <Button
+                android:id="@+id/openLoginButton"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="32dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="32dp"
+                android:backgroundTint="#FF6B35"
+                android:text="Open Login Page"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/copyCodeButton" />
+
+            <!-- URL Text -->
+            <TextView
+                android:id="@+id/urlText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Or visit: https://app.pangolin.net/auth/login/device"
+                android:textColor="#999999"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/openLoginButton" />
+
+            <!-- Loading Indicator -->
+            <ProgressBar
+                android:id="@+id/loadingIndicator"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="32dp"
+                android:indeterminateTint="#999999"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/urlText" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

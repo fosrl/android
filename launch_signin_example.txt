@@ -1,0 +1,129 @@
+Example Code: How to Launch the SignInCodeActivity
+====================================================
+
+Option 1: Add a button to MainActivity
+---------------------------------------
+
+In MainActivity.kt, add this code to launch the SignInCodeActivity:
+
+```kotlin
+// Add this import at the top
+import android.content.Intent
+
+// Add this method to MainActivity class
+private fun launchSignInCodeActivity() {
+    val intent = Intent(this, SignInCodeActivity::class.java)
+    startActivity(intent)
+}
+
+// Example: Add a button in onCreate or anywhere you want to trigger it
+// If you have a button in your layout:
+binding.signInButton.setOnClickListener {
+    launchSignInCodeActivity()
+}
+```
+
+
+Option 2: Add to Navigation Menu
+---------------------------------
+
+If you want to add it to the navigation drawer menu:
+
+1. Add menu item to res/menu/drawer_view.xml:
+
+```xml
+<item
+    android:id="@+id/nav_signin"
+    android:icon="@android:drawable/ic_lock_idle_lock"
+    android:title="Sign In" />
+```
+
+2. Handle the menu item in BaseNavigationActivity.kt or MainActivity.kt:
+
+```kotlin
+R.id.nav_signin -> {
+    val intent = Intent(this, SignInCodeActivity::class.java)
+    startActivity(intent)
+    true
+}
+```
+
+
+Option 3: Launch from Settings
+-------------------------------
+
+Add a preference in SettingsActivity that launches the sign-in flow:
+
+In your settings XML, add:
+
+```xml
+<Preference
+    android:key="device_signin"
+    android:title="Sign In on Another Device"
+    android:summary="Get a code to sign in on another device" />
+```
+
+Then handle it in SettingsActivity:
+
+```kotlin
+findPreference<Preference>("device_signin")?.setOnPreferenceClickListener {
+    val intent = Intent(requireContext(), SignInCodeActivity::class.java)
+    startActivity(intent)
+    true
+}
+```
+
+
+Option 4: Launch from Command Line (for testing)
+------------------------------------------------
+
+Use adb to launch the activity directly:
+
+```bash
+adb shell am start -n net.pangolin.Pangolin/.SignInCodeActivity
+```
+
+
+Option 5: Quick Test Button in MainActivity
+-------------------------------------------
+
+For quick testing, you can temporarily add a floating action button:
+
+In activity_main.xml, make the FAB visible and update MainActivity.kt:
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    // ... existing code ...
+    
+    // Make FAB visible and set click listener
+    binding.fab.visibility = View.VISIBLE
+    binding.fab.setOnClickListener {
+        val intent = Intent(this, SignInCodeActivity::class.java)
+        startActivity(intent)
+    }
+}
+```
+
+
+Passing Data to SignInCodeActivity (Future Enhancement)
+-------------------------------------------------------
+
+If you want to pass a dynamic code to the activity:
+
+```kotlin
+// Sender side:
+val intent = Intent(this, SignInCodeActivity::class.java)
+intent.putExtra("SIGNIN_CODE", "AB12-XY34")
+startActivity(intent)
+
+// In SignInCodeActivity.kt, modify onCreate:
+private val signInCode: String by lazy {
+    intent.getStringExtra("SIGNIN_CODE") ?: generateDefaultCode()
+}
+
+private fun generateDefaultCode(): String {
+    // Generate or fetch code from server
+    return "VC2W-GWCG"
+}
+```

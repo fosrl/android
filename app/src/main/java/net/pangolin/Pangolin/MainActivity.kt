@@ -42,6 +42,9 @@ class MainActivity : BaseNavigationActivity() {
         } else {
             updateTunnelState(tunnelState.copy(
                 isConnecting = false,
+                isServiceRunning = false,
+                isSocketConnected = false,
+                isRegistered = false,
                 errorMessage = "VPN permission denied"
             ))
         }
@@ -61,13 +64,16 @@ class MainActivity : BaseNavigationActivity() {
         // Initialize StatusPollingManager
         val socketPath = File(applicationContext.filesDir, "pangolin.sock").absolutePath
         statusPollingManager = StatusPollingManager(socketPath)
+        
+        // Observe status updates from socket polling
+        observeStatusUpdates()
 
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
 
         // Setup button click listener
         contentBinding.btnConnect.setOnClickListener {
-            if (tunnelState.isConnected) {
+            if (tunnelState.isServiceRunning) {
                 disconnectTunnel()
             } else {
                 connectTunnel()
@@ -76,6 +82,75 @@ class MainActivity : BaseNavigationActivity() {
 
         // Initialize UI state
         updateTunnelState(tunnelState)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Check current tunnel state when returning to activity
+        checkTunnelState()
+    }
+    
+    private fun checkTunnelState() {
+        lifecycleScope.launch {
+            try {
+                val backend = goBackend ?: return@launch
+                val currentState = backend.getState(tunnel)
+                val isServiceUp = currentState == Tunnel.State.UP
+                
+                if (isServiceUp) {
+                    // Service is running, start polling if not already
+                    val isCurrentlyPolling = statusPollingManager?.isPolling?.value ?: false
+                    if (!isCurrentlyPolling) {
+                        statusPollingManager?.startPolling()
+                    }
+                    
+                    // Try to get current socket status
+                    val currentStatus = statusPollingManager?.getCurrentStatus()
+                    updateTunnelState(tunnelState.copy(
+                        isServiceRunning = true,
+                        isSocketConnected = currentStatus?.connected ?: false,
+                        isRegistered = currentStatus?.registered ?: false,
+                        statusMessage = determineStatusMessage(true, currentStatus?.connected ?: false, currentStatus?.registered ?: false)
+                    ))
+                } else {
+                    updateTunnelState(tunnelState.copy(
+                        isServiceRunning = false,
+                        isSocketConnected = false,
+                        isRegistered = false,
+                        statusMessage = "Disconnected"
+                    ))
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error checking tunnel state", e)
+            }
+        }
+    }
+    
+    private fun observeStatusUpdates() {
+        lifecycleScope.launch {
+            statusPollingManager?.statusFlow?.collect { status ->
+                if (status != null && tunnelState.isServiceRunning) {
+                    updateTunnelState(tunnelState.copy(
+                        isSocketConnected = status.connected,
+                        isRegistered = status.registered ?: false,
+                        statusMessage = determineStatusMessage(
+                            tunnelState.isServiceRunning,
+                            status.connected,
+                            status.registered ?: false
+                        )
+                    ))
+                }
+            }
+        }
+    }
+    
+    private fun determineStatusMessage(serviceRunning: Boolean, socketConnected: Boolean, registered: Boolean): String {
+        return when {
+            !serviceRunning -> "Disconnected"
+            !socketConnected -> "Connecting to server..."
+            !registered -> "Connected, registering..."
+            else -> "Connected & Registered"
+        }
     }
 
     override fun onDestroy() {
@@ -92,6 +167,9 @@ class MainActivity : BaseNavigationActivity() {
     private fun connectTunnel() {
         updateTunnelState(tunnelState.copy(
             isConnecting = true,
+            isServiceRunning = false,
+            isSocketConnected = false,
+            isRegistered = false,
             statusMessage = "Requesting permission...",
             errorMessage = null
         ))
@@ -152,6 +230,57 @@ class MainActivity : BaseNavigationActivity() {
             // Update status text
             contentBinding.tvStatus.text = "Status: ${newState.statusMessage}"
 
+            // Update VPN Service status
+            contentBinding.tvServiceStatus.text = if (newState.isServiceRunning) {
+                "🟢 Running"
+            } else {
+                "⚫ Stopped"
+            }
+            contentBinding.tvServiceStatus.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    if (newState.isServiceRunning) android.R.color.holo_green_dark else android.R.color.darker_gray
+                )
+            )
+
+            // Update Socket Connected status
+            contentBinding.tvSocketStatus.text = if (newState.isSocketConnected) {
+                "🟢 Yes"
+            } else if (newState.isServiceRunning) {
+                "🟡 Connecting..."
+            } else {
+                "⚫ No"
+            }
+            contentBinding.tvSocketStatus.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    when {
+                        newState.isSocketConnected -> android.R.color.holo_green_dark
+                        newState.isServiceRunning -> android.R.color.holo_orange_dark
+                        else -> android.R.color.darker_gray
+                    }
+                )
+            )
+
+            // Update Registered status
+            contentBinding.tvRegisteredStatus.text = if (newState.isRegistered) {
+                "🟢 Yes"
+            } else if (newState.isSocketConnected) {
+                "🟡 Registering..."
+            } else {
+                "⚫ No"
+            }
+            contentBinding.tvRegisteredStatus.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    when {
+                        newState.isRegistered -> android.R.color.holo_green_dark
+                        newState.isSocketConnected -> android.R.color.holo_orange_dark
+                        else -> android.R.color.darker_gray
+                    }
+                )
+            )
+
             // Update error message
             if (newState.errorMessage != null) {
                 contentBinding.tvError.text = "Error: ${newState.errorMessage}"
@@ -160,20 +289,21 @@ class MainActivity : BaseNavigationActivity() {
                 contentBinding.tvError.visibility = View.GONE
             }
 
-            // Update progress indicator
+            // Update progress indicator - show when connecting or when service is up but not fully registered
+            val showProgress = newState.isConnecting || (newState.isServiceRunning && !newState.isFullyConnected)
             contentBinding.progressIndicator.visibility =
-                if (newState.isConnecting) View.VISIBLE else View.GONE
+                if (showProgress) View.VISIBLE else View.GONE
 
             // Update button
             contentBinding.btnConnect.isEnabled = !newState.isConnecting
             contentBinding.btnConnect.text = when {
                 newState.isConnecting -> "Connecting..."
-                newState.isConnected -> "Disconnect"
+                newState.isServiceRunning -> "Disconnect"
                 else -> "Connect"
             }
 
             // Update button color
-            if (newState.isConnected) {
+            if (newState.isServiceRunning) {
                 contentBinding.btnConnect.setBackgroundColor(
                     MaterialColors.getColor(
                         contentBinding.btnConnect,
@@ -189,11 +319,12 @@ class MainActivity : BaseNavigationActivity() {
                 )
             }
 
-            // Update card background color
+            // Update card background color based on connection state
             val cardColorAttr = when {
-                newState.isConnected -> com.google.android.material.R.attr.colorPrimaryContainer
-                newState.isConnecting -> com.google.android.material.R.attr.colorSecondaryContainer
                 newState.errorMessage != null -> com.google.android.material.R.attr.colorErrorContainer
+                newState.isFullyConnected -> com.google.android.material.R.attr.colorPrimaryContainer
+                newState.isServiceRunning -> com.google.android.material.R.attr.colorSecondaryContainer
+                newState.isConnecting -> com.google.android.material.R.attr.colorSecondaryContainer
                 else -> com.google.android.material.R.attr.colorSurfaceVariant
             }
 
@@ -207,31 +338,46 @@ class MainActivity : BaseNavigationActivity() {
     private val tunnel = object : Tunnel {
         override fun getName(): String = "pangolin"
         override fun onStateChange(newState: Tunnel.State) {
-            val isConnected = newState == Tunnel.State.UP
-            updateTunnelState(tunnelState.copy(
-                isConnected = isConnected,
-                isConnecting = false,
-                statusMessage = if (isConnected) "Connected" else "Disconnected"
-            ))
+            val isServiceUp = newState == Tunnel.State.UP
             
-            // Start or stop status polling based on tunnel state
-            if (isConnected) {
-                Log.d("MainActivity", "Tunnel connected, starting status polling")
+            if (isServiceUp) {
+                Log.d("MainActivity", "Tunnel service UP, starting status polling")
                 statusPollingManager?.startPolling()
+                
+                updateTunnelState(tunnelState.copy(
+                    isServiceRunning = true,
+                    isConnecting = false,
+                    isSocketConnected = false,
+                    isRegistered = false,
+                    statusMessage = "Connecting to server..."
+                ))
             } else {
-                Log.d("MainActivity", "Tunnel disconnected, stopping status polling")
+                Log.d("MainActivity", "Tunnel service DOWN, stopping status polling")
                 statusPollingManager?.stopPolling()
+                
+                updateTunnelState(tunnelState.copy(
+                    isServiceRunning = false,
+                    isConnecting = false,
+                    isSocketConnected = false,
+                    isRegistered = false,
+                    statusMessage = "Disconnected"
+                ))
             }
         }
     }
 }
 
 data class TunnelState(
-    val isConnected: Boolean = false,
+    val isServiceRunning: Boolean = false,
     val isConnecting: Boolean = false,
+    val isSocketConnected: Boolean = false,
+    val isRegistered: Boolean = false,
     val statusMessage: String = "Disconnected",
     val errorMessage: String? = null
-)
+) {
+    val isFullyConnected: Boolean
+        get() = isServiceRunning && isSocketConnected && isRegistered
+}
 
 private suspend fun startTunnelWithConfig(
     context: Context,
@@ -254,7 +400,10 @@ private suspend fun startTunnelWithConfig(
 ) {
     onStateChange(TunnelState(
         isConnecting = true,
-        statusMessage = "Connecting..."
+        isServiceRunning = false,
+        isSocketConnected = false,
+        isRegistered = false,
+        statusMessage = "Starting VPN service..."
     ))
 
     try {
@@ -299,14 +448,19 @@ private suspend fun startTunnelWithConfig(
         }
 
         onStateChange(TunnelState(
-            isConnected = true,
-            statusMessage = "Connected"
+            isServiceRunning = true,
+            isConnecting = false,
+            isSocketConnected = false,
+            isRegistered = false,
+            statusMessage = "VPN service started, connecting..."
         ))
     } catch (e: Exception) {
         Log.e("MainActivity", "Failed to start tunnel", e)
         onStateChange(TunnelState(
-            isConnected = false,
+            isServiceRunning = false,
             isConnecting = false,
+            isSocketConnected = false,
+            isRegistered = false,
             statusMessage = "Connection failed",
             errorMessage = e.message ?: "Unknown error"
         ))
@@ -319,8 +473,10 @@ private suspend fun stopTunnelWithConfig(
     onStateChange: (TunnelState) -> Unit
 ) {
     onStateChange(TunnelState(
-        isConnected = true,
+        isServiceRunning = true,
         isConnecting = true,
+        isSocketConnected = false,
+        isRegistered = false,
         statusMessage = "Disconnecting..."
     ))
 
@@ -330,13 +486,17 @@ private suspend fun stopTunnelWithConfig(
         }
 
         onStateChange(TunnelState(
-            isConnected = false,
+            isServiceRunning = false,
+            isSocketConnected = false,
+            isRegistered = false,
             statusMessage = "Disconnected"
         ))
     } catch (e: Exception) {
         Log.e("MainActivity", "Failed to stop tunnel", e)
         onStateChange(TunnelState(
-            isConnected = false,
+            isServiceRunning = false,
+            isSocketConnected = false,
+            isRegistered = false,
             statusMessage = "Disconnected",
             errorMessage = "Error while disconnecting: ${e.message}"
         ))

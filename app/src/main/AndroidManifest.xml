@@ -46,6 +46,10 @@
             android:exported="false"
             android:label="Settings" />
         <activity
+            android:name=".SignInCodeActivity"
+            android:exported="false"
+            android:label="Sign In" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="Pangolin">
