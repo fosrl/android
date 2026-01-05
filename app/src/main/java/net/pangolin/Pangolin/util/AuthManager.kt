@@ -209,7 +209,7 @@ class AuthManager(
                             _errorMessage.value = "Device authentication timed out"
                             _deviceAuthCode.value = null
                             _deviceAuthLoginURL.value = null
-                        }   
+                        }
                     }
                 } catch (e: CancellationException) {
                     Log.i(tag, "Device auth job cancelled")

@@ -111,9 +111,20 @@ class MainActivity : BaseNavigationActivity() {
             val intent = Intent(this, LoginActivity::class.java)
             startActivity(intent)
         }
+        
+        // Setup account card click listener
+        contentBinding.accountButtonLayout.setOnClickListener {
+            showAccountManagementDialog()
+        }
+        
+        // Setup organization card click listener
+        contentBinding.organizationButtonLayout.setOnClickListener {
+            showOrganizationPickerDialog()
+        }
 
         // Initialize UI state
         updateTunnelState(tunnelState)
+        updateAccountOrgCard()
         
         // Initialize auth manager and check authentication state
         lifecycleScope.launch {
@@ -133,6 +144,21 @@ class MainActivity : BaseNavigationActivity() {
         lifecycleScope.launch {
             authManager.isAuthenticated.collect { isAuthenticated ->
                 updateLoginButtonText(isAuthenticated)
+                updateAccountOrgCard()
+            }
+        }
+        
+        // Observe current user changes
+        lifecycleScope.launch {
+            authManager.currentUser.collect {
+                updateAccountOrgCard()
+            }
+        }
+        
+        // Observe current organization changes
+        lifecycleScope.launch {
+            authManager.currentOrg.collect {
+                updateAccountOrgCard()
             }
         }
     }
@@ -167,6 +193,7 @@ class MainActivity : BaseNavigationActivity() {
         checkTunnelState()
         // Update authentication state
         updateLoginButtonText(authManager.isAuthenticated.value)
+        updateAccountOrgCard()
     }
     
     private fun updateLoginButtonText(isAuthenticated: Boolean) {
@@ -176,6 +203,153 @@ class MainActivity : BaseNavigationActivity() {
         } else {
             "Sign In"
         }
+    }
+    
+    private fun updateAccountOrgCard() {
+        val activeAccount = accountManager.activeAccount
+        val currentUser = authManager.currentUser.value
+        val currentOrg = authManager.currentOrg.value
+        
+        if (activeAccount != null && currentUser != null) {
+            // Show the account/org card
+            contentBinding.accountOrgCard.visibility = View.VISIBLE
+            contentBinding.tvAccountEmail.text = currentUser.email
+            
+            // Show organization section if we have an org
+            if (currentOrg != null) {
+                contentBinding.organizationSection.visibility = View.VISIBLE
+                contentBinding.tvOrganizationName.text = currentOrg.name
+            } else {
+                contentBinding.organizationSection.visibility = View.GONE
+            }
+        } else {
+            // Hide the card if not authenticated
+            contentBinding.accountOrgCard.visibility = View.GONE
+        }
+    }
+    
+    private fun showAccountManagementDialog() {
+        val accounts = accountManager.accounts.values.toList()
+        val currentUserId = accountManager.activeUserId
+        
+        val options = mutableListOf<String>()
+        val accountUserIds = mutableListOf<String>()
+        
+        // Add existing accounts
+        accounts.forEach { account ->
+            val label = if (account.userId == currentUserId) {
+                "${account.email} ✓"
+            } else {
+                account.email
+            }
+            options.add(label)
+            accountUserIds.add(account.userId)
+        }
+        
+        // Add management options
+        options.add("Add Account")
+        options.add("Logout")
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Account")
+            .setItems(options.toTypedArray()) { dialog, which ->
+                when {
+                    which < accounts.size -> {
+                        // Switch to selected account
+                        val selectedUserId = accountUserIds[which]
+                        if (selectedUserId != currentUserId) {
+                            lifecycleScope.launch {
+                                try {
+                                    authManager.switchAccount(selectedUserId)
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error switching account", e)
+                                    runOnUiThread {
+                                        androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                                            .setTitle("Error")
+                                            .setMessage("Failed to switch account: ${e.message}")
+                                            .setPositiveButton("OK", null)
+                                            .show()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    which == accounts.size -> {
+                        // Add Account
+                        val intent = Intent(this, LoginActivity::class.java)
+                        startActivity(intent)
+                    }
+                    which == accounts.size + 1 -> {
+                        // Logout
+                        showLogoutConfirmation()
+                    }
+                }
+                dialog.dismiss()
+            }
+            .show()
+    }
+    
+    private fun showLogoutConfirmation() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to logout?")
+            .setPositiveButton("Logout") { _, _ ->
+                lifecycleScope.launch {
+                    try {
+                        authManager.logout()
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Error during logout", e)
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun showOrganizationPickerDialog() {
+        val organizations = authManager.organizations.value
+        val currentOrgId = authManager.currentOrg.value?.orgId
+        
+        if (organizations.isEmpty()) {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("No Organizations")
+                .setMessage("You don't have access to any organizations.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+        
+        val options = organizations.map { org ->
+            if (org.orgId == currentOrgId) {
+                "${org.name} ✓"
+            } else {
+                org.name
+            }
+        }.toTypedArray()
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Organization")
+            .setItems(options) { dialog, which ->
+                val selectedOrg = organizations[which]
+                if (selectedOrg.orgId != currentOrgId) {
+                    lifecycleScope.launch {
+                        try {
+                            authManager.selectOrganization(selectedOrg)
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error switching organization", e)
+                            runOnUiThread {
+                                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                                    .setTitle("Error")
+                                    .setMessage("Failed to switch organization: ${e.message}")
+                                    .setPositiveButton("OK", null)
+                                    .show()
+                            }
+                        }
+                    }
+                }
+                dialog.dismiss()
+            }
+            .show()
     }
     
     private fun checkTunnelState() {
