@@ -219,16 +219,7 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun openLoginPage() {
-        val loginURL = authManager.deviceAuthLoginURL.value
-        if (loginURL != null) {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(loginURL))
-            startActivity(intent)
-        } else {
-            // Fallback to base URL
-            val url = "$hostname/auth/login/device"
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            startActivity(intent)
-        }
+    	autoOpenBrowser(authManager.deviceAuthCode.value ?: return)
     }
 
     private fun autoOpenBrowser(code: String) {

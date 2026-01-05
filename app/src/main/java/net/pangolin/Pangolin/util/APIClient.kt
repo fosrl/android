@@ -94,12 +94,19 @@ class APIClient(
         return fullURL.toHttpUrlOrNull()
     }
 
+    private data class APIRawResponse(
+        val code: Int,
+        val isSuccessful: Boolean,
+        val bodyString: String,
+        val cookies: List<String>
+    )
+
     private suspend fun makeRequest(
         method: String,
         path: String,
         body: String? = null,
         hostnameOverride: String? = null
-    ): Response = withContext(Dispatchers.IO) {
+    ): APIRawResponse = withContext(Dispatchers.IO) {
         val url = apiURL(path, hostnameOverride) ?: throw APIError.InvalidURL
 
         val requestBuilder = Request.Builder()
@@ -116,17 +123,22 @@ class APIClient(
 
         try {
             Log.d(tag, "Making request to: $url")
-            val response = client.newCall(requestBuilder.build()).execute()
-            Log.d(tag, "Received response with status: ${response.code}")
-            response
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                APIRawResponse(
+                    code = response.code,
+                    isSuccessful = response.isSuccessful,
+                    bodyString = response.body?.string() ?: "",
+                    cookies = response.headers("Set-Cookie")
+                )
+            }
         } catch (e: IOException) {
             Log.e(tag, "Network error: ${e.message}")
             throw APIError.NetworkError(e)
         }
     }
 
-    private inline fun <reified T> parseResponse(response: Response): T {
-        val bodyString = response.body?.string() ?: ""
+    private inline fun <reified T> parseResponse(response: APIRawResponse): T {
+        val bodyString = response.bodyString
 
         if (!response.isSuccessful) {
             var errorMessage: String? = null
@@ -138,6 +150,8 @@ class APIClient(
             }
             throw APIError.HttpError(response.code, errorMessage)
         }
+        
+        Log.d(tag, "Parsing response body: $bodyString")
 
         if (bodyString.isEmpty() || bodyString == "{}") {
             if (T::class == EmptyResponse::class) {
@@ -169,8 +183,8 @@ class APIClient(
         }
     }
 
-    private fun extractCookie(response: Response, name: String): String? {
-        val cookies = response.headers("Set-Cookie")
+    private fun extractCookie(response: APIRawResponse, name: String): String? {
+        val cookies = response.cookies
         for (cookie in cookies) {
             val parts = cookie.split(";")
             for (part in parts) {
@@ -307,25 +321,26 @@ class APIClient(
             .build()
 
         try {
-            val response = client.newCall(request).execute()
-            val bodyString = response.body?.string() ?: ""
-            
-            if (response.isSuccessful) {
-                Log.i(tag, "Health check successful: $bodyString")
-                HealthCheckResult(
-                    success = true,
-                    message = bodyString,
-                    url = healthUrl,
-                    statusCode = response.code
-                )
-            } else {
-                Log.w(tag, "Health check failed with status ${response.code}: $bodyString")
-                HealthCheckResult(
-                    success = false,
-                    message = "HTTP ${response.code}: $bodyString",
-                    url = healthUrl,
-                    statusCode = response.code
-                )
+            client.newCall(request).execute().use { response ->
+                val bodyString = response.body?.string() ?: ""
+                
+                if (response.isSuccessful) {
+                    Log.i(tag, "Health check successful: $bodyString")
+                    HealthCheckResult(
+                        success = true,
+                        message = bodyString,
+                        url = healthUrl,
+                        statusCode = response.code
+                    )
+                } else {
+                    Log.w(tag, "Health check failed with status ${response.code}: $bodyString")
+                    HealthCheckResult(
+                        success = false,
+                        message = "HTTP ${response.code}: $bodyString",
+                        url = healthUrl,
+                        statusCode = response.code
+                    )
+                }
             }
         } catch (e: UnknownHostException) {
             Log.e(tag, "Health check DNS error: ${e.message}")
