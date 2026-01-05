@@ -137,67 +137,90 @@ class AuthManager(
             Log.i(tag, "Device auth started. Code: $code, URL: $loginURL")
 
             deviceAuthJob = CoroutineScope(Dispatchers.IO).launch {
-                val startTime = System.currentTimeMillis()
-                val expirationTime = startTime + (startResponse.expiresInSeconds * 1000)
+                try {
+                    val startTime = System.currentTimeMillis()
+                    val expirationTime = startTime + (startResponse.expiresInSeconds * 1000)
 
-                while (isActive && System.currentTimeMillis() < expirationTime) {
-                    try {
-                        delay(2000)
+                    while (isActive && System.currentTimeMillis() < expirationTime) {
+                        try {
+                            delay(2000)
 
-                        val (pollResponse, token) = apiClient.pollDeviceAuth(code, hostnameOverride)
+                            val (pollResponse, token) = apiClient.pollDeviceAuth(code, hostnameOverride)
 
-                        if (pollResponse.verified) {
-                            Log.i(tag, "Device auth verified!")
+                            if (pollResponse.verified) {
+                                Log.i(tag, "Device auth verified!")
 
-                            if (token.isNullOrEmpty()) {
-                                throw AuthError.APIError(
-                                    Exception("Device auth verified but no token received")
-                                )
+                                if (token.isNullOrEmpty()) {
+                                    throw AuthError.APIError(
+                                        Exception("Device auth verified but no token received")
+                                    )
+                                }
+
+                                apiClient.updateSessionToken(token)
+
+                                val user = apiClient.getUser()
+
+                                withContext(Dispatchers.Main) {
+                                    handleSuccessfulAuth(user, hostname, token)
+                                }
+
+                                _deviceAuthCode.value = null
+                                _deviceAuthLoginURL.value = null
+                                return@launch
                             }
-
-                            apiClient.updateSessionToken(token)
-
-                            val user = apiClient.getUser()
-
-                            withContext(Dispatchers.Main) {
-                                handleSuccessfulAuth(user, hostname, token)
+                        } catch (e: APIError.HttpError) {
+                            if (e.status == 404) {
+                                Log.d(tag, "Device auth not yet verified, continuing to poll...")
+                                continue
+                            } else {
+                                Log.e(tag, "HTTP error during device auth polling: ${e.message}", e)
+                                withContext(Dispatchers.Main) {
+                                    _errorMessage.value = e.message
+                                    _deviceAuthCode.value = null
+                                    _deviceAuthLoginURL.value = null
+                                }
+                                return@launch
                             }
-
-                            _deviceAuthCode.value = null
-                            _deviceAuthLoginURL.value = null
-                            return@launch
-                        }
-                    } catch (e: APIError.HttpError) {
-                        if (e.status == 404) {
-                            Log.d(tag, "Device auth not yet verified, continuing to poll...")
+                        } catch (e: APIError.NetworkError) {
+                            Log.w(tag, "Network error during device auth polling, continuing: ${e.message}")
+                            // Continue polling on network errors
                             continue
-                        } else {
-                            Log.e(tag, "HTTP error during device auth polling: ${e.message}", e)
+                        } catch (e: APIError) {
+                            Log.e(tag, "API error during device auth polling: ${e.message}", e)
                             withContext(Dispatchers.Main) {
                                 _errorMessage.value = e.message
+                                _deviceAuthCode.value = null
+                                _deviceAuthLoginURL.value = null
                             }
-                            throw AuthError.APIError(e)
+                            return@launch
+                        } catch (e: CancellationException) {
+                            Log.i(tag, "Device auth cancelled")
+                            throw e
+                        } catch (e: Exception) {
+                            Log.e(tag, "Unexpected error during device auth polling: ${e.message}", e)
+                            // Continue polling on unexpected errors
+                            continue
                         }
-                    } catch (e: CancellationException) {
-                        Log.i(tag, "Device auth cancelled")
-                        throw AuthError.DeviceAuthCancelled
-                    } catch (e: Exception) {
-                        Log.e(tag, "Error during device auth polling: ${e.message}", e)
-                        withContext(Dispatchers.Main) {
-                            _errorMessage.value = e.message
-                        }
-                        throw e
                     }
-                }
 
-                if (System.currentTimeMillis() >= expirationTime) {
-                    Log.w(tag, "Device auth timed out")
+                    if (System.currentTimeMillis() >= expirationTime) {
+                        Log.w(tag, "Device auth timed out")
+                        withContext(Dispatchers.Main) {
+                            _errorMessage.value = "Device authentication timed out"
+                            _deviceAuthCode.value = null
+                            _deviceAuthLoginURL.value = null
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    Log.i(tag, "Device auth job cancelled")
+                    // Don't rethrow, just let the job end
+                } catch (e: Exception) {
+                    Log.e(tag, "Fatal error in device auth job: ${e.message}", e)
                     withContext(Dispatchers.Main) {
-                        _errorMessage.value = "Device authentication timed out"
+                        _errorMessage.value = "Authentication failed: ${e.message}"
                         _deviceAuthCode.value = null
                         _deviceAuthLoginURL.value = null
                     }
-                    throw AuthError.DeviceAuthTimeout
                 }
             }
         } catch (e: Exception) {

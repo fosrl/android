@@ -10,6 +10,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 sealed class APIError : Exception() {
@@ -88,6 +90,7 @@ class APIClient(
         val hostname = hostnameOverride ?: _baseURL
         val normalizedHostname = normalizeBaseURL(hostname)
         val fullURL = normalizedHostname + apiPath
+        Log.d(tag, "Constructing API URL: $fullURL")
         return fullURL.toHttpUrlOrNull()
     }
 
@@ -114,6 +117,7 @@ class APIClient(
         try {
             Log.d(tag, "Making request to: $url")
             val response = client.newCall(requestBuilder.build()).execute()
+            Log.d(tag, "Received response with status: ${response.code}")
             response
         } catch (e: IOException) {
             Log.e(tag, "Network error: ${e.message}")
@@ -278,4 +282,83 @@ class APIClient(
             false
         }
     }
+
+    // MARK: - Health Check
+
+    suspend fun healthCheck(hostnameOverride: String? = null): HealthCheckResult = withContext(Dispatchers.IO) {
+        val hostname = hostnameOverride ?: _baseURL
+        val normalizedHostname = normalizeBaseURL(hostname)
+        val healthUrl = "$normalizedHostname/api/v1/"
+        
+        Log.d(tag, "Performing health check to: $healthUrl")
+        
+        val url = healthUrl.toHttpUrlOrNull() 
+            ?: return@withContext HealthCheckResult(
+                success = false,
+                message = "Invalid URL: $healthUrl",
+                url = healthUrl
+            )
+
+        val request = Request.Builder()
+            .url(url)
+            .method("GET", null)
+            .addHeader("Accept", "application/json")
+            .addHeader("User-Agent", agentName)
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            val bodyString = response.body?.string() ?: ""
+            
+            if (response.isSuccessful) {
+                Log.i(tag, "Health check successful: $bodyString")
+                HealthCheckResult(
+                    success = true,
+                    message = bodyString,
+                    url = healthUrl,
+                    statusCode = response.code
+                )
+            } else {
+                Log.w(tag, "Health check failed with status ${response.code}: $bodyString")
+                HealthCheckResult(
+                    success = false,
+                    message = "HTTP ${response.code}: $bodyString",
+                    url = healthUrl,
+                    statusCode = response.code
+                )
+            }
+        } catch (e: UnknownHostException) {
+            Log.e(tag, "Health check DNS error: ${e.message}")
+            HealthCheckResult(
+                success = false,
+                message = "DNS resolution failed: ${e.message}",
+                url = healthUrl,
+                error = e
+            )
+        } catch (e: IOException) {
+            Log.e(tag, "Health check network error: ${e.message}")
+            HealthCheckResult(
+                success = false,
+                message = "Network error: ${e.message}",
+                url = healthUrl,
+                error = e
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Health check unexpected error: ${e.message}")
+            HealthCheckResult(
+                success = false,
+                message = "Unexpected error: ${e.message}",
+                url = healthUrl,
+                error = e
+            )
+        }
+    }
 }
+
+data class HealthCheckResult(
+    val success: Boolean,
+    val message: String,
+    val url: String,
+    val statusCode: Int? = null,
+    val error: Throwable? = null
+)

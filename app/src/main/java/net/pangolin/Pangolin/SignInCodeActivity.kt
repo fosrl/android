@@ -11,6 +11,8 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import net.pangolin.Pangolin.util.HealthCheckResult
 import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.databinding.ActivitySignInCodeBinding
 import net.pangolin.Pangolin.util.APIClient
@@ -23,13 +25,13 @@ class SignInCodeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySignInCodeBinding
     private val tag = "SignInCodeActivity"
-    
+
     private lateinit var apiClient: APIClient
     private lateinit var authManager: AuthManager
     private lateinit var accountManager: AccountManager
     private lateinit var configManager: ConfigManager
     private lateinit var secretManager: SecretManager
-    
+
     private var hostname: String = "https://app.pangolin.net"
     private var hasAutoOpenedBrowser = false
 
@@ -39,7 +41,7 @@ class SignInCodeActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         binding = ActivitySignInCodeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -50,7 +52,7 @@ class SignInCodeActivity : AppCompatActivity() {
 
         // Get hostname from intent
         hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: "https://app.pangolin.net"
-        
+
         // Initialize managers
         secretManager = SecretManager(applicationContext)
         accountManager = AccountManager(applicationContext)
@@ -94,7 +96,7 @@ class SignInCodeActivity : AppCompatActivity() {
                     binding.openLoginButton.visibility = View.VISIBLE
                     binding.urlText.visibility = View.VISIBLE
                     binding.loadingIndicator.visibility = View.VISIBLE
-                    
+
                     // Auto-open browser when code is generated
                     if (!hasAutoOpenedBrowser) {
                         hasAutoOpenedBrowser = true
@@ -113,6 +115,7 @@ class SignInCodeActivity : AppCompatActivity() {
 
         // Observe authentication state
         lifecycleScope.launch {
+        	performHealthCheck()
             authManager.isAuthenticated.collect { isAuthenticated ->
                 if (isAuthenticated) {
                     // Successfully authenticated
@@ -126,12 +129,43 @@ class SignInCodeActivity : AppCompatActivity() {
             authManager.errorMessage.collect { errorMessage ->
                 if (errorMessage != null) {
                     Toast.makeText(this@SignInCodeActivity, errorMessage, Toast.LENGTH_LONG).show()
+
+                    // If we get an error and no code is showing, go back
+                    if (authManager.deviceAuthCode.value == null) {
+                        // Delay to let user see the toast
+                        kotlinx.coroutines.delay(2000)
+                        finish()
+                    }
                 }
             }
         }
 
         // Start the device auth flow
         startDeviceAuth()
+    }
+
+    private suspend fun performHealthCheck() {
+        Log.i("MainActivity", "Starting API health check...")
+
+        // Test default Pangolin endpoint
+        val defaultResult = apiClient.healthCheck("https://app.pangolin.net")
+        logHealthCheckResult("app.pangolin.net", defaultResult)
+
+        // Test the proxy endpoint that's having issues
+        val proxyResult = apiClient.healthCheck("https://proxy.schwartznetwork.net")
+        logHealthCheckResult("proxy.schwartznetwork.net", proxyResult)
+    }
+
+    private fun logHealthCheckResult(name: String, result: HealthCheckResult) {
+        if (result.success) {
+            Log.i("MainActivity", "✓ Health check PASSED for $name: ${result.message}")
+        } else {
+            Log.e("MainActivity", "✗ Health check FAILED for $name: ${result.message}")
+            result.error?.let { error ->
+                Log.e("MainActivity", "  Error type: ${error.javaClass.simpleName}")
+                Log.e("MainActivity", "  Error details: ${error.message}")
+            }
+        }
     }
 
     private fun startDeviceAuth() {
@@ -141,12 +175,8 @@ class SignInCodeActivity : AppCompatActivity() {
                 authManager.loginWithDeviceAuth(hostname)
             } catch (e: Exception) {
                 Log.e(tag, "Device auth failed: ${e.message}", e)
-                Toast.makeText(
-                    this@SignInCodeActivity,
-                    "Authentication failed: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-                finish()
+                // Don't finish immediately, let user see the error
+                // The error will be shown via the errorMessage observer
             }
         }
     }
@@ -154,7 +184,7 @@ class SignInCodeActivity : AppCompatActivity() {
     private fun displayCode(code: String) {
         // Split code into individual characters (remove hyphen)
         val codeChars = code.replace("-", "").toCharArray()
-        
+
         val codeViews = listOf(
             binding.codeChar1,
             binding.codeChar2,
@@ -172,7 +202,7 @@ class SignInCodeActivity : AppCompatActivity() {
                 codeViews[index].visibility = View.VISIBLE
             }
         }
-        
+
         // Show/hide the dash separator
         binding.codeDash.visibility = if (codeChars.size > 4) View.VISIBLE else View.GONE
     }
@@ -183,7 +213,7 @@ class SignInCodeActivity : AppCompatActivity() {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Sign In Code", code)
             clipboard.setPrimaryClip(clip)
-            
+
             Toast.makeText(this, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
         }
     }
@@ -205,9 +235,9 @@ class SignInCodeActivity : AppCompatActivity() {
         // Remove hyphen from code (e.g., "XXXX-XXXX" -> "XXXXXXXX")
         val codeWithoutHyphen = code.replace("-", "")
         val autoOpenURL = "$hostname/auth/login/device?code=$codeWithoutHyphen"
-        
+
         Log.i(tag, "Auto-opening browser with URL: $autoOpenURL")
-        
+
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(autoOpenURL))
             startActivity(intent)
@@ -218,7 +248,7 @@ class SignInCodeActivity : AppCompatActivity() {
 
     private fun showSuccess() {
         Toast.makeText(this, "Authentication Successful!", Toast.LENGTH_LONG).show()
-        
+
         // Close this activity and return to the main activity
         setResult(RESULT_OK)
         finish()

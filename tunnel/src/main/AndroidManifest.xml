@@ -2,14 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
-    <service
-        android:name="net.pangolin.Pangolin.PacketTunnel.GoBackend$VpnService"
-        android:permission="android.permission.BIND_VPN_SERVICE"
-        android:exported="false">
-        <intent-filter>
-            <action android:name="android.net.VpnService" />
-        </intent-filter>
-    </service>  
+	    <service
+	        android:name="net.pangolin.Pangolin.PacketTunnel.GoBackend$VpnService"
+	        android:permission="android.permission.BIND_VPN_SERVICE"
+	        android:exported="false">
+	        <intent-filter>
+	            <action android:name="android.net.VpnService" />
+	        </intent-filter>
+	    </service>  
     </application>
 
 </manifest>

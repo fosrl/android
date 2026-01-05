@@ -23,6 +23,7 @@ import net.pangolin.Pangolin.databinding.ActivityMainBinding
 import net.pangolin.Pangolin.databinding.ContentMainBinding
 import net.pangolin.Pangolin.util.StatusPollingManager
 import net.pangolin.Pangolin.util.APIClient
+import net.pangolin.Pangolin.util.HealthCheckResult
 import net.pangolin.Pangolin.util.AuthManager
 import net.pangolin.Pangolin.util.AccountManager
 import net.pangolin.Pangolin.util.ConfigManager
@@ -123,6 +124,11 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
         
+        // Perform health check to test API connectivity
+        lifecycleScope.launch {
+            performHealthCheck()
+        }
+        
         // Observe authentication state to update UI
         lifecycleScope.launch {
             authManager.isAuthenticated.collect { isAuthenticated ->
@@ -131,6 +137,30 @@ class MainActivity : BaseNavigationActivity() {
         }
     }
     
+    private suspend fun performHealthCheck() {
+        Log.i("MainActivity", "Starting API health check...")
+        
+        // Test default Pangolin endpoint
+        val defaultResult = apiClient.healthCheck("https://app.pangolin.net")
+        logHealthCheckResult("app.pangolin.net", defaultResult)
+        
+        // Test the proxy endpoint that's having issues
+        val proxyResult = apiClient.healthCheck("https://proxy.schwartznetwork.net")
+        logHealthCheckResult("proxy.schwartznetwork.net", proxyResult)
+    }
+    
+    private fun logHealthCheckResult(name: String, result: HealthCheckResult) {
+        if (result.success) {
+            Log.i("MainActivity", "✓ Health check PASSED for $name: ${result.message}")
+        } else {
+            Log.e("MainActivity", "✗ Health check FAILED for $name: ${result.message}")
+            result.error?.let { error ->
+                Log.e("MainActivity", "  Error type: ${error.javaClass.simpleName}")
+                Log.e("MainActivity", "  Error details: ${error.message}")
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // Check current tunnel state when returning to activity
