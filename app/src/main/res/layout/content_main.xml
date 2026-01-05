@@ -141,6 +141,16 @@
             android:textSize="16sp"
             style="@style/Widget.Material3.Button" />
 
+        <!-- Login Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_login"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="16dp"
+            android:text="Sign In"
+            android:textSize="16sp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>

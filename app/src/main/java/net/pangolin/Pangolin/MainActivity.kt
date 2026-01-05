@@ -22,6 +22,11 @@ import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
 import net.pangolin.Pangolin.databinding.ActivityMainBinding
 import net.pangolin.Pangolin.databinding.ContentMainBinding
 import net.pangolin.Pangolin.util.StatusPollingManager
+import net.pangolin.Pangolin.util.APIClient
+import net.pangolin.Pangolin.util.AuthManager
+import net.pangolin.Pangolin.util.AccountManager
+import net.pangolin.Pangolin.util.ConfigManager
+import net.pangolin.Pangolin.util.SecretManager
 import java.io.File
 
 class MainActivity : BaseNavigationActivity() {
@@ -31,6 +36,13 @@ class MainActivity : BaseNavigationActivity() {
 
     private var tunnelState = TunnelState()
     private var statusPollingManager: StatusPollingManager? = null
+    
+    // Authentication managers
+    private lateinit var apiClient: APIClient
+    private lateinit var authManager: AuthManager
+    private lateinit var accountManager: AccountManager
+    private lateinit var configManager: ConfigManager
+    private lateinit var secretManager: SecretManager
 
     // VPN permission launcher
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -59,6 +71,19 @@ class MainActivity : BaseNavigationActivity() {
         // Setup navigation using base class
         setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
 
+        // Initialize authentication managers
+        secretManager = SecretManager(applicationContext)
+        accountManager = AccountManager(applicationContext)
+        configManager = ConfigManager(applicationContext)
+        apiClient = APIClient("https://app.pangolin.net")
+        authManager = AuthManager(
+            context = applicationContext,
+            apiClient = apiClient,
+            configManager = configManager,
+            accountManager = accountManager,
+            secretManager = secretManager
+        )
+
         goBackend = GoBackend(applicationContext)
 
         // Initialize StatusPollingManager
@@ -79,15 +104,48 @@ class MainActivity : BaseNavigationActivity() {
                 connectTunnel()
             }
         }
+        
+        // Setup login button click listener
+        contentBinding.btnLogin.setOnClickListener {
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+        }
 
         // Initialize UI state
         updateTunnelState(tunnelState)
+        
+        // Initialize auth manager and check authentication state
+        lifecycleScope.launch {
+            try {
+                authManager.initialize()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error initializing auth manager", e)
+            }
+        }
+        
+        // Observe authentication state to update UI
+        lifecycleScope.launch {
+            authManager.isAuthenticated.collect { isAuthenticated ->
+                updateLoginButtonText(isAuthenticated)
+            }
+        }
     }
     
     override fun onResume() {
         super.onResume()
         // Check current tunnel state when returning to activity
         checkTunnelState()
+        // Update authentication state
+        updateLoginButtonText(authManager.isAuthenticated.value)
+    }
+    
+    private fun updateLoginButtonText(isAuthenticated: Boolean) {
+        contentBinding.btnLogin.text = if (isAuthenticated) {
+            val userEmail = authManager.currentUser.value?.email ?: "Account"
+            "Signed in as $userEmail"
+        } else {
+            "Sign In"
+        }
     }
     
     private fun checkTunnelState() {

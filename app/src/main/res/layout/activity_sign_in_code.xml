@@ -59,22 +59,6 @@
                 app:layout_constraintTop_toBottomOf="@id/backButton"
                 tools:ignore="ContentDescription" />
 
-            <!-- Pangolin Text -->
-            <TextView
-                android:id="@+id/pangolinText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="8dp"
-                android:fontFamily="sans-serif-medium"
-                android:text="PANGOLIN"
-                android:textColor="#FFFFFF"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toEndOf="@id/logoImage"
-                app:layout_constraintTop_toTopOf="@id/logoImage"
-                app:layout_constraintBottom_toBottomOf="@id/logoImage" />
-
             <!-- Instruction Text -->
             <TextView
                 android:id="@+id/instructionText"
@@ -84,6 +68,7 @@
                 android:text="Enter this code on the login page"
                 android:textColor="#CCCCCC"
                 android:textSize="16sp"
+                android:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/logoImage" />
@@ -95,6 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
                 android:orientation="horizontal"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/instructionText">
@@ -208,19 +194,6 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Extra character in case needed -->
-                <TextView
-                    android:id="@+id/codeChar9"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_margin="4dp"
-                    android:background="#333333"
-                    android:gravity="center"
-                    android:textColor="#FFFFFF"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
-
             </LinearLayout>
 
             <!-- Copy Code Button -->
@@ -236,6 +209,7 @@
                 android:textAllCaps="false"
                 android:textColor="#FF6B35"
                 android:textSize="16sp"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/codeContainer" />
@@ -253,6 +227,7 @@
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/copyCodeButton" />
@@ -266,6 +241,7 @@
                 android:text="Or visit: https://app.pangolin.net/auth/login/device"
                 android:textColor="#999999"
                 android:textSize="12sp"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/openLoginButton" />
@@ -277,6 +253,7 @@
                 android:layout_height="40dp"
                 android:layout_marginTop="32dp"
                 android:indeterminateTint="#999999"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/urlText" />
