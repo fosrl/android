@@ -115,7 +115,6 @@ class SignInCodeActivity : AppCompatActivity() {
 
         // Observe authentication state
         lifecycleScope.launch {
-        	performHealthCheck()
             authManager.isAuthenticated.collect { isAuthenticated ->
                 if (isAuthenticated) {
                     // Successfully authenticated
@@ -142,30 +141,6 @@ class SignInCodeActivity : AppCompatActivity() {
 
         // Start the device auth flow
         startDeviceAuth()
-    }
-
-    private suspend fun performHealthCheck() {
-        Log.i("MainActivity", "Starting API health check...")
-
-        // Test default Pangolin endpoint
-        val defaultResult = apiClient.healthCheck("https://app.pangolin.net")
-        logHealthCheckResult("app.pangolin.net", defaultResult)
-
-        // Test the proxy endpoint that's having issues
-        val proxyResult = apiClient.healthCheck("https://proxy.schwartznetwork.net")
-        logHealthCheckResult("proxy.schwartznetwork.net", proxyResult)
-    }
-
-    private fun logHealthCheckResult(name: String, result: HealthCheckResult) {
-        if (result.success) {
-            Log.i("MainActivity", "✓ Health check PASSED for $name: ${result.message}")
-        } else {
-            Log.e("MainActivity", "✗ Health check FAILED for $name: ${result.message}")
-            result.error?.let { error ->
-                Log.e("MainActivity", "  Error type: ${error.javaClass.simpleName}")
-                Log.e("MainActivity", "  Error details: ${error.message}")
-            }
-        }
     }
 
     private fun startDeviceAuth() {

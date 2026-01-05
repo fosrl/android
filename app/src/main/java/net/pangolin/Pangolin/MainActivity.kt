@@ -37,7 +37,7 @@ class MainActivity : BaseNavigationActivity() {
 
     private var tunnelState = TunnelState()
     private var statusPollingManager: StatusPollingManager? = null
-    
+
     // Authentication managers
     private lateinit var apiClient: APIClient
     private lateinit var authManager: AuthManager
@@ -90,7 +90,7 @@ class MainActivity : BaseNavigationActivity() {
         // Initialize StatusPollingManager
         val socketPath = File(applicationContext.filesDir, "pangolin.sock").absolutePath
         statusPollingManager = StatusPollingManager(socketPath)
-        
+
         // Observe status updates from socket polling
         observeStatusUpdates()
 
@@ -105,18 +105,18 @@ class MainActivity : BaseNavigationActivity() {
                 connectTunnel()
             }
         }
-        
+
         // Setup login button click listener
         contentBinding.btnLogin.setOnClickListener {
             val intent = Intent(this, LoginActivity::class.java)
             startActivity(intent)
         }
-        
+
         // Setup account card click listener
         contentBinding.accountButtonLayout.setOnClickListener {
             showAccountManagementDialog()
         }
-        
+
         // Setup organization card click listener
         contentBinding.organizationButtonLayout.setOnClickListener {
             showOrganizationPickerDialog()
@@ -125,7 +125,7 @@ class MainActivity : BaseNavigationActivity() {
         // Initialize UI state
         updateTunnelState(tunnelState)
         updateAccountOrgCard()
-        
+
         // Initialize auth manager and check authentication state
         lifecycleScope.launch {
             try {
@@ -134,12 +134,7 @@ class MainActivity : BaseNavigationActivity() {
                 Log.e("MainActivity", "Error initializing auth manager", e)
             }
         }
-        
-        // Perform health check to test API connectivity
-        lifecycleScope.launch {
-            performHealthCheck()
-        }
-        
+
         // Observe authentication state to update UI
         lifecycleScope.launch {
             authManager.isAuthenticated.collect { isAuthenticated ->
@@ -147,42 +142,18 @@ class MainActivity : BaseNavigationActivity() {
                 updateAccountOrgCard()
             }
         }
-        
+
         // Observe current user changes
         lifecycleScope.launch {
             authManager.currentUser.collect {
                 updateAccountOrgCard()
             }
         }
-        
+
         // Observe current organization changes
         lifecycleScope.launch {
             authManager.currentOrg.collect {
                 updateAccountOrgCard()
-            }
-        }
-    }
-    
-    private suspend fun performHealthCheck() {
-        Log.i("MainActivity", "Starting API health check...")
-        
-        // Test default Pangolin endpoint
-        val defaultResult = apiClient.healthCheck("https://app.pangolin.net")
-        logHealthCheckResult("app.pangolin.net", defaultResult)
-        
-        // Test the proxy endpoint that's having issues
-        val proxyResult = apiClient.healthCheck("https://proxy.schwartznetwork.net")
-        logHealthCheckResult("proxy.schwartznetwork.net", proxyResult)
-    }
-    
-    private fun logHealthCheckResult(name: String, result: HealthCheckResult) {
-        if (result.success) {
-            Log.i("MainActivity", "✓ Health check PASSED for $name: ${result.message}")
-        } else {
-            Log.e("MainActivity", "✗ Health check FAILED for $name: ${result.message}")
-            result.error?.let { error ->
-                Log.e("MainActivity", "  Error type: ${error.javaClass.simpleName}")
-                Log.e("MainActivity", "  Error details: ${error.message}")
             }
         }
     }
@@ -195,7 +166,7 @@ class MainActivity : BaseNavigationActivity() {
         updateLoginButtonText(authManager.isAuthenticated.value)
         updateAccountOrgCard()
     }
-    
+
     private fun updateLoginButtonText(isAuthenticated: Boolean) {
         contentBinding.btnLogin.text = if (isAuthenticated) {
             val userEmail = authManager.currentUser.value?.email ?: "Account"
@@ -204,17 +175,17 @@ class MainActivity : BaseNavigationActivity() {
             "Sign In"
         }
     }
-    
+
     private fun updateAccountOrgCard() {
         val activeAccount = accountManager.activeAccount
         val currentUser = authManager.currentUser.value
         val currentOrg = authManager.currentOrg.value
-        
+
         if (activeAccount != null && currentUser != null) {
             // Show the account/org card
             contentBinding.accountOrgCard.visibility = View.VISIBLE
             contentBinding.tvAccountEmail.text = currentUser.email
-            
+
             // Show organization section if we have an org
             if (currentOrg != null) {
                 contentBinding.organizationSection.visibility = View.VISIBLE
@@ -227,14 +198,14 @@ class MainActivity : BaseNavigationActivity() {
             contentBinding.accountOrgCard.visibility = View.GONE
         }
     }
-    
+
     private fun showAccountManagementDialog() {
         val accounts = accountManager.accounts.values.toList()
         val currentUserId = accountManager.activeUserId
-        
+
         val options = mutableListOf<String>()
         val accountUserIds = mutableListOf<String>()
-        
+
         // Add existing accounts
         accounts.forEach { account ->
             val label = if (account.userId == currentUserId) {
@@ -245,11 +216,11 @@ class MainActivity : BaseNavigationActivity() {
             options.add(label)
             accountUserIds.add(account.userId)
         }
-        
+
         // Add management options
         options.add("Add Account")
         options.add("Logout")
-        
+
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Account")
             .setItems(options.toTypedArray()) { dialog, which ->
@@ -288,7 +259,7 @@ class MainActivity : BaseNavigationActivity() {
             }
             .show()
     }
-    
+
     private fun showLogoutConfirmation() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Logout")
@@ -305,11 +276,11 @@ class MainActivity : BaseNavigationActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
-    
+
     private fun showOrganizationPickerDialog() {
         val organizations = authManager.organizations.value
         val currentOrgId = authManager.currentOrg.value?.orgId
-        
+
         if (organizations.isEmpty()) {
             androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("No Organizations")
@@ -318,7 +289,7 @@ class MainActivity : BaseNavigationActivity() {
                 .show()
             return
         }
-        
+
         val options = organizations.map { org ->
             if (org.orgId == currentOrgId) {
                 "${org.name} ✓"
@@ -326,7 +297,7 @@ class MainActivity : BaseNavigationActivity() {
                 org.name
             }
         }.toTypedArray()
-        
+
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Organization")
             .setItems(options) { dialog, which ->
@@ -351,21 +322,21 @@ class MainActivity : BaseNavigationActivity() {
             }
             .show()
     }
-    
+
     private fun checkTunnelState() {
         lifecycleScope.launch {
             try {
                 val backend = goBackend ?: return@launch
                 val currentState = backend.getState(tunnel)
                 val isServiceUp = currentState == Tunnel.State.UP
-                
+
                 if (isServiceUp) {
                     // Service is running, start polling if not already
                     val isCurrentlyPolling = statusPollingManager?.isPolling?.value ?: false
                     if (!isCurrentlyPolling) {
                         statusPollingManager?.startPolling()
                     }
-                    
+
                     // Try to get current socket status
                     val currentStatus = statusPollingManager?.getCurrentStatus()
                     updateTunnelState(tunnelState.copy(
@@ -387,7 +358,7 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
     }
-    
+
     private fun observeStatusUpdates() {
         lifecycleScope.launch {
             statusPollingManager?.statusFlow?.collect { status ->
@@ -405,7 +376,7 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
     }
-    
+
     private fun determineStatusMessage(serviceRunning: Boolean, socketConnected: Boolean, registered: Boolean): String {
         return when {
             !serviceRunning -> "Disconnected"
@@ -601,11 +572,11 @@ class MainActivity : BaseNavigationActivity() {
         override fun getName(): String = "pangolin"
         override fun onStateChange(newState: Tunnel.State) {
             val isServiceUp = newState == Tunnel.State.UP
-            
+
             if (isServiceUp) {
                 Log.d("MainActivity", "Tunnel service UP, starting status polling")
                 statusPollingManager?.startPolling()
-                
+
                 updateTunnelState(tunnelState.copy(
                     isServiceRunning = true,
                     isConnecting = false,
@@ -616,7 +587,7 @@ class MainActivity : BaseNavigationActivity() {
             } else {
                 Log.d("MainActivity", "Tunnel service DOWN, stopping status polling")
                 statusPollingManager?.stopPolling()
-                
+
                 updateTunnelState(tunnelState.copy(
                     isServiceRunning = false,
                     isConnecting = false,

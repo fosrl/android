@@ -24,7 +24,13 @@ class LoginActivity : AppCompatActivity() {
         // Setup toolbar
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(true)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Sign In"
+        
+        // Setup navigation icon click
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressed()
+        }
 
         // Setup cloud option click
         binding.cloudOptionCard.setOnClickListener {
