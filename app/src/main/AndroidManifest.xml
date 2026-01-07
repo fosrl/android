@@ -36,7 +36,8 @@
         <activity
             android:name=".AboutActivity"
             android:exported="false"
-            android:label="About" />
+            android:label="About"
+            />
         <activity
             android:name=".StatusActivity"
             android:exported="false"
@@ -56,12 +57,22 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="Pangolin">
+            android:label="Pangolin"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
+
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="pangolin" />
+
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+
         </activity>
     </application>
 

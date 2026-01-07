@@ -465,9 +465,9 @@ class MainActivity : BaseNavigationActivity() {
 
             // Update VPN Service status
             contentBinding.tvServiceStatus.text = if (newState.isServiceRunning) {
-                "🟢 Running"
+                "Running"
             } else {
-                "⚫ Stopped"
+                "Stopped"
             }
             contentBinding.tvServiceStatus.setTextColor(
                 ContextCompat.getColor(
@@ -478,11 +478,11 @@ class MainActivity : BaseNavigationActivity() {
 
             // Update Socket Connected status
             contentBinding.tvSocketStatus.text = if (newState.isSocketConnected) {
-                "🟢 Yes"
+                "Yes"
             } else if (newState.isServiceRunning) {
-                "🟡 Connecting..."
+                "Connecting..."
             } else {
-                "⚫ No"
+                "No"
             }
             contentBinding.tvSocketStatus.setTextColor(
                 ContextCompat.getColor(
@@ -497,11 +497,11 @@ class MainActivity : BaseNavigationActivity() {
 
             // Update Registered status
             contentBinding.tvRegisteredStatus.text = if (newState.isRegistered) {
-                "🟢 Yes"
+                "Yes"
             } else if (newState.isSocketConnected) {
-                "🟡 Registering..."
+                "Registering..."
             } else {
-                "⚫ No"
+                "No"
             }
             contentBinding.tvRegisteredStatus.setTextColor(
                 ContextCompat.getColor(

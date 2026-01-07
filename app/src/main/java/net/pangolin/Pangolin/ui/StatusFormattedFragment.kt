@@ -78,101 +78,35 @@ class StatusFormattedFragment : Fragment() {
     private fun formatStatus(status: SocketStatusResponse): String {
         val sb = StringBuilder()
         
-        // Connection status
-        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-        sb.append("📡 CONNECTION STATUS\n")
-        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
-        
-        val connectionIcon = if (status.connected) "✅" else "❌"
-        sb.append("$connectionIcon Connected: ${status.connected}\n")
-        sb.append("🔄 Status: ${status.status ?: "Unknown"}\n")
-        sb.append("🏁 Terminated: ${status.terminated}\n")
-        
-        if (status.registered != null) {
-            val registeredIcon = if (status.registered) "✅" else "❌"
-            sb.append("$registeredIcon Registered: ${status.registered}\n")
-        }
-        
-        // Network information
-        sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-        sb.append("🌐 NETWORK INFORMATION\n")
-        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
-        
-        if (status.tunnelIP != null) {
-            sb.append("📍 Tunnel IP: ${status.tunnelIP}\n")
-        } else {
-            sb.append("📍 Tunnel IP: Not assigned\n")
-        }
-        
-        if (status.orgId != null) {
-            sb.append("🏢 Organization ID: ${status.orgId}\n")
-        }
-        
-        // Network settings
-        if (status.networkSettings != null) {
-            val ns = status.networkSettings
-            
-            if (ns.mtu != null) {
-                sb.append("📦 MTU: ${ns.mtu}\n")
-            }
-            
-            if (!ns.dnsServers.isNullOrEmpty()) {
-                sb.append("🔍 DNS Servers:\n")
-                ns.dnsServers.forEach { dns ->
-                    sb.append("   • $dns\n")
-                }
-            }
-            
-            if (!ns.ipv4Addresses.isNullOrEmpty()) {
-                sb.append("🌍 IPv4 Addresses:\n")
-                ns.ipv4Addresses.forEach { addr ->
-                    sb.append("   • $addr\n")
-                }
-            }
-            
-            if (!ns.ipv6Addresses.isNullOrEmpty()) {
-                sb.append("🌏 IPv6 Addresses:\n")
-                ns.ipv6Addresses.forEach { addr ->
-                    sb.append("   • $addr\n")
-                }
-            }
-        }
-        
         // Application information
-        sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-        sb.append("ℹ️  APPLICATION INFO\n")
-        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+        sb.append("APPLICATION INFO\n")
         
         if (status.version != null) {
-            sb.append("📌 Version: ${status.version}\n")
+            sb.append("Version: ${status.version}\n")
         }
         
         if (status.agent != null) {
-            sb.append("🤖 Agent: ${status.agent}\n")
+            sb.append("Agent: ${status.agent}\n")
         }
+        
+        if (status.orgId != null) {
+            sb.append("Organization ID: ${status.orgId}\n")
+        } 
         
         // Peers information
         if (!status.peers.isNullOrEmpty()) {
-            sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-            sb.append("👥 PEERS (${status.peers.size})\n")
-            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+            sb.append("Sites\n")
             
             status.peers.forEach { (peerId, peer) ->
                 val peerIcon = if (peer.connected == true) "🟢" else "🔴"
                 sb.append("$peerIcon Peer: ${peer.name ?: peerId}\n")
                 
                 if (peer.siteId != null) {
-                    sb.append("   Site ID: ${peer.siteId}\n")
+                    sb.append("   Site: ${peer.name}\n")
                 }
                 
                 if (peer.connected != null) {
                     sb.append("   Connected: ${peer.connected}\n")
-                }
-                
-                if (peer.rtt != null) {
-                    val rttMs = peer.rtt / 1_000_000.0 // Convert nanoseconds to milliseconds
-                    val df = DecimalFormat("#.##")
-                    sb.append("   RTT: ${df.format(rttMs)} ms\n")
                 }
                 
                 if (peer.endpoint != null) {
@@ -180,11 +114,7 @@ class StatusFormattedFragment : Fragment() {
                 }
                 
                 if (peer.isRelay == true) {
-                    sb.append("   🔄 Relay connection\n")
-                }
-                
-                if (peer.lastSeen != null) {
-                    sb.append("   Last seen: ${peer.lastSeen}\n")
+                    sb.append("   Relay connection\n")
                 }
                 
                 sb.append("\n")

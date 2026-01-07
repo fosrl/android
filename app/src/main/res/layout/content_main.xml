@@ -178,7 +178,6 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_person"
-                            android:tint="?attr/colorPrimary"
                             android:contentDescription="Account icon" />
 
                         <TextView
@@ -196,7 +195,6 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_arrow_forward"
-                            android:tint="?attr/colorOnSurfaceVariant"
                             android:contentDescription="Navigate" />
 
                     </LinearLayout>
@@ -236,7 +234,6 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_business"
-                            android:tint="?attr/colorPrimary"
                             android:contentDescription="Organization icon" />
 
                         <TextView
@@ -254,7 +251,6 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_arrow_forward"
-                            android:tint="?attr/colorOnSurfaceVariant"
                             android:contentDescription="Navigate" />
 
                     </LinearLayout>
@@ -276,14 +272,6 @@
             style="@style/Widget.Material3.Button" />
 
         <!-- Login Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_login"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text="Sign In"
-            android:textSize="16sp"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
 
     </LinearLayout>
 

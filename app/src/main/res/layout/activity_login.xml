@@ -4,23 +4,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    >
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#000000"
         android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="#000000"
             app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="#FFFFFF"
             app:title="Sign In"
-            app:titleTextColor="#FFFFFF" />
+            />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -41,10 +38,10 @@
             <!-- Logo -->
             <ImageView
                 android:id="@+id/logoImage"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
+                android:layout_width="300dp"
+                android:layout_height="100dp"
                 android:layout_marginTop="20dp"
-                android:src="@mipmap/ic_launcher"
+                android:src="@drawable/word_mark_black"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -179,7 +176,6 @@
                     android:layout_marginTop="24dp"
                     android:gravity="center"
                     android:text="By continuing, you agree to our Terms of Service and Privacy Policy."
-                    android:textColor="#666666"
                     android:textSize="12sp" />
 
             </LinearLayout>

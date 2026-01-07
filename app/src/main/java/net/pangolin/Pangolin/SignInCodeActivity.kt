@@ -66,10 +66,9 @@ class SignInCodeActivity : AppCompatActivity() {
             secretManager = secretManager
         )
 
-        // Setup back button
-        binding.backButton.setOnClickListener {
-            authManager.cancelDeviceAuth()
-            finish()
+        // Setup navigation icon click
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressed()
         }
 
         // Setup copy code button
@@ -215,8 +214,10 @@ class SignInCodeActivity : AppCompatActivity() {
     private fun showSuccess() {
         Toast.makeText(this, "Authentication Successful!", Toast.LENGTH_LONG).show()
 
-        // Close this activity and return to the main activity
-        setResult(RESULT_OK)
+        // Start MainActivity and clear the back stack
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
         finish()
     }
 

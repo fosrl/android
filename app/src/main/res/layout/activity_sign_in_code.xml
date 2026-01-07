@@ -4,21 +4,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    >
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#000000"
         android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="#000000"
+            app:navigationIcon="@drawable/ic_arrow_back"
             app:title="Sign In"
-            app:titleTextColor="#FFFFFF" />
+             />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -34,39 +33,24 @@
             android:paddingTop="40dp"
             android:paddingBottom="40dp">
 
-            <!-- Back Button -->
-            <Button
-                android:id="@+id/backButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#333333"
-                android:text="Back"
-                android:textColor="#999999"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Logo Placeholder -->
             <ImageView
                 android:id="@+id/logoImage"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_marginTop="60dp"
-                android:src="@mipmap/ic_launcher"
+                android:layout_width="300dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="20dp"
+                android:src="@drawable/word_mark_black"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/backButton"
-                tools:ignore="ContentDescription" />
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="ContentDescription"
+                 />
 
-            <!-- Instruction Text -->
             <TextView
                 android:id="@+id/instructionText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="60dp"
                 android:text="Enter this code on the login page"
-                android:textColor="#CCCCCC"
                 android:textSize="16sp"
                 android:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
