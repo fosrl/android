@@ -1,24 +1,36 @@
 package net.pangolin.Pangolin.ui
 
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.R
+import net.pangolin.Pangolin.util.SocketPeer
 import net.pangolin.Pangolin.util.SocketStatusResponse
-import java.text.DecimalFormat
 
 /**
- * Fragment that displays the tunnel status in a human-readable formatted view.
+ * Fragment that displays the tunnel status in a native UI with cards.
+ * Shows application info in a top section and individual peer cards below.
  * The status is updated automatically by collecting from the StatusPollingManager's StateFlow.
  */
 class StatusFormattedFragment : Fragment() {
     
-    private var formattedStatusText: TextView? = null
+    private var agentValue: TextView? = null
+    private var versionValue: TextView? = null
+    private var statusValue: TextView? = null
+    private var statusIndicator: View? = null
+    private var organizationValue: TextView? = null
+    private var peersContainer: LinearLayout? = null
+    private var noPeersMessage: TextView? = null
+    private var errorMessage: TextView? = null
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -31,19 +43,27 @@ class StatusFormattedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        formattedStatusText = view.findViewById(R.id.formattedStatusText)
+        // Initialize views
+        agentValue = view.findViewById(R.id.agentValue)
+        versionValue = view.findViewById(R.id.versionValue)
+        statusValue = view.findViewById(R.id.statusValue)
+        statusIndicator = view.findViewById(R.id.statusIndicator)
+        organizationValue = view.findViewById(R.id.organizationValue)
+        peersContainer = view.findViewById(R.id.peersContainer)
+        noPeersMessage = view.findViewById(R.id.noPeersMessage)
+        errorMessage = view.findViewById(R.id.errorMessage)
         
         // Get the StatusPollingManager from the activity
         val statusPollingManager = (activity as? StatusPollingProvider)?.getStatusPollingManager()
         
         if (statusPollingManager != null) {
-            // Collect status updates and format them
+            // Collect status updates and update UI
             viewLifecycleOwner.lifecycleScope.launch {
                 statusPollingManager.statusFlow.collect { status ->
                     if (status != null) {
-                        formattedStatusText?.text = formatStatus(status)
+                        updateUI(status)
                     } else {
-                        formattedStatusText?.text = "No status available"
+                        showNoStatus()
                     }
                 }
             }
@@ -52,81 +72,162 @@ class StatusFormattedFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch {
                 statusPollingManager.errorFlow.collect { error ->
                     if (error != null) {
-                        val currentStatus = statusPollingManager.getCurrentStatus()
-                        val statusText = if (currentStatus != null) {
-                            formatStatus(currentStatus)
-                        } else {
-                            "No status available"
-                        }
-                        formattedStatusText?.text = "$statusText\n\n⚠️ Error: $error"
+                        showError(error)
+                    } else {
+                        hideError()
                     }
                 }
             }
         } else {
-            formattedStatusText?.text = "StatusPollingManager not available.\nEnsure the tunnel is running and the activity implements StatusPollingProvider."
+            showNoStatus()
+            showError("StatusPollingManager not available. Ensure the tunnel is running.")
         }
     }
     
     override fun onDestroyView() {
         super.onDestroyView()
-        formattedStatusText = null
+        agentValue = null
+        versionValue = null
+        statusValue = null
+        statusIndicator = null
+        organizationValue = null
+        peersContainer = null
+        noPeersMessage = null
+        errorMessage = null
     }
     
     /**
-     * Format the socket status response into a human-readable string.
+     * Update the UI with the current status.
      */
-    private fun formatStatus(status: SocketStatusResponse): String {
-        val sb = StringBuilder()
+    private fun updateUI(status: SocketStatusResponse) {
+        // Update application info
+        agentValue?.text = status.agent ?: "—"
+        versionValue?.text = status.version ?: "—"
         
-        // Application information
-        sb.append("APPLICATION INFO\n")
+        // Update status with indicator
+        val statusText = if (status.connected) "Connected" else "Disconnected"
+        statusValue?.text = statusText
+        updateStatusIndicator(status.connected)
         
-        if (status.version != null) {
-            sb.append("Version: ${status.version}\n")
-        }
+        // Update organization
+        organizationValue?.text = status.orgId ?: "—"
         
-        if (status.agent != null) {
-            sb.append("Agent: ${status.agent}\n")
-        }
-        
-        if (status.orgId != null) {
-            sb.append("Organization ID: ${status.orgId}\n")
-        } 
-        
-        // Peers information
-        if (!status.peers.isNullOrEmpty()) {
-            sb.append("Sites\n")
-            
-            status.peers.forEach { (peerId, peer) ->
-                val peerIcon = if (peer.connected == true) "🟢" else "🔴"
-                sb.append("$peerIcon Peer: ${peer.name ?: peerId}\n")
-                
-                if (peer.siteId != null) {
-                    sb.append("   Site: ${peer.name}\n")
-                }
-                
-                if (peer.connected != null) {
-                    sb.append("   Connected: ${peer.connected}\n")
-                }
-                
-                if (peer.endpoint != null) {
-                    sb.append("   Endpoint: ${peer.endpoint}\n")
-                }
-                
-                if (peer.isRelay == true) {
-                    sb.append("   Relay connection\n")
-                }
-                
-                sb.append("\n")
+        // Update peers
+        updatePeers(status.peers)
+    }
+    
+    /**
+     * Update the status indicator color based on connection state.
+     */
+    private fun updateStatusIndicator(connected: Boolean) {
+        statusIndicator?.let { indicator ->
+            val color = if (connected) {
+                Color.parseColor("#4CAF50") // Green
+            } else {
+                Color.parseColor("#F44336") // Red
             }
-        } else {
-            sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-            sb.append("👥 PEERS\n")
-            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
-            sb.append("No peers connected\n")
+            
+            val drawable = indicator.background as? GradientDrawable
+            if (drawable != null) {
+                drawable.setColor(color)
+            } else {
+                // Create new drawable if needed
+                val newDrawable = GradientDrawable()
+                newDrawable.shape = GradientDrawable.OVAL
+                newDrawable.setColor(color)
+                indicator.background = newDrawable
+            }
+        }
+    }
+    
+    /**
+     * Update the peers section with peer cards.
+     */
+    private fun updatePeers(peers: Map<String, SocketPeer>?) {
+        peersContainer?.removeAllViews()
+        
+        if (peers.isNullOrEmpty()) {
+            noPeersMessage?.visibility = View.VISIBLE
+            return
         }
         
-        return sb.toString()
+        noPeersMessage?.visibility = View.GONE
+        
+        // Create a card for each peer
+        peers.forEach { (peerId, peer) ->
+            val peerCard = createPeerCard(peerId, peer)
+            peersContainer?.addView(peerCard)
+        }
+    }
+    
+    /**
+     * Create a card view for a single peer.
+     */
+    private fun createPeerCard(peerId: String, peer: SocketPeer): View {
+        val inflater = LayoutInflater.from(requireContext())
+        val cardView = inflater.inflate(R.layout.item_peer_card, peersContainer, false)
+        
+        val peerName = cardView.findViewById<TextView>(R.id.peerName)
+        val peerStatus = cardView.findViewById<TextView>(R.id.peerStatus)
+        val peerStatusIndicator = cardView.findViewById<View>(R.id.peerStatusIndicator)
+        val peerEndpoint = cardView.findViewById<TextView>(R.id.peerEndpoint)
+        
+        // Set peer name
+        peerName.text = peer.name ?: peerId
+        
+        // Set status
+        val connected = peer.connected ?: false
+        peerStatus.text = if (connected) "Connected" else "Disconnected"
+        
+        // Set status indicator color
+        val color = if (connected) {
+            Color.parseColor("#4CAF50") // Green
+        } else {
+            Color.parseColor("#9E9E9E") // Gray
+        }
+        
+        val drawable = peerStatusIndicator.background as? GradientDrawable
+        if (drawable != null) {
+            drawable.setColor(color)
+        } else {
+            val newDrawable = GradientDrawable()
+            newDrawable.shape = GradientDrawable.OVAL
+            newDrawable.setColor(color)
+            peerStatusIndicator.background = newDrawable
+        }
+        
+        // Set endpoint
+        peerEndpoint.text = peer.endpoint ?: "No endpoint"
+        
+        return cardView
+    }
+    
+    /**
+     * Show a message when no status is available.
+     */
+    private fun showNoStatus() {
+        agentValue?.text = "—"
+        versionValue?.text = "—"
+        statusValue?.text = "—"
+        organizationValue?.text = "—"
+        peersContainer?.removeAllViews()
+        noPeersMessage?.visibility = View.VISIBLE
+        noPeersMessage?.text = "No status available"
+    }
+    
+    /**
+     * Show an error message.
+     */
+    private fun showError(error: String) {
+        errorMessage?.text = "⚠️ $error"
+        errorMessage?.visibility = View.VISIBLE
+    }
+    
+    /**
+     * Hide the error message.
+     */
+    private fun hideError() {
+        errorMessage?.visibility = View.GONE
     }
     
     companion object {
