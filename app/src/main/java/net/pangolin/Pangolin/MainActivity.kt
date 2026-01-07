@@ -106,11 +106,11 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
 
-        // Setup login button click listener
-        contentBinding.btnLogin.setOnClickListener {
-            val intent = Intent(this, LoginActivity::class.java)
-            startActivity(intent)
-        }
+//        // Setup login button click listener
+//        contentBinding.btnLogin.setOnClickListener {
+//            val intent = Intent(this, LoginActivity::class.java)
+//            startActivity(intent)
+//        }
 
         // Setup account card click listener
         contentBinding.accountButtonLayout.setOnClickListener {
@@ -138,7 +138,7 @@ class MainActivity : BaseNavigationActivity() {
         // Observe authentication state to update UI
         lifecycleScope.launch {
             authManager.isAuthenticated.collect { isAuthenticated ->
-                updateLoginButtonText(isAuthenticated)
+//                updateLoginButtonText(isAuthenticated)
                 updateAccountOrgCard()
             }
         }
@@ -163,18 +163,18 @@ class MainActivity : BaseNavigationActivity() {
         // Check current tunnel state when returning to activity
         checkTunnelState()
         // Update authentication state
-        updateLoginButtonText(authManager.isAuthenticated.value)
+//        updateLoginButtonText(authManager.isAuthenticated.value)
         updateAccountOrgCard()
     }
 
-    private fun updateLoginButtonText(isAuthenticated: Boolean) {
-        contentBinding.btnLogin.text = if (isAuthenticated) {
-            val userEmail = authManager.currentUser.value?.email ?: "Account"
-            "Signed in as $userEmail"
-        } else {
-            "Sign In"
-        }
-    }
+//    private fun updateLoginButtonText(isAuthenticated: Boolean) {
+//        contentBinding.btnLogin.text = if (isAuthenticated) {
+//            val userEmail = authManager.currentUser.value?.email ?: "Account"
+//            "Signed in as $userEmail"
+//        } else {
+//            "Sign In"
+//        }
+//    }
 
     private fun updateAccountOrgCard() {
         val activeAccount = accountManager.activeAccount
