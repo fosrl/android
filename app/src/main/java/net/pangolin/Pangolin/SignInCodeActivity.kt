@@ -55,9 +55,9 @@ class SignInCodeActivity : AppCompatActivity() {
         hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: "https://app.pangolin.net"
 
         // Initialize managers
-        secretManager = SecretManager(applicationContext)
-        accountManager = AccountManager(applicationContext)
-        configManager = ConfigManager(applicationContext)
+        secretManager = SecretManager.getInstance(applicationContext)
+        accountManager = AccountManager.getInstance(applicationContext)
+        configManager = ConfigManager.getInstance(applicationContext)
         apiClient = APIClient(hostname)
         authManager = AuthManager(
             context = applicationContext,

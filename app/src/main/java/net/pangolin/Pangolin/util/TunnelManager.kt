@@ -165,6 +165,8 @@ class TunnelManager private constructor(
             val overrideDns = config.dnsOverrideEnabled ?: false
             val tunnelDns = config.dnsTunnelEnabled ?: false
             
+            Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
+            
             // Start tunnel
             withContext(Dispatchers.IO) {
                 val initConfig = InitConfig.Builder()

@@ -27,7 +27,7 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Initialize account manager
-        accountManager = AccountManager(applicationContext)
+        accountManager = AccountManager.getInstance(applicationContext)
 
         // Set theme-aware logo
         setThemeAwareLogo()

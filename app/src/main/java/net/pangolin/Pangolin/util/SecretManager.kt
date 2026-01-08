@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-class SecretManager(context: Context) {
+class SecretManager private constructor(context: Context) {
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -59,5 +59,16 @@ class SecretManager(context: Context) {
 
     fun getSessionToken(userId: String): String? {
         return getSecret("session-token-$userId")
+    }
+
+    companion object {
+        @Volatile
+        private var instance: SecretManager? = null
+
+        fun getInstance(context: Context): SecretManager {
+            return instance ?: synchronized(this) {
+                instance ?: SecretManager(context.applicationContext).also { instance = it }
+            }
+        }
     }
 }

@@ -61,9 +61,9 @@ class MainActivity : BaseNavigationActivity() {
         setContentView(binding.root)
 
         // Initialize authentication managers first (before navigation setup)
-        secretManager = SecretManager(applicationContext)
-        accountManager = AccountManager(applicationContext)
-        configManager = ConfigManager(applicationContext)
+        secretManager = SecretManager.getInstance(applicationContext)
+        accountManager = AccountManager.getInstance(applicationContext)
+        configManager = ConfigManager.getInstance(applicationContext)
         apiClient = APIClient("https://app.pangolin.net")
         authManager = AuthManager(
             context = applicationContext,
