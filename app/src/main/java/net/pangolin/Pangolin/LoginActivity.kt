@@ -3,6 +3,8 @@ package net.pangolin.Pangolin
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.text.Html
+import android.text.method.LinkMovementMethod
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import net.pangolin.Pangolin.databinding.ActivityLoginBinding
@@ -45,6 +47,10 @@ class LoginActivity : AppCompatActivity() {
                 onBackPressed()
             }
         }
+
+        // Setup terms and privacy links
+        binding.termsText.text = Html.fromHtml(getString(R.string.terms_and_privacy_text), Html.FROM_HTML_MODE_LEGACY)
+        binding.termsText.movementMethod = LinkMovementMethod.getInstance()
 
         // Setup cloud option click
         binding.cloudOptionCard.setOnClickListener {

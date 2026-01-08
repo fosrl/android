@@ -175,8 +175,9 @@
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="24dp"
                     android:gravity="center"
-                    android:text="By continuing, you agree to our Terms of Service and Privacy Policy."
-                    android:textSize="12sp" />
+                    android:text="@string/terms_and_privacy_text"
+                    android:textSize="12sp"
+                    android:linksClickable="true" />
 
             </LinearLayout>
 
