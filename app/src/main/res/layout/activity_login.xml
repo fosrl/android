@@ -41,11 +41,11 @@
                 android:layout_width="300dp"
                 android:layout_height="100dp"
                 android:layout_marginTop="20dp"
-                android:src="@drawable/word_mark_black"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:ignore="ContentDescription" />
+                tools:ignore="ContentDescription"
+                tools:src="@drawable/word_mark_black" />
 
             <!-- Hosting Selection Container -->
             <LinearLayout

@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,9 @@ class LoginActivity : AppCompatActivity() {
 
         // Initialize account manager
         accountManager = AccountManager(applicationContext)
+
+        // Set theme-aware logo
+        setThemeAwareLogo()
 
         // Setup toolbar
         setSupportActionBar(binding.toolbar)
@@ -119,5 +123,14 @@ class LoginActivity : AppCompatActivity() {
                 super.onBackPressed()
             }
         }
+    }
+
+    private fun setThemeAwareLogo() {
+        val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val isDarkMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+        
+        binding.logoImage.setImageResource(
+            if (isDarkMode) R.drawable.word_mark_white else R.drawable.word_mark_black
+        )
     }
 }

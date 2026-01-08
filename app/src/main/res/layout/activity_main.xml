@@ -26,7 +26,7 @@
 
         <include
             android:id="@+id/content"
-            layout="@layout/content_main"/>
+            layout="@layout/content_main" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab"

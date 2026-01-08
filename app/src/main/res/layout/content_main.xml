@@ -54,7 +54,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="⚫ Stopped"
+                        android:text="Stopped"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -79,7 +79,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="⚫ No"
+                        android:text="No"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -104,7 +104,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="⚫ No"
+                        android:text="No"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 

@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -70,6 +71,9 @@ class SignInCodeActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {
             onBackPressed()
         }
+
+        // Set theme-aware logo
+        setThemeAwareLogo()
 
         // Setup copy code button
         binding.copyCodeButton.setOnClickListener {
@@ -252,5 +256,14 @@ class SignInCodeActivity : AppCompatActivity() {
     override fun onBackPressed() {
         authManager.cancelDeviceAuth()
         super.onBackPressed()
+    }
+
+    private fun setThemeAwareLogo() {
+        val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val isDarkMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+        
+        binding.logoImage.setImageResource(
+            if (isDarkMode) R.drawable.word_mark_white else R.drawable.word_mark_black
+        )
     }
 }
