@@ -5,10 +5,12 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import net.pangolin.Pangolin.databinding.ActivityLoginBinding
+import net.pangolin.Pangolin.util.AccountManager
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
+    private lateinit var accountManager: AccountManager
     private var showingSelfHostedInput = false
 
     companion object {
@@ -21,15 +23,23 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Initialize account manager
+        accountManager = AccountManager(applicationContext)
+
         // Setup toolbar
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(true)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Sign In"
         
-        // Setup navigation icon click
-        binding.toolbar.setNavigationOnClickListener {
-            onBackPressed()
+        // Check if there are any accounts - hide back button if none exist
+        val hasAccounts = accountManager.accounts.isNotEmpty()
+        supportActionBar?.setDisplayHomeAsUpEnabled(hasAccounts)
+        
+        // Setup navigation icon click only if there are accounts
+        if (hasAccounts) {
+            binding.toolbar.setNavigationOnClickListener {
+                onBackPressed()
+            }
         }
 
         // Setup cloud option click
@@ -104,7 +114,10 @@ class LoginActivity : AppCompatActivity() {
         if (showingSelfHostedInput) {
             showHostingSelection()
         } else {
-            super.onBackPressed()
+            // Only allow back if there are accounts
+            if (accountManager.accounts.isNotEmpty()) {
+                super.onBackPressed()
+            }
         }
     }
 }

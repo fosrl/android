@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Pangolin Brand Colors -->
-    <color name="pangolin_primary">#FFFF5722</color>
-    <color name="pangolin_secondary">#FFFF9800</color>
-    <color name="pangolin_tertiary">#FFFFC107</color>
+    <color name="pangolin_primary">#FFF15232</color>
+    <color name="pangolin_secondary">#FFF7F7F8</color>
+    <color name="pangolin_tertiary">#FFF7F7F8</color>
     
     <!-- Basic colors -->
     <color name="black">#FF000000</color>

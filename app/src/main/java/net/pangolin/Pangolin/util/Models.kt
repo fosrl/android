@@ -128,14 +128,14 @@ data class ListUserOrgsResponse(
 data class MaxSessionLengthPolicy(
     val compliant: Boolean,
     val maxSessionLengthHours: Int,
-    val sessionAgeHours: Int
+    val sessionAgeHours: Double
 )
 
 @Serializable
 data class PasswordAgePolicy(
     val compliant: Boolean,
     val maxPasswordAgeDays: Int,
-    val passwordAgeDays: Int
+    val passwordAgeDays: Double
 )
 
 @Serializable

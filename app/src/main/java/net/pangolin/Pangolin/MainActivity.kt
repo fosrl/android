@@ -69,10 +69,7 @@ class MainActivity : BaseNavigationActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Setup navigation using base class
-        setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
-
-        // Initialize authentication managers
+        // Initialize authentication managers first (before navigation setup)
         secretManager = SecretManager(applicationContext)
         accountManager = AccountManager(applicationContext)
         configManager = ConfigManager(applicationContext)
@@ -84,6 +81,20 @@ class MainActivity : BaseNavigationActivity() {
             accountManager = accountManager,
             secretManager = secretManager
         )
+
+        // Check if there are any accounts - if not, go to LoginActivity
+        val accounts = accountManager.accounts
+        // // log the accounts for debugging
+        Log.d("MainActivity", "Existing accounts: $accounts")
+        if (accounts.isEmpty()) {
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
+
+        // Setup navigation using base class
+        setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
 
         goBackend = GoBackend(applicationContext)
 
@@ -160,6 +171,18 @@ class MainActivity : BaseNavigationActivity() {
 
     override fun onResume() {
         super.onResume()
+        
+        // Check if there are any accounts - if not, go to LoginActivity
+        // val accounts = accountManager.accounts
+        // // log the accounts for debugging
+        // Log.d("MainActivity", "Existing accounts on resume: $accounts")
+        // if (accounts.isEmpty()) {
+        //     val intent = Intent(this, LoginActivity::class.java)
+        //     startActivity(intent)
+        //     finish()
+        //     return
+        // }
+        
         // Check current tunnel state when returning to activity
         checkTunnelState()
         // Update authentication state
