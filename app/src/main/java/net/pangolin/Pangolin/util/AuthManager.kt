@@ -242,7 +242,6 @@ class AuthManager(
 
     private suspend fun handleSuccessfulAuth(user: User, hostname: String, token: String) {
         _currentUser.value = user
-        _isAuthenticated.value = true
 
         secretManager.saveSecret("session-token-${user.userId}", token)
 
@@ -268,6 +267,9 @@ class AuthManager(
         )
 
         Log.i(tag, "Successfully authenticated as ${user.email}")
+        
+        // Set authenticated flag last, after account is saved to disk
+        _isAuthenticated.value = true
     }
 
     private suspend fun ensureOrgIsSelected(): String {
@@ -431,7 +433,7 @@ class AuthManager(
         }
     }
 
-    suspend fun logout() {
+    suspend fun logout(): Boolean {
         try {
             val user = _currentUser.value
             if (user != null) {
@@ -446,6 +448,7 @@ class AuthManager(
                 val nextAccount = remainingAccounts.values.first()
                 Log.i(tag, "Switching to next available account: ${nextAccount.userId}")
                 switchAccount(nextAccount.userId)
+                return true
             } else {
                 // No more accounts available, clear everything
                 _currentUser.value = null
@@ -454,6 +457,7 @@ class AuthManager(
                 _organizations.value = emptyList()
                 apiClient.updateSessionToken(null)
                 Log.i(tag, "Logged out successfully - no more accounts available")
+                return false
             }
         } catch (e: Exception) {
             Log.e(tag, "Logout failed: ${e.message}", e)
@@ -463,6 +467,7 @@ class AuthManager(
             _currentOrg.value = null
             _organizations.value = emptyList()
             apiClient.updateSessionToken(null)
+            return false
         }
     }
 }

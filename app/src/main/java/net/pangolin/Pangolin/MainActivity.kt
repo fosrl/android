@@ -290,7 +290,13 @@ class MainActivity : BaseNavigationActivity() {
             .setPositiveButton("Logout") { _, _ ->
                 lifecycleScope.launch {
                     try {
-                        authManager.logout()
+                        val hasRemainingAccounts = authManager.logout()
+                        if (!hasRemainingAccounts) {
+                            // No more accounts, navigate to LoginActivity
+                            val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                            startActivity(intent)
+                            finish()
+                        }
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Error during logout", e)
                     }
