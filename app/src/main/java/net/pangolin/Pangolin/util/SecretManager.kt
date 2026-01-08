@@ -54,4 +54,10 @@ class SecretManager(context: Context) {
         val secretDeleted = deleteSecret("olm-secret-$userId")
         return idDeleted && secretDeleted
     }
+
+    // MARK: - Session Token
+
+    fun getSessionToken(userId: String): String? {
+        return getSecret("session-token-$userId")
+    }
 }

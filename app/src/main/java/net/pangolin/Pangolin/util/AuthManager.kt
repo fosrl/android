@@ -26,9 +26,7 @@ sealed class AuthError : Exception() {
         }
 }
 
-interface TunnelManager {
-    suspend fun switchOrganization(orgId: String)
-}
+
 
 class AuthManager(
     private val context: Context,
@@ -359,7 +357,7 @@ class AuthManager(
                         orgId = orgResponse.org.orgId,
                         name = orgResponse.org.name
                     )
-                    tunnelManager?.switchOrganization(account.orgId)
+
                 } else {
                     val orgId = ensureOrgIsSelected()
                     val orgResponse = apiClient.getOrg(orgId)
@@ -367,7 +365,7 @@ class AuthManager(
                         orgId = orgResponse.org.orgId,
                         name = orgResponse.org.name
                     )
-                    tunnelManager?.switchOrganization(orgId)
+
                 }
             } else {
                 val orgId = ensureOrgIsSelected()
@@ -376,7 +374,7 @@ class AuthManager(
                     orgId = orgResponse.org.orgId,
                     name = orgResponse.org.name
                 )
-                tunnelManager?.switchOrganization(orgId)
+
             }
 
             Log.i(tag, "Switched to account: ${user.email}")
@@ -399,7 +397,7 @@ class AuthManager(
             accountManager.setUserOrganization(user.userId, organization.orgId)
             _currentOrg.value = organization
 
-            tunnelManager?.switchOrganization(organization.orgId)
+
 
             Log.i(tag, "Selected organization: ${organization.name}")
         } catch (e: Exception) {
@@ -420,7 +418,7 @@ class AuthManager(
         }
     }
 
-    private suspend fun ensureOlmCredentials(userId: String) {
+    suspend fun ensureOlmCredentials(userId: String) {
         if (!secretManager.hasOlmCredentials(userId)) {
             try {
                 val deviceName = android.os.Build.MODEL
