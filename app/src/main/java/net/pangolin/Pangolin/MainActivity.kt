@@ -99,14 +99,34 @@ class MainActivity : BaseNavigationActivity() {
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
 
-        // Setup button click listener
-        contentBinding.btnConnect.setOnClickListener {
+        // Setup toggle switch listener
+        contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
                 val currentState = tunnelManager.tunnelState.value
-                if (currentState.isServiceRunning) {
-                    tunnelManager.disconnect()
-                } else {
+                // Prevent toggle from being changed during transition states
+                if (currentState.isConnecting) {
+                    // Revert the toggle without triggering the listener
+                    contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+                    contentBinding.toggleConnect.isChecked = !isChecked
+                    contentBinding.toggleConnect.setOnCheckedChangeListener { _, checked ->
+                        lifecycleScope.launch {
+                            val state = tunnelManager.tunnelState.value
+                            if (!state.isConnecting) {
+                                if (checked) {
+                                    connectTunnel()
+                                } else {
+                                    tunnelManager.disconnect()
+                                }
+                            }
+                        }
+                    }
+                    return@launch
+                }
+                
+                if (isChecked) {
                     connectTunnel()
+                } else {
+                    tunnelManager.disconnect()
                 }
             }
         }
@@ -371,59 +391,32 @@ class MainActivity : BaseNavigationActivity() {
 
     private fun updateTunnelState(newState: TunnelState) {
         runOnUiThread {
+            // Determine the status text based on the connection state
+            val statusText = when {
+                newState.errorMessage != null -> "Error"
+                newState.isFullyConnected -> "Connected"
+                newState.isRegistered -> "Connected"
+                newState.isSocketConnected && !newState.isRegistered -> "Registering"
+                newState.isServiceRunning && !newState.isSocketConnected -> "Connecting"
+                newState.isConnecting -> "Connecting"
+                else -> "Disconnected"
+            }
+            
             // Update status text
-            contentBinding.tvStatus.text = "Status: ${newState.statusMessage}"
+            contentBinding.tvStatus.text = statusText
 
-            // Update VPN Service status
-            contentBinding.tvServiceStatus.text = if (newState.isServiceRunning) {
-                "Running"
-            } else {
-                "Stopped"
+            // Update status dot drawable based on connection state
+            val dotDrawable = when {
+                newState.errorMessage != null -> R.drawable.status_dot_red
+                newState.isFullyConnected -> R.drawable.status_dot_green
+                newState.isRegistered -> R.drawable.status_dot_green
+                newState.isSocketConnected && !newState.isRegistered -> R.drawable.status_dot_orange
+                newState.isServiceRunning && !newState.isSocketConnected -> R.drawable.status_dot_orange
+                newState.isConnecting -> R.drawable.status_dot_orange
+                else -> R.drawable.status_dot_gray
             }
-            contentBinding.tvServiceStatus.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    if (newState.isServiceRunning) android.R.color.holo_green_dark else android.R.color.darker_gray
-                )
-            )
-
-            // Update Socket Connected status
-            contentBinding.tvSocketStatus.text = if (newState.isSocketConnected) {
-                "Yes"
-            } else if (newState.isServiceRunning) {
-                "Connecting..."
-            } else {
-                "No"
-            }
-            contentBinding.tvSocketStatus.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    when {
-                        newState.isSocketConnected -> android.R.color.holo_green_dark
-                        newState.isServiceRunning -> android.R.color.holo_orange_dark
-                        else -> android.R.color.darker_gray
-                    }
-                )
-            )
-
-            // Update Registered status
-            contentBinding.tvRegisteredStatus.text = if (newState.isRegistered) {
-                "Yes"
-            } else if (newState.isSocketConnected) {
-                "Registering..."
-            } else {
-                "No"
-            }
-            contentBinding.tvRegisteredStatus.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    when {
-                        newState.isRegistered -> android.R.color.holo_green_dark
-                        newState.isSocketConnected -> android.R.color.holo_orange_dark
-                        else -> android.R.color.darker_gray
-                    }
-                )
-            )
+            
+            contentBinding.statusDot.setBackgroundResource(dotDrawable)
 
             // Update error message
             if (newState.errorMessage != null) {
@@ -438,29 +431,23 @@ class MainActivity : BaseNavigationActivity() {
             contentBinding.progressIndicator.visibility =
                 if (showProgress) View.VISIBLE else View.GONE
 
-            // Update button
-            contentBinding.btnConnect.isEnabled = !newState.isConnecting
-            contentBinding.btnConnect.text = when {
-                newState.isConnecting -> "Connecting..."
-                newState.isServiceRunning -> "Disconnect"
-                else -> "Connect"
-            }
-
-            // Update button color
-            if (newState.isServiceRunning) {
-                contentBinding.btnConnect.setBackgroundColor(
-                    MaterialColors.getColor(
-                        contentBinding.btnConnect,
-                        com.google.android.material.R.attr.colorError
-                    )
-                )
-            } else {
-                contentBinding.btnConnect.setBackgroundColor(
-                    MaterialColors.getColor(
-                        contentBinding.btnConnect,
-                        com.google.android.material.R.attr.colorPrimary
-                    )
-                )
+            // Update toggle switch - disable during transitions
+            contentBinding.toggleConnect.isEnabled = !newState.isConnecting
+            
+            // Update toggle state without triggering listener
+            contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+            contentBinding.toggleConnect.isChecked = newState.isServiceRunning || newState.isConnecting
+            contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
+                lifecycleScope.launch {
+                    val currentState = tunnelManager.tunnelState.value
+                    if (!currentState.isConnecting) {
+                        if (isChecked) {
+                            connectTunnel()
+                        } else {
+                            tunnelManager.disconnect()
+                        }
+                    }
+                }
             }
 
             // Update card background color based on connection state
