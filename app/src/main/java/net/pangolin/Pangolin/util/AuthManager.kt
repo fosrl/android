@@ -394,10 +394,13 @@ class AuthManager(
                 throw AuthError.APIError(Exception("You do not have access to this organization"))
             }
 
+            Log.i(tag, "=== ORG SWITCH: Switching user ${user.userId} to org ${organization.orgId} (${organization.name}) ===")
             accountManager.setUserOrganization(user.userId, organization.orgId)
             _currentOrg.value = organization
-
-
+            
+            // Verify the switch was successful
+            val updatedAccount = accountManager.activeAccount
+            Log.i(tag, "=== ORG SWITCH COMPLETE: Active account now has orgId=${updatedAccount?.orgId} ===")
 
             Log.i(tag, "Selected organization: ${organization.name}")
         } catch (e: Exception) {

@@ -131,6 +131,9 @@ class TunnelManager private constructor(
             val userId = activeAccount.userId
             val orgId = activeAccount.orgId
             
+            Log.i(tag, "=== CONNECT: Starting connection for user=$userId, org=$orgId ===")
+            Log.i(tag, "Active account details: userId=${activeAccount.userId}, orgId=${activeAccount.orgId}")
+            
             if (orgId.isEmpty()) {
                 throw Exception("No organization selected")
             }
@@ -152,7 +155,8 @@ class TunnelManager private constructor(
                 throw Exception("Failed to retrieve OLM credentials")
             }
             
-            Log.i(tag, "Using OLM credentials for user $userId, org $orgId")
+            Log.i(tag, "Using OLM credentials for user $userId, org $orgId, olmId=$olmId")
+            Log.i(tag, "About to build TunnelConfig with orgId=$orgId")
             
             // Get configuration
             val config = configManager.config.value
@@ -193,7 +197,8 @@ class TunnelManager private constructor(
                     .setTunnelDNS(tunnelDns)
                     .build()
                 
-                Log.d(tag, "Starting tunnel with OLM ID: $olmId, Org ID: $orgId")
+                Log.d(tag, "=== TUNNEL CONFIG: Starting tunnel with OLM ID: $olmId, Org ID: $orgId ===")
+                Log.d(tag, "Full tunnel config - endpoint: https://app.pangolin.net, mtu: 1280, dns: $primaryDNS")
                 // Create tunnel instance if not already created
                 if (tunnel == null) {
                     tunnel = createTunnel()

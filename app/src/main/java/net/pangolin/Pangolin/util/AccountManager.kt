@@ -102,6 +102,9 @@ class AccountManager(private val context: Context) {
         val currentStore = _store.value
         val account = currentStore.accounts[userId]
 
+        Log.i(tag, "=== setUserOrganization called: userId=$userId, orgId=$orgId ===")
+        Log.i(tag, "Current account orgId before update: ${account?.orgId}")
+
         if (account != null) {
             val updatedAccount = account.copy(orgId = orgId)
             val updatedAccounts = currentStore.accounts.toMutableMap()
@@ -109,6 +112,11 @@ class AccountManager(private val context: Context) {
 
             _store.value = currentStore.copy(accounts = updatedAccounts)
             save()
+            
+            Log.i(tag, "Store updated. New account orgId: ${_store.value.accounts[userId]?.orgId}")
+            Log.i(tag, "Active account orgId after update: ${activeAccount?.orgId}")
+        } else {
+            Log.e(tag, "Account not found for userId=$userId, cannot update org")
         }
     }
 

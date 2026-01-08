@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin.ui
 
 import android.graphics.Color
+import android.util.Log
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -22,7 +23,7 @@ import net.pangolin.Pangolin.util.SocketStatusResponse
  * The status is updated automatically by collecting from the StatusPollingManager's StateFlow.
  */
 class StatusFormattedFragment : Fragment() {
-    
+
     private var agentValue: TextView? = null
     private var versionValue: TextView? = null
     private var statusValue: TextView? = null
@@ -30,8 +31,7 @@ class StatusFormattedFragment : Fragment() {
     private var organizationValue: TextView? = null
     private var peersContainer: LinearLayout? = null
     private var noPeersMessage: TextView? = null
-    private var errorMessage: TextView? = null
-    
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -39,10 +39,10 @@ class StatusFormattedFragment : Fragment() {
     ): View? {
         return inflater.inflate(R.layout.fragment_status_formatted, container, false)
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         // Initialize views
         agentValue = view.findViewById(R.id.agentValue)
         versionValue = view.findViewById(R.id.versionValue)
@@ -51,11 +51,10 @@ class StatusFormattedFragment : Fragment() {
         organizationValue = view.findViewById(R.id.organizationValue)
         peersContainer = view.findViewById(R.id.peersContainer)
         noPeersMessage = view.findViewById(R.id.noPeersMessage)
-        errorMessage = view.findViewById(R.id.errorMessage)
-        
+
         // Get the StatusPollingManager from the activity
         val statusPollingManager = (activity as? StatusPollingProvider)?.getStatusPollingManager()
-        
+
         if (statusPollingManager != null) {
             // Collect status updates and update UI
             viewLifecycleOwner.lifecycleScope.launch {
@@ -67,23 +66,20 @@ class StatusFormattedFragment : Fragment() {
                     }
                 }
             }
-            
+
             // Also collect error updates
             viewLifecycleOwner.lifecycleScope.launch {
                 statusPollingManager.errorFlow.collect { error ->
                     if (error != null) {
-                        showError(error)
-                    } else {
-                        hideError()
+                        Log.e("StatusFormattedFragment", "Error fetching status: $error")
                     }
                 }
             }
         } else {
             showNoStatus()
-            showError("StatusPollingManager not available. Ensure the tunnel is running.")
         }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         agentValue = null
@@ -93,9 +89,8 @@ class StatusFormattedFragment : Fragment() {
         organizationValue = null
         peersContainer = null
         noPeersMessage = null
-        errorMessage = null
     }
-    
+
     /**
      * Update the UI with the current status.
      */
@@ -103,19 +98,19 @@ class StatusFormattedFragment : Fragment() {
         // Update application info
         agentValue?.text = status.agent ?: "—"
         versionValue?.text = status.version ?: "—"
-        
+
         // Update status with indicator
         val statusText = if (status.connected) "Connected" else "Disconnected"
         statusValue?.text = statusText
         updateStatusIndicator(status.connected)
-        
+
         // Update organization
         organizationValue?.text = status.orgId ?: "—"
-        
+
         // Update peers
         updatePeers(status.peers)
     }
-    
+
     /**
      * Update the status indicator color based on connection state.
      */
@@ -126,7 +121,7 @@ class StatusFormattedFragment : Fragment() {
             } else {
                 Color.parseColor("#F44336") // Red
             }
-            
+
             val drawable = indicator.background as? GradientDrawable
             if (drawable != null) {
                 drawable.setColor(color)
@@ -139,53 +134,53 @@ class StatusFormattedFragment : Fragment() {
             }
         }
     }
-    
+
     /**
      * Update the peers section with peer cards.
      */
     private fun updatePeers(peers: Map<String, SocketPeer>?) {
         peersContainer?.removeAllViews()
-        
+
         if (peers.isNullOrEmpty()) {
             noPeersMessage?.visibility = View.VISIBLE
             return
         }
-        
+
         noPeersMessage?.visibility = View.GONE
-        
+
         // Create a card for each peer
         peers.forEach { (peerId, peer) ->
             val peerCard = createPeerCard(peerId, peer)
             peersContainer?.addView(peerCard)
         }
     }
-    
+
     /**
      * Create a card view for a single peer.
      */
     private fun createPeerCard(peerId: String, peer: SocketPeer): View {
         val inflater = LayoutInflater.from(requireContext())
         val cardView = inflater.inflate(R.layout.item_peer_card, peersContainer, false)
-        
+
         val peerName = cardView.findViewById<TextView>(R.id.peerName)
         val peerStatus = cardView.findViewById<TextView>(R.id.peerStatus)
         val peerStatusIndicator = cardView.findViewById<View>(R.id.peerStatusIndicator)
         val peerEndpoint = cardView.findViewById<TextView>(R.id.peerEndpoint)
-        
+
         // Set peer name
         peerName.text = peer.name ?: peerId
-        
+
         // Set status
         val connected = peer.connected ?: false
         peerStatus.text = if (connected) "Connected" else "Disconnected"
-        
+
         // Set status indicator color
         val color = if (connected) {
             Color.parseColor("#4CAF50") // Green
         } else {
             Color.parseColor("#9E9E9E") // Gray
         }
-        
+
         val drawable = peerStatusIndicator.background as? GradientDrawable
         if (drawable != null) {
             drawable.setColor(color)
@@ -195,13 +190,13 @@ class StatusFormattedFragment : Fragment() {
             newDrawable.setColor(color)
             peerStatusIndicator.background = newDrawable
         }
-        
+
         // Set endpoint
         peerEndpoint.text = peer.endpoint ?: "No endpoint"
-        
+
         return cardView
     }
-    
+
     /**
      * Show a message when no status is available.
      */
@@ -214,22 +209,7 @@ class StatusFormattedFragment : Fragment() {
         noPeersMessage?.visibility = View.VISIBLE
         noPeersMessage?.text = "No status available"
     }
-    
-    /**
-     * Show an error message.
-     */
-    private fun showError(error: String) {
-        errorMessage?.text = "⚠️ $error"
-        errorMessage?.visibility = View.VISIBLE
-    }
-    
-    /**
-     * Hide the error message.
-     */
-    private fun hideError() {
-        errorMessage?.visibility = View.GONE
-    }
-    
+
     companion object {
         fun newInstance(): StatusFormattedFragment {
             return StatusFormattedFragment()

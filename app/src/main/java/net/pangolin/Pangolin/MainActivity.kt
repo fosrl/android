@@ -349,9 +349,15 @@ class MainActivity : BaseNavigationActivity() {
             .setItems(options) { dialog, which ->
                 val selectedOrg = organizations[which]
                 if (selectedOrg.orgId != currentOrgId) {
+                    Log.i("MainActivity", "=== UI: User selected org ${selectedOrg.name} (${selectedOrg.orgId}) ===")
+                    Log.i("MainActivity", "Previous org was: $currentOrgId")
                     lifecycleScope.launch {
                         try {
                             authManager.selectOrganization(selectedOrg)
+                            Log.i("MainActivity", "=== UI: Org switch completed successfully ===")
+                            // Log the account state after switch
+                            val activeAccount = accountManager.activeAccount
+                            Log.i("MainActivity", "Active account after switch: userId=${activeAccount?.userId}, orgId=${activeAccount?.orgId}")
                         } catch (e: Exception) {
                             Log.e("MainActivity", "Error switching organization", e)
                             runOnUiThread {
@@ -363,6 +369,8 @@ class MainActivity : BaseNavigationActivity() {
                             }
                         }
                     }
+                } else {
+                    Log.i("MainActivity", "=== UI: User selected same org, no change needed ===")
                 }
                 dialog.dismiss()
             }
@@ -378,6 +386,10 @@ class MainActivity : BaseNavigationActivity() {
     }
 
     private fun connectTunnel() {
+        Log.i("MainActivity", "=== UI: connectTunnel() called ===")
+        val activeAccount = accountManager.activeAccount
+        Log.i("MainActivity", "Active account before connect: userId=${activeAccount?.userId}, orgId=${activeAccount?.orgId}")
+        
         val prepareIntent = VpnService.prepare(this)
         if (prepareIntent != null) {
             vpnPermissionLauncher.launch(prepareIntent)
