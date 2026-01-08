@@ -142,6 +142,21 @@ class SignInCodeActivity : AppCompatActivity() {
         startDeviceAuth()
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        // Handle deep link callback from browser
+        intent?.data?.let { uri ->
+            if (uri.scheme == "pangolin") {
+                Log.i(tag, "Received deep link callback: $uri")
+                Toast.makeText(this, "Completing sign in...", Toast.LENGTH_SHORT).show()
+                // The polling in authManager will automatically detect the successful auth
+                // and trigger the isAuthenticated flow
+            }
+        }
+    }
+
     private fun startDeviceAuth() {
         lifecycleScope.launch {
             try {
