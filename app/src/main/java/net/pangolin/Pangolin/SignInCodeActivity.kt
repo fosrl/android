@@ -85,16 +85,23 @@ class SignInCodeActivity : AppCompatActivity() {
         val codeWithoutHyphen = ""
         binding.urlText.text = "Or visit: $hostname/auth/login/device"
 
+        // Show loading indicator initially
+        binding.loadingIndicator.visibility = View.VISIBLE
+        binding.instructionText.text = "Generating sign in code..."
+
         // Observe device auth code
         lifecycleScope.launch {
             authManager.deviceAuthCode.collect { code ->
                 if (code != null) {
+                    // Hide loading indicator and update instruction text
+                    binding.loadingIndicator.visibility = View.GONE
+                    binding.instructionText.text = "Enter this code on the login page"
+                    
                     displayCode(code)
                     binding.codeContainer.visibility = View.VISIBLE
                     binding.copyCodeButton.visibility = View.VISIBLE
                     binding.openLoginButton.visibility = View.VISIBLE
                     binding.urlText.visibility = View.VISIBLE
-                    binding.loadingIndicator.visibility = View.VISIBLE
 
                     // Auto-open browser when code is generated
                     if (!hasAutoOpenedBrowser) {

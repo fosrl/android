@@ -50,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="60dp"
-                android:text="Enter this code on the login page"
+                android:text="Generating sign in code..."
                 android:textSize="16sp"
                 android:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -236,11 +236,11 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginTop="32dp"
-                android:indeterminateTint="#999999"
-                android:visibility="gone"
+                android:indeterminateTint="#FF6B35"
+                android:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/urlText" />
+                app:layout_constraintTop_toBottomOf="@id/instructionText" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
