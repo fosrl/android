@@ -439,15 +439,30 @@ class AuthManager(
                 secretManager.deleteSecret("session-token-${user.userId}")
                 accountManager.removeAccount(user.userId)
             }
+            
+            // Pick the next available logged-in account
+            val remainingAccounts = accountManager.accounts
+            if (remainingAccounts.isNotEmpty()) {
+                val nextAccount = remainingAccounts.values.first()
+                Log.i(tag, "Switching to next available account: ${nextAccount.userId}")
+                switchAccount(nextAccount.userId)
+            } else {
+                // No more accounts available, clear everything
+                _currentUser.value = null
+                _isAuthenticated.value = false
+                _currentOrg.value = null
+                _organizations.value = emptyList()
+                apiClient.updateSessionToken(null)
+                Log.i(tag, "Logged out successfully - no more accounts available")
+            }
         } catch (e: Exception) {
             Log.e(tag, "Logout failed: ${e.message}", e)
-        } finally {
+            // On error, clear everything to be safe
             _currentUser.value = null
             _isAuthenticated.value = false
             _currentOrg.value = null
             _organizations.value = emptyList()
             apiClient.updateSessionToken(null)
-            Log.i(tag, "Logged out successfully")
         }
     }
 }

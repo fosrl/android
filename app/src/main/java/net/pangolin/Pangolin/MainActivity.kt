@@ -173,15 +173,15 @@ class MainActivity : BaseNavigationActivity() {
         super.onResume()
         
         // Check if there are any accounts - if not, go to LoginActivity
-        // val accounts = accountManager.accounts
+        val accounts = accountManager.accounts
         // // log the accounts for debugging
-        // Log.d("MainActivity", "Existing accounts on resume: $accounts")
-        // if (accounts.isEmpty()) {
-        //     val intent = Intent(this, LoginActivity::class.java)
-        //     startActivity(intent)
-        //     finish()
-        //     return
-        // }
+        Log.d("MainActivity", "Existing accounts on resume: $accounts")
+        if (accounts.isEmpty()) {
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
         
         // Check current tunnel state when returning to activity
         checkTunnelState()
