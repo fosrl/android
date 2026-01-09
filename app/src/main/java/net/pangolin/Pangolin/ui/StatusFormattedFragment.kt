@@ -1,5 +1,6 @@
 package net.pangolin.Pangolin.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.util.Log
 import android.graphics.drawable.GradientDrawable
@@ -13,6 +14,7 @@ import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import net.pangolin.Pangolin.MainActivity
 import net.pangolin.Pangolin.R
 import net.pangolin.Pangolin.util.SocketPeer
 import net.pangolin.Pangolin.util.SocketStatusResponse
@@ -24,6 +26,10 @@ import net.pangolin.Pangolin.util.SocketStatusResponse
  */
 class StatusFormattedFragment : Fragment() {
 
+    private var disconnectedCard: View? = null
+    private var connectionStatusHeader: TextView? = null
+    private var appInfoCard: CardView? = null
+    private var sitesHeader: TextView? = null
     private var agentValue: TextView? = null
     private var versionValue: TextView? = null
     private var statusValue: TextView? = null
@@ -44,6 +50,10 @@ class StatusFormattedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // Initialize views
+        disconnectedCard = view.findViewById(R.id.disconnected_card_include)
+        connectionStatusHeader = view.findViewById(R.id.connection_status_header)
+        appInfoCard = view.findViewById(R.id.appInfoCard)
+        sitesHeader = view.findViewById(R.id.sites_header)
         agentValue = view.findViewById(R.id.agentValue)
         versionValue = view.findViewById(R.id.versionValue)
         statusValue = view.findViewById(R.id.statusValue)
@@ -51,6 +61,27 @@ class StatusFormattedFragment : Fragment() {
         organizationValue = view.findViewById(R.id.organizationValue)
         peersContainer = view.findViewById(R.id.peersContainer)
         noPeersMessage = view.findViewById(R.id.noPeersMessage)
+        
+        // Setup disconnected card click listener
+        disconnectedCard?.findViewById<View>(R.id.disconnected_button)?.setOnClickListener {
+            // Navigate to MainActivity
+            val intent = Intent(requireContext(), MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            startActivity(intent)
+        }
+        
+        // Set gray indicator for disconnected card
+        disconnectedCard?.findViewById<View>(R.id.disconnected_indicator)?.let { indicator ->
+            val drawable = indicator.background as? GradientDrawable
+            if (drawable != null) {
+                drawable.setColor(Color.parseColor("#9E9E9E")) // Gray
+            } else {
+                val newDrawable = GradientDrawable()
+                newDrawable.shape = GradientDrawable.OVAL
+                newDrawable.setColor(Color.parseColor("#9E9E9E"))
+                indicator.background = newDrawable
+            }
+        }
 
         // Get the StatusPollingManager from the activity
         val statusPollingManager = (activity as? StatusPollingProvider)?.getStatusPollingManager()
@@ -82,6 +113,10 @@ class StatusFormattedFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        disconnectedCard = null
+        connectionStatusHeader = null
+        appInfoCard = null
+        sitesHeader = null
         agentValue = null
         versionValue = null
         statusValue = null
@@ -95,6 +130,12 @@ class StatusFormattedFragment : Fragment() {
      * Update the UI with the current status.
      */
     private fun updateUI(status: SocketStatusResponse) {
+        // Hide disconnected card and show status content
+        disconnectedCard?.visibility = View.GONE
+        connectionStatusHeader?.visibility = View.VISIBLE
+        appInfoCard?.visibility = View.VISIBLE
+        sitesHeader?.visibility = View.VISIBLE
+        
         // Update application info
         agentValue?.text = status.agent ?: "—"
         versionValue?.text = status.version ?: "—"
@@ -201,13 +242,13 @@ class StatusFormattedFragment : Fragment() {
      * Show a message when no status is available.
      */
     private fun showNoStatus() {
-        agentValue?.text = "—"
-        versionValue?.text = "—"
-        statusValue?.text = "—"
-        organizationValue?.text = "—"
+        // Show disconnected card and hide status content
+        disconnectedCard?.visibility = View.VISIBLE
+        connectionStatusHeader?.visibility = View.GONE
+        appInfoCard?.visibility = View.GONE
+        sitesHeader?.visibility = View.GONE
         peersContainer?.removeAllViews()
-        noPeersMessage?.visibility = View.VISIBLE
-        noPeersMessage?.text = "No status available"
+        noPeersMessage?.visibility = View.GONE
     }
 
     companion object {

@@ -12,8 +12,19 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Disconnected Card (shown when socket is unavailable) -->
+        <include
+            android:id="@+id/disconnected_card_include"
+            layout="@layout/card_disconnected"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="0dp"
+            android:layout_marginBottom="0dp"
+            android:visibility="gone" />
+
         <!-- Connection Status Header -->
         <TextView
+            android:id="@+id/connection_status_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Connection Status"
@@ -179,6 +190,7 @@
 
         <!-- Sites Header -->
         <TextView
+            android:id="@+id/sites_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Sites"

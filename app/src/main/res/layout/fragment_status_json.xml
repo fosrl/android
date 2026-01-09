@@ -5,15 +5,32 @@
     android:layout_height="match_parent"
     android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/jsonStatusText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:textSize="12sp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:fontFamily="monospace"
-        android:textIsSelectable="true"
-        android:text="JSON output will appear here" />
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Disconnected Card (shown when socket is unavailable) -->
+        <include
+            android:id="@+id/disconnected_card_include"
+            layout="@layout/card_disconnected"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <!-- JSON Container (shown when status is available) -->
+        <TextView
+            android:id="@+id/jsonStatusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:text="JSON output will appear here" />
+
+    </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>
