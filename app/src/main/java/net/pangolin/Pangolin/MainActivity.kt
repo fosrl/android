@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
 import android.util.Log
@@ -146,6 +147,26 @@ class MainActivity : BaseNavigationActivity() {
         // Setup organization card click listener
         contentBinding.organizationButtonLayout.setOnClickListener {
             showOrganizationPickerDialog()
+        }
+
+        // Setup links card click listeners
+        contentBinding.linkDashboard.setOnClickListener {
+            val activeAccount = accountManager.activeAccount
+            if (activeAccount != null) {
+                val dashboardUrl = "${activeAccount.hostname}/dashboard"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(dashboardUrl))
+                startActivity(intent)
+            }
+        }
+
+        contentBinding.linkHowPangolinWorks.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.pangolin.net/about/how-pangolin-works"))
+            startActivity(intent)
+        }
+
+        contentBinding.linkDocumentation.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.pangolin.net/"))
+            startActivity(intent)
         }
 
         // Observe tunnel state changes
@@ -475,18 +496,7 @@ class MainActivity : BaseNavigationActivity() {
                 }
             }
 
-            // Update card background color based on connection state
-            val cardColorAttr = when {
-                newState.errorMessage != null -> com.google.android.material.R.attr.colorErrorContainer
-                newState.isFullyConnected -> com.google.android.material.R.attr.colorPrimaryContainer
-                newState.isServiceRunning -> com.google.android.material.R.attr.colorSecondaryContainer
-                newState.isConnecting -> com.google.android.material.R.attr.colorSecondaryContainer
-                else -> com.google.android.material.R.attr.colorSurfaceVariant
-            }
 
-            contentBinding.statusCard.setCardBackgroundColor(
-                MaterialColors.getColor(contentBinding.statusCard, cardColorAttr)
-            )
         }
     }
 }
