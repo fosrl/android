@@ -101,6 +101,48 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- View Status Details Card (shown when connected) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/status_details_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/card_background_light"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:id="@+id/status_details_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="View Status Details"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_arrow_forward"
+                    android:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Navigate" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Account and Organization Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/account_org_card"

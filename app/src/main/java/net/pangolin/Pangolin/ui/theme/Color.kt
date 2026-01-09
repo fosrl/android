@@ -2,7 +2,7 @@ package net.pangolin.Pangolin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val PrimaryDark = Color(0xFFFF5722)
+val PrimaryDark = Color(0xFFF36117)
 val SecondaryDark = Color(0xFFFF9800)
 val TertiaryDark = Color(0xFFFFC107)
 

@@ -169,6 +169,12 @@ class MainActivity : BaseNavigationActivity() {
             startActivity(intent)
         }
 
+        // Setup status details card click listener
+        contentBinding.statusDetailsButton.setOnClickListener {
+            val intent = Intent(this, StatusActivity::class.java)
+            startActivity(intent)
+        }
+
         // Observe tunnel state changes
         lifecycleScope.launch {
             tunnelManager.tunnelState.collect { state ->
@@ -476,6 +482,10 @@ class MainActivity : BaseNavigationActivity() {
             val showProgress = newState.isConnecting || (newState.isServiceRunning && !newState.isFullyConnected)
             contentBinding.progressIndicator.visibility =
                 if (showProgress) View.VISIBLE else View.GONE
+
+            // Show/hide status details card - only show when connected
+            contentBinding.statusDetailsCard.visibility = 
+                if (newState.isFullyConnected || newState.isRegistered) View.VISIBLE else View.GONE
 
             // Update toggle switch - disable during transitions
             contentBinding.toggleConnect.isEnabled = !newState.isConnecting

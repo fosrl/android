@@ -37,7 +37,7 @@
         <item name="colorOnSurfaceVariant">#FFCCCCCC</item>
         
         <!-- Status bar color -->
-        <item name="android:statusBarColor">?attr/colorPrimaryContainer</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         
         <!-- Navigation bar color -->
         <item name="android:navigationBarColor">?attr/colorSurface</item>
