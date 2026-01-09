@@ -238,7 +238,22 @@ class AuthManager(
         Log.i(tag, "Device auth cancelled")
     }
 
-    private suspend fun handleSuccessfulAuth(user: User, hostname: String, token: String) {
+    /**
+     * Set the device auth code externally (used by DeviceAuthService)
+     */
+    fun setDeviceAuthCode(code: String?) {
+        _deviceAuthCode.value = code
+        if (code != null) {
+            _deviceAuthLoginURL.value = "${apiClient.baseURL}/auth/device-web-auth/$code"
+        } else {
+            _deviceAuthLoginURL.value = null
+        }
+    }
+
+    /**
+     * Handle successful authentication from external source (used by DeviceAuthService)
+     */
+    suspend fun handleSuccessfulAuth(user: User, hostname: String, token: String) {
         _currentUser.value = user
 
         secretManager.saveSecret("session-token-${user.userId}", token)

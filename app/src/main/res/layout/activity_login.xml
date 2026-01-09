@@ -250,7 +250,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginTop="16dp"
-                    android:backgroundTint="#FF6B35"
+                    android:backgroundTint="@color/pangolin_primary"
                     android:text="Continue"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
