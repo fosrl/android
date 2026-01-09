@@ -184,7 +184,7 @@ class TunnelManager private constructor(
                 }
                 
                 val tunnelConfig = TunnelConfig.Builder()
-                    .setEndpoint("https://app.pangolin.net")
+                    .setEndpoint(activeAccount.hostname)
                     .setId(olmId)
                     .setSecret(olmSecret)
                     .setUserToken(userToken)
@@ -200,7 +200,7 @@ class TunnelManager private constructor(
                     .build()
                 
                 Log.d(tag, "=== TUNNEL CONFIG: Starting tunnel with OLM ID: $olmId, Org ID: $orgId ===")
-                Log.d(tag, "Full tunnel config - endpoint: https://app.pangolin.net, mtu: 1280, dns: $primaryDNS")
+                Log.d(tag, "Full tunnel config - endpoint: ${activeAccount.hostname}, mtu: 1280, dns: $primaryDNS")
                 // Create tunnel instance if not already created
                 if (tunnel == null) {
                     tunnel = createTunnel()

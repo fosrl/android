@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -368,7 +369,7 @@ class MainActivity : BaseNavigationActivity() {
         val currentOrgId = authManager.currentOrg.value?.orgId
 
         if (organizations.isEmpty()) {
-            androidx.appcompat.app.AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("No Organizations")
                 .setMessage("You don't have access to any organizations.")
                 .setPositiveButton("OK", null)
@@ -376,17 +377,21 @@ class MainActivity : BaseNavigationActivity() {
             return
         }
 
-        val options = organizations.map { org ->
-            if (org.orgId == currentOrgId) {
-                "${org.name} ✓"
-            } else {
-                org.name
-            }
-        }.toTypedArray()
+        // Create array of organization names for the dialog
+        val organizationNames = organizations.map { it.name }.toTypedArray()
+        
+        // Find the currently selected organization index
+        val currentIndex = organizations.indexOfFirst { it.orgId == currentOrgId }
+        val checkedItem = if (currentIndex >= 0) currentIndex else -1
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Organization")
-            .setItems(options) { dialog, which ->
+        // Create and tint the icon with pangolin_primary color
+        val icon = ContextCompat.getDrawable(this, R.drawable.ic_business)
+        icon?.setTint(ContextCompat.getColor(this, R.color.pangolin_primary))
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Select Organization")
+            .setIcon(icon)
+            .setSingleChoiceItems(organizationNames, checkedItem) { dialog, which ->
                 val selectedOrg = organizations[which]
                 if (selectedOrg.orgId != currentOrgId) {
                     Log.i("MainActivity", "=== UI: User selected org ${selectedOrg.name} (${selectedOrg.orgId}) ===")
@@ -401,7 +406,7 @@ class MainActivity : BaseNavigationActivity() {
                         } catch (e: Exception) {
                             Log.e("MainActivity", "Error switching organization", e)
                             runOnUiThread {
-                                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                                MaterialAlertDialogBuilder(this@MainActivity)
                                     .setTitle("Error")
                                     .setMessage("Failed to switch organization: ${e.message}")
                                     .setPositiveButton("OK", null)
@@ -414,6 +419,7 @@ class MainActivity : BaseNavigationActivity() {
                 }
                 dialog.dismiss()
             }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
