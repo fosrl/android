@@ -102,6 +102,10 @@ class MainActivity : BaseNavigationActivity() {
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
 
+        // Show loading overlay initially
+        contentBinding.loadingOverlay.visibility = android.view.View.VISIBLE
+        contentBinding.mainContent.visibility = android.view.View.GONE
+
         // Setup toggle switch listener
         contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
@@ -193,8 +197,14 @@ class MainActivity : BaseNavigationActivity() {
         lifecycleScope.launch {
             try {
                 authManager.initialize()
+                // Hide loading overlay and show content once initialization is complete
+                contentBinding.loadingOverlay.visibility = android.view.View.GONE
+                contentBinding.mainContent.visibility = android.view.View.VISIBLE
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error initializing auth manager", e)
+                // Hide loading overlay even on error
+                contentBinding.loadingOverlay.visibility = android.view.View.GONE
+                contentBinding.mainContent.visibility = android.view.View.VISIBLE
             }
         }
 
