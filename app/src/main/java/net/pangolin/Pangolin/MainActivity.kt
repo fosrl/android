@@ -284,65 +284,55 @@ class MainActivity : BaseNavigationActivity() {
         val accounts = accountManager.accounts.values.toList()
         val currentUserId = accountManager.activeUserId
 
-        val options = mutableListOf<String>()
-        val accountUserIds = mutableListOf<String>()
+        // Create array of account emails for the dialog
+        val accountEmails = accounts.map { it.email }.toTypedArray()
+        
+        // Find the currently selected account index
+        val currentIndex = accounts.indexOfFirst { it.userId == currentUserId }
+        val checkedItem = if (currentIndex >= 0) currentIndex else -1
 
-        // Add existing accounts
-        accounts.forEach { account ->
-            val label = if (account.userId == currentUserId) {
-                "${account.email} ✓"
-            } else {
-                account.email
-            }
-            options.add(label)
-            accountUserIds.add(account.userId)
-        }
+        // Create and tint the icon with pangolin_primary color
+        val icon = ContextCompat.getDrawable(this, R.drawable.ic_person)
+        icon?.setTint(ContextCompat.getColor(this, R.color.pangolin_primary))
 
-        // Add management options
-        options.add("Add Account")
-        options.add("Logout")
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Account")
-            .setItems(options.toTypedArray()) { dialog, which ->
-                when {
-                    which < accounts.size -> {
-                        // Switch to selected account
-                        val selectedUserId = accountUserIds[which]
-                        if (selectedUserId != currentUserId) {
-                            lifecycleScope.launch {
-                                try {
-                                    authManager.switchAccount(selectedUserId)
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error switching account", e)
-                                    runOnUiThread {
-                                        androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
-                                            .setTitle("Error")
-                                            .setMessage("Failed to switch account: ${e.message}")
-                                            .setPositiveButton("OK", null)
-                                            .show()
-                                    }
-                                }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Select Account")
+            .setIcon(icon)
+            .setSingleChoiceItems(accountEmails, checkedItem) { dialog, which ->
+                val selectedUserId = accounts[which].userId
+                if (selectedUserId != currentUserId) {
+                    lifecycleScope.launch {
+                        try {
+                            authManager.switchAccount(selectedUserId)
+                            dialog.dismiss()
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error switching account", e)
+                            runOnUiThread {
+                                MaterialAlertDialogBuilder(this@MainActivity)
+                                    .setTitle("Error")
+                                    .setMessage("Failed to switch account: ${e.message}")
+                                    .setPositiveButton("OK", null)
+                                    .show()
                             }
                         }
                     }
-                    which == accounts.size -> {
-                        // Add Account
-                        val intent = Intent(this, LoginActivity::class.java)
-                        startActivity(intent)
-                    }
-                    which == accounts.size + 1 -> {
-                        // Logout
-                        showLogoutConfirmation()
-                    }
+                } else {
+                    dialog.dismiss()
                 }
-                dialog.dismiss()
             }
+            .setPositiveButton("Add Account") { _, _ ->
+                val intent = Intent(this, LoginActivity::class.java)
+                startActivity(intent)
+            }
+            .setNegativeButton("Logout") { _, _ ->
+                showLogoutConfirmation()
+            }
+            .setNeutralButton("Cancel", null)
             .show()
     }
 
     private fun showLogoutConfirmation() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Logout")
             .setMessage("Are you sure you want to logout?")
             .setPositiveButton("Logout") { _, _ ->
