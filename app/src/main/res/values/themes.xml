@@ -41,6 +41,9 @@
         
         <!-- Navigation bar color -->
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        
+        <!-- Navigation drawer colors -->
+        <item name="colorControlNormal">@color/black</item>
     </style>
 
     <!-- Main theme that inherits from base -->

@@ -153,7 +153,7 @@ class MainActivity : BaseNavigationActivity() {
         contentBinding.linkDashboard.setOnClickListener {
             val activeAccount = accountManager.activeAccount
             if (activeAccount != null) {
-                val dashboardUrl = "${activeAccount.hostname}/dashboard"
+                val dashboardUrl = "${activeAccount.hostname}"
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(dashboardUrl))
                 startActivity(intent)
             }

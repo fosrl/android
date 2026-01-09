@@ -7,7 +7,6 @@
             app:summary="When enabled, the tunnel uses custom DNS servers to resolve internal resources and aliases. External queries use your configured upstream DNS."
             app:title="Override DNS"
             app:iconSpaceReserved="false" />
-
         <SwitchPreferenceCompat
             app:key="tunnelDns"
             app:summary="When enabled, DNS queries are sent through the tunnel to a resource. A private resource must be created for the address for it to work and resolve to the correct site."

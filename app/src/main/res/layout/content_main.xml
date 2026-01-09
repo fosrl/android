@@ -76,9 +76,7 @@
                         android:id="@+id/toggle_connect"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:checked="false"
-                        app:thumbTint="@color/switch_thumb_selector"
-                        app:trackTint="@color/switch_track_selector" />
+                        android:checked="false" />
 
                 </LinearLayout>
 
@@ -135,16 +133,17 @@
                         android:textColor="?attr/colorOnSurfaceVariant"
                         />
 
-                    <LinearLayout
-                        android:id="@+id/account_button_layout"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true">
+                        <LinearLayout
+                            android:id="@+id/account_button_layout"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:paddingVertical="8dp">
 
                         <ImageView
                             android:layout_width="24dp"
@@ -194,7 +193,7 @@
                     <LinearLayout
                         android:id="@+id/organization_button_layout"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="48dp"
                         android:layout_marginTop="12dp"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"

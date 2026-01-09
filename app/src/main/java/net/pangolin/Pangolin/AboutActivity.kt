@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import net.pangolin.Pangolin.databinding.ActivityAboutBinding
+import java.util.Calendar
 
 class AboutActivity : BaseNavigationActivity() {
 
@@ -26,6 +27,10 @@ class AboutActivity : BaseNavigationActivity() {
         } catch (e: Exception) {
             binding.content.tvVersion.text = "Version 1.0.0"
         }
+
+        // Set copyright with current year
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        binding.content.tvCopyright.text = "© $currentYear Fossorial, Inc."
 
         // Click listeners for links
         binding.content.tvDocs.setOnClickListener {
