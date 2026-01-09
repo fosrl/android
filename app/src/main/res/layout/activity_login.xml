@@ -12,12 +12,13 @@
         android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:title="Sign In"
-            />
+	        android:id="@+id/toolbar"
+		    android:layout_width="match_parent"
+		    android:layout_height="?attr/actionBarSize"
+		    app:navigationIcon="@drawable/ic_arrow_back"
+		    app:navigationIconTint="?attr/colorOnSurface"
+		    app:title="Sign In"
+		    />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -36,18 +37,20 @@
             android:paddingBottom="40dp">
 
             <!-- Logo -->
+
+            <!-- Hosting Selection Container -->
             <ImageView
                 android:id="@+id/logoImage"
                 android:layout_width="300dp"
                 android:layout_height="100dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="16dp"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.489"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 tools:ignore="ContentDescription"
                 tools:src="@drawable/word_mark_black" />
 
-            <!-- Hosting Selection Container -->
             <LinearLayout
                 android:id="@+id/hostingSelectionContainer"
                 android:layout_width="0dp"
@@ -66,7 +69,7 @@
                     android:layout_marginBottom="16dp"
                     android:clickable="true"
                     android:focusable="true"
-                    app:cardBackgroundColor="#1A1A1A"
+                    app:cardBackgroundColor="@color/card_background_light"
                     app:cardCornerRadius="24dp"
                     app:cardElevation="0dp"
                     app:strokeWidth="0dp">
@@ -87,7 +90,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Pangolin Cloud"
-                                android:textColor="#FFFFFF"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
 
@@ -96,7 +99,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="app.pangolin.net"
-                                android:textColor="#999999"
+                                android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="14sp" />
 
                         </LinearLayout>
@@ -106,7 +109,7 @@
                             android:layout_height="24dp"
                             android:layout_gravity="center_vertical"
                             android:src="@drawable/ic_arrow_forward"
-                            android:tint="#999999"
+                            android:tint="?attr/colorOnSurfaceVariant"
                             tools:ignore="ContentDescription" />
 
                     </LinearLayout>
@@ -120,7 +123,7 @@
                     android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
-                    app:cardBackgroundColor="#1A1A1A"
+                    app:cardBackgroundColor="@color/card_background_light"
                     app:cardCornerRadius="24dp"
                     app:cardElevation="0dp"
                     app:strokeWidth="0dp">
@@ -141,7 +144,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Self-hosted or dedicated instance"
-                                android:textColor="#FFFFFF"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
 
@@ -150,7 +153,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="Enter your custom hostname"
-                                android:textColor="#999999"
+                                android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="14sp" />
 
                         </LinearLayout>
@@ -160,7 +163,7 @@
                             android:layout_height="24dp"
                             android:layout_gravity="center_vertical"
                             android:src="@drawable/ic_arrow_forward"
-                            android:tint="#999999"
+                            android:tint="?attr/colorOnSurfaceVariant"
                             tools:ignore="ContentDescription" />
 
                     </LinearLayout>
@@ -198,7 +201,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
                     android:text="Self-hosted Instance"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -209,13 +212,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="32dp"
                     android:hint="Server URL"
-                    app:boxBackgroundColor="#1A1A1A"
+                    app:boxBackgroundColor="@color/card_background_light"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="24dp"
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:hintTextColor="#999999"
+                    app:hintTextColor="?attr/colorOnSurfaceVariant"
                     app:boxStrokeWidth="0dp"
                     app:boxStrokeWidthFocused="1dp">
 
@@ -224,8 +227,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textUri"
-                        android:textColor="#FFFFFF"
-                        android:textColorHint="#666666" />
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -235,10 +238,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginTop="24dp"
-                    android:backgroundTint="#333333"
+                    android:backgroundTint="@color/button_secondary_background"
                     android:text="Back"
                     android:textAllCaps="false"
-                    android:textColor="#999999"
+                    android:textColor="@color/button_secondary_text"
                     android:textSize="16sp" />
 
                 <!-- Continue Button -->

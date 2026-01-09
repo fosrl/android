@@ -90,7 +90,6 @@ class SignInCodeActivity : AppCompatActivity() {
         binding.urlText.text = "Or visit: $hostname/auth/login/device"
 
         // Show loading indicator initially
-        binding.loadingIndicator.visibility = View.VISIBLE
         binding.instructionText.text = "Generating sign in code..."
 
         // Observe device auth code
@@ -98,7 +97,6 @@ class SignInCodeActivity : AppCompatActivity() {
             authManager.deviceAuthCode.collect { code ->
                 if (code != null) {
                     // Hide loading indicator and update instruction text
-                    binding.loadingIndicator.visibility = View.GONE
                     binding.instructionText.text = "Enter this code on the login page"
                     
                     displayCode(code)
@@ -118,7 +116,6 @@ class SignInCodeActivity : AppCompatActivity() {
                     binding.copyCodeButton.visibility = View.GONE
                     binding.openLoginButton.visibility = View.GONE
                     binding.urlText.visibility = View.GONE
-                    binding.loadingIndicator.visibility = View.GONE
                 }
             }
         }

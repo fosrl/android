@@ -16,6 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_arrow_back"
+      		app:navigationIconTint="?attr/colorOnSurface"
             app:title="Sign In"
              />
 
@@ -33,23 +34,24 @@
             android:paddingTop="40dp"
             android:paddingBottom="40dp">
 
+            <!-- Code Container -->
             <ImageView
                 android:id="@+id/logoImage"
                 android:layout_width="300dp"
                 android:layout_height="100dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="16dp"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.495"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 tools:ignore="ContentDescription"
-                tools:src="@drawable/word_mark_black"
-                 />
+                tools:src="@drawable/word_mark_black" />
 
             <TextView
                 android:id="@+id/instructionText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="60dp"
+                android:layout_marginTop="36dp"
                 android:text="Generating sign in code..."
                 android:textSize="16sp"
                 android:visibility="visible"
@@ -57,7 +59,6 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/logoImage" />
 
-            <!-- Code Container -->
             <LinearLayout
                 android:id="@+id/codeContainer"
                 android:layout_width="wrap_content"
@@ -75,10 +76,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="V"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -87,10 +88,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="C"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -99,10 +100,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="2"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -111,10 +112,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="W"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -126,7 +127,7 @@
                     android:layout_margin="4dp"
                     android:gravity="center"
                     android:text="-"
-                    android:textColor="#666666"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -135,10 +136,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="G"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -147,10 +148,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="W"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -159,10 +160,10 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="C"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -171,34 +172,33 @@
                     android:layout_width="40dp"
                     android:layout_height="50dp"
                     android:layout_margin="4dp"
-                    android:background="#333333"
+                    android:background="@drawable/bg_code_char"
                     android:gravity="center"
                     android:text="G"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
             </LinearLayout>
 
-            <!-- Copy Code Button -->
             <Button
                 android:id="@+id/copyCodeButton"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
                 android:layout_marginStart="32dp"
-                android:layout_marginTop="48dp"
+                android:layout_marginTop="24dp"
                 android:layout_marginEnd="32dp"
-                android:backgroundTint="#333333"
+                android:backgroundTint="@color/button_secondary_background"
                 android:text="Copy Code"
                 android:textAllCaps="false"
-                android:textColor="#FF6B35"
+                android:textColor="@color/pangolin_primary"
                 android:textSize="16sp"
                 android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/codeContainer" />
 
-            <!-- Open Login Page Button -->
             <Button
                 android:id="@+id/openLoginButton"
                 android:layout_width="0dp"
@@ -223,7 +223,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="Or visit: https://app.pangolin.net/auth/login/device"
-                android:textColor="#999999"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp"
                 android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -235,10 +235,11 @@
                 android:id="@+id/loadingIndicator"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="336dp"
                 android:indeterminateTint="#FF6B35"
                 android:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.498"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/instructionText" />
 

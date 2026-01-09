@@ -12,13 +12,25 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Logo -->
+        <ImageView
+            android:id="@+id/logoImage"
+            android:layout_width="240dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"
+            android:contentDescription="Pangolin logo" />
+
         <!-- Status Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/status_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="2dp">
+            app:cardBackgroundColor="@color/card_background_light"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -53,9 +65,9 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
                             android:text="Disconnected"
+                            android:textColor="?attr/colorOnSurface"
                             android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:textColor="?attr/colorOnSurface" />
+                            android:textStyle="bold" />
 
                     </LinearLayout>
 
@@ -64,7 +76,9 @@
                         android:id="@+id/toggle_connect"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:checked="false" />
+                        android:checked="false"
+                        app:thumbTint="@color/switch_thumb_selector"
+                        app:trackTint="@color/switch_track_selector" />
 
                 </LinearLayout>
 
@@ -95,10 +109,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:visibility="gone"
+            app:cardBackgroundColor="@color/card_background_light"
             app:cardCornerRadius="24dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="?attr/colorSurfaceVariant">
+            app:strokeWidth="0dp">
+
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -116,10 +131,9 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Account"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textAllCaps="true"
-                        android:letterSpacing="0.1" />
+                        />
 
                     <LinearLayout
                         android:id="@+id/account_button_layout"
@@ -136,6 +150,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_person"
+                            android:tint="@color/pangolin_primary"
                             android:contentDescription="Account icon" />
 
                         <TextView
@@ -153,6 +168,7 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_arrow_forward"
+                            android:tint="?attr/colorOnSurfaceVariant"
                             android:contentDescription="Navigate" />
 
                     </LinearLayout>
@@ -165,17 +181,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:orientation="vertical"
-                    android:visibility="gone">
+                    android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Organization"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textAllCaps="true"
-                        android:letterSpacing="0.1" />
+                         />
 
                     <LinearLayout
                         android:id="@+id/organization_button_layout"
@@ -192,6 +206,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_business"
+                            android:tint="@color/pangolin_primary"
                             android:contentDescription="Organization icon" />
 
                         <TextView
@@ -209,6 +224,7 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_arrow_forward"
+                            android:tint="?attr/colorOnSurfaceVariant"
                             android:contentDescription="Navigate" />
 
                     </LinearLayout>

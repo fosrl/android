@@ -4,8 +4,18 @@
     <color name="pangolin_primary">#FFF15232</color>
     <color name="pangolin_secondary">#FFF7F7F8</color>
     <color name="pangolin_tertiary">#FFF7F7F8</color>
-    
+
+    <!--Card colors-->
+    <color name="card_background">#232323</color>
+    <color name="card_background_light">#F5F5F5</color>
+
+    <!-- Button colors -->
+    <color name="button_secondary_background">#E0E0E0</color>
+    <color name="button_secondary_text">#424242</color>
+
     <!-- Basic colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="gray_light">#FFCCCCCC</color>
+    <color name="gray_dark">#FF333333</color>
 </resources>

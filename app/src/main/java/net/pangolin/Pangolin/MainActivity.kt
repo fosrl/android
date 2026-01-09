@@ -3,6 +3,7 @@ package net.pangolin.Pangolin
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.VpnService
 import android.os.Bundle
 import android.util.Log
@@ -154,6 +155,9 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
 
+        // Set theme-aware logo
+        setThemeAwareLogo()
+
         // Initialize UI state
         updateAccountOrgCard()
 
@@ -205,6 +209,15 @@ class MainActivity : BaseNavigationActivity() {
         
         // Update authentication state
         updateAccountOrgCard()
+    }
+
+    private fun setThemeAwareLogo() {
+        val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val isDarkMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+        
+        contentBinding.logoImage.setImageResource(
+            if (isDarkMode) R.drawable.word_mark_white else R.drawable.word_mark_black
+        )
     }
 
 //    private fun updateLoginButtonText(isAuthenticated: Boolean) {
