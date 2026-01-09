@@ -180,7 +180,8 @@
                     android:gravity="center"
                     android:text="@string/terms_and_privacy_text"
                     android:textSize="12sp"
-                    android:linksClickable="true" />
+                    android:linksClickable="true"
+                    android:textColorLink="@color/pangolin_primary" />
 
             </LinearLayout>
 

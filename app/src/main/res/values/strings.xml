@@ -8,5 +8,5 @@
     <string name="navigation_drawer_close">Close navigation drawer</string>
     
     <!-- Login -->
-    <string name="terms_and_privacy_text">By continuing, you agree to our <a href="https://pangolin.net/terms-of-service.html">Terms of Service</a> and <a href="https://pangolin.net/privacy-policy.html">Privacy Policy</a>.</string>
+    <string name="terms_and_privacy_text"><![CDATA[By continuing, you agree to our <a href="https://pangolin.net/terms-of-service.html">Terms of Service</a> and <a href="https://pangolin.net/privacy-policy.html">Privacy Policy</a>.]]></string>
 </resources>

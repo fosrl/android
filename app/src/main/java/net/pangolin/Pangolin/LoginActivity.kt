@@ -4,7 +4,11 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.text.Html
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
 import android.text.method.LinkMovementMethod
+import android.text.style.URLSpan
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import net.pangolin.Pangolin.databinding.ActivityLoginBinding
@@ -49,7 +53,8 @@ class LoginActivity : AppCompatActivity() {
         }
 
         // Setup terms and privacy links
-        binding.termsText.text = Html.fromHtml(getString(R.string.terms_and_privacy_text), Html.FROM_HTML_MODE_LEGACY)
+        val spannedText = Html.fromHtml(getString(R.string.terms_and_privacy_text), Html.FROM_HTML_MODE_LEGACY)
+        binding.termsText.text = removeUnderlineFromLinks(spannedText)
         binding.termsText.movementMethod = LinkMovementMethod.getInstance()
 
         // Setup cloud option click
@@ -129,6 +134,28 @@ class LoginActivity : AppCompatActivity() {
                 super.onBackPressed()
             }
         }
+    }
+
+    private fun removeUnderlineFromLinks(spanned: Spanned): SpannableString {
+        val spannable = SpannableString(spanned)
+        val urlSpans = spannable.getSpans(0, spannable.length, URLSpan::class.java)
+        for (urlSpan in urlSpans) {
+            val start = spannable.getSpanStart(urlSpan)
+            val end = spannable.getSpanEnd(urlSpan)
+            spannable.removeSpan(urlSpan)
+            spannable.setSpan(
+                object : URLSpan(urlSpan.url) {
+                    override fun updateDrawState(ds: TextPaint) {
+                        super.updateDrawState(ds)
+                        ds.isUnderlineText = false
+                    }
+                },
+                start,
+                end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        return spannable
     }
 
     private fun setThemeAwareLogo() {
