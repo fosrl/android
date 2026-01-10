@@ -7,41 +7,41 @@
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorPrimaryContainer">#FFFF8A65</item>
         <item name="colorOnPrimaryContainer">#FF3E2723</item>
-        
+
         <!-- Secondary brand color -->
         <item name="colorSecondary">@color/pangolin_secondary</item>
         <item name="colorOnSecondary">@color/white</item>
-        <item name="colorSecondaryContainer">#FFFFCC80</item>
+        <item name="colorSecondaryContainer">@color/pangolin_primary</item>
         <item name="colorOnSecondaryContainer">#FF4E342E</item>
-        
+
         <!-- Tertiary brand color -->
         <item name="colorTertiary">@color/pangolin_tertiary</item>
         <item name="colorOnTertiary">@color/black</item>
-        <item name="colorTertiaryContainer">#FFFFE082</item>
+        <item name="colorTertiaryContainer">@color/pangolin_primary</item>
         <item name="colorOnTertiaryContainer">#FF5D4037</item>
-        
+
         <!-- Error colors -->
         <item name="colorError">#FFB00020</item>
         <item name="colorOnError">@color/white</item>
         <item name="colorErrorContainer">#FFFCD8DF</item>
         <item name="colorOnErrorContainer">#FF370B1E</item>
-        
+
         <!-- Background colors -->
         <item name="android:colorBackground">@color/white</item>
         <item name="colorOnBackground">@color/black</item>
-        
+
         <!-- Surface colors -->
         <item name="colorSurface">@color/white</item>
         <item name="colorOnSurface">@color/black</item>
         <item name="colorSurfaceVariant">#FFF5F5F5</item>
         <item name="colorOnSurfaceVariant">#FF424242</item>
-        
+
         <!-- Status bar color -->
         <item name="android:statusBarColor">@android:color/transparent</item>
-        
+
         <!-- Navigation bar color -->
         <item name="android:navigationBarColor">?attr/colorSurface</item>
-        
+
         <!-- Navigation drawer colors -->
         <item name="colorControlNormal">@color/black</item>
     </style>

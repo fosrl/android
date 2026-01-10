@@ -5,43 +5,43 @@
         <!-- Primary brand color -->
         <item name="colorPrimary">@color/pangolin_primary</item>
         <item name="colorOnPrimary">@color/white</item>
-        <item name="colorPrimaryContainer">#FFBF360C</item>
+        <item name="colorPrimaryContainer">@color/pangolin_primary</item>
         <item name="colorOnPrimaryContainer">#FFFFAB91</item>
-        
+
         <!-- Secondary brand color -->
         <item name="colorSecondary">@color/pangolin_secondary</item>
         <item name="colorOnSecondary">@color/black</item>
-        <item name="colorSecondaryContainer">#FFE65100</item>
-        <item name="colorOnSecondaryContainer">#FFFFCC80</item>
-        
+        <item name="colorSecondaryContainer">@color/pangolin_primary</item>
+        <item name="colorOnSecondaryContainer">@color/gray_light</item>
+
         <!-- Tertiary brand color -->
         <item name="colorTertiary">@color/pangolin_tertiary</item>
         <item name="colorOnTertiary">@color/black</item>
-        <item name="colorTertiaryContainer">#FFF57C00</item>
-        <item name="colorOnTertiaryContainer">#FFFFE082</item>
-        
+        <item name="colorTertiaryContainer">@color/pangolin_primary</item>
+        <item name="colorOnTertiaryContainer">@color/gray_light</item>
+
         <!-- Error colors -->
         <item name="colorError">#FFCF6679</item>
         <item name="colorOnError">@color/black</item>
-        <item name="colorErrorContainer">#FFB00020</item>
+        <item name="colorErrorContainer">@color/pangolin_primary</item>
         <item name="colorOnErrorContainer">#FFFCD8DF</item>
-        
+
         <!-- Background colors -->
         <item name="android:colorBackground">#FF121212</item>
         <item name="colorOnBackground">@color/white</item>
-        
+
         <!-- Surface colors -->
         <item name="colorSurface">#FF121212</item>
         <item name="colorOnSurface">@color/white</item>
         <item name="colorSurfaceVariant">#FF1E1E1E</item>
         <item name="colorOnSurfaceVariant">#FFCCCCCC</item>
-        
+
         <!-- Status bar color -->
         <item name="android:statusBarColor">@android:color/transparent</item>
-        
+
         <!-- Navigation bar color -->
         <item name="android:navigationBarColor">?attr/colorSurface</item>
-        
+
         <!-- Navigation drawer colors -->
         <item name="colorControlNormal">@color/white</item>
     </style>

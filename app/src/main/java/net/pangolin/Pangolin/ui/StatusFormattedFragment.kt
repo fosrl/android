@@ -10,7 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.cardview.widget.CardView
+import com.google.android.material.card.MaterialCardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -28,7 +28,7 @@ class StatusFormattedFragment : Fragment() {
 
     private var disconnectedCard: View? = null
     private var connectionStatusHeader: TextView? = null
-    private var appInfoCard: CardView? = null
+    private var appInfoCard: MaterialCardView? = null
     private var sitesHeader: TextView? = null
     private var agentValue: TextView? = null
     private var versionValue: TextView? = null
