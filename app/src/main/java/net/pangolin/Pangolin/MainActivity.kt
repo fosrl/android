@@ -144,6 +144,18 @@ class MainActivity : BaseNavigationActivity() {
 //            startActivity(intent)
 //        }
 
+        // Setup status card click listener to toggle the switch
+        contentBinding.statusCard.setOnClickListener {
+            lifecycleScope.launch {
+                val currentState = tunnelManager.tunnelState.value
+                // Prevent toggle during transition states
+                if (!currentState.isConnecting) {
+                    // Toggle the switch (this will trigger the listener)
+                    contentBinding.toggleConnect.isChecked = !contentBinding.toggleConnect.isChecked
+                }
+            }
+        }
+
         // Setup account card click listener
         contentBinding.accountButtonLayout.setOnClickListener {
             showAccountManagementDialog()

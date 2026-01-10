@@ -44,8 +44,19 @@
 
         <!-- Navigation drawer colors -->
         <item name="colorControlNormal">@color/black</item>
+
+        <!-- Material Alert Dialog theme -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Pangolin.MaterialAlertDialog</item>
     </style>
 
     <!-- Main theme that inherits from base -->
     <style name="Theme.Pangolin" parent="Base.Theme.Pangolin" />
+
+    <!-- Material Alert Dialog theme overlay for light mode -->
+    <style name="ThemeOverlay.Pangolin.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <!-- Radio button colors -->
+        <item name="colorOnSurface">@color/black</item>
+        <item name="colorOnSurfaceVariant">#FF424242</item>
+        <item name="colorSecondary">@color/pangolin_primary</item>
+    </style>
 </resources>

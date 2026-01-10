@@ -139,7 +139,7 @@
                         android:layout_weight="1"
                         android:text="Documentation"
                         android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="@color/pangolin_primary" />
 
                     <ImageView
                         android:layout_width="16dp"
@@ -174,7 +174,7 @@
                         android:layout_weight="1"
                         android:text="How Pangolin Works"
                         android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="@color/pangolin_primary" />
 
                     <ImageView
                         android:layout_width="16dp"
@@ -230,7 +230,7 @@
                         android:layout_weight="1"
                         android:text="Terms of Service"
                         android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="@color/pangolin_primary" />
 
                     <ImageView
                         android:layout_width="16dp"
@@ -265,7 +265,7 @@
                         android:layout_weight="1"
                         android:text="Privacy Policy"
                         android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="@color/pangolin_primary" />
 
                     <ImageView
                         android:layout_width="16dp"
