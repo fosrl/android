@@ -1,22 +1,16 @@
 package net.pangolin.Pangolin
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsCallback
@@ -31,7 +25,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.pangolin.Pangolin.databinding.ActivitySignInCodeBinding
-import net.pangolin.Pangolin.service.DeviceAuthService
 import net.pangolin.Pangolin.util.APIClient
 import net.pangolin.Pangolin.util.AuthManager
 import net.pangolin.Pangolin.util.AccountManager
@@ -58,62 +51,6 @@ class SignInCodeActivity : AppCompatActivity() {
     private var customTabsClient: CustomTabsClient? = null
     private var customTabsSession: CustomTabsSession? = null
     private var customTabsConnection: CustomTabsServiceConnection? = null
-
-    // Device Auth Service
-    private var deviceAuthService: DeviceAuthService? = null
-    private var isServiceBound = false
-    
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val binder = service as DeviceAuthService.LocalBinder
-            deviceAuthService = binder.getService()
-            isServiceBound = true
-            Log.d(tag, "DeviceAuthService connected")
-            
-            // Observe poll results from the service
-            lifecycleScope.launch {
-                deviceAuthService?.pollResult?.collect { result ->
-                    when (result) {
-                        is DeviceAuthService.PollResult.Success -> {
-                            handlePollSuccess(result.token, result.hostname)
-                        }
-                        is DeviceAuthService.PollResult.Error -> {
-                            Toast.makeText(this@SignInCodeActivity, result.message, Toast.LENGTH_LONG).show()
-                        }
-                        is DeviceAuthService.PollResult.Timeout -> {
-                            Toast.makeText(this@SignInCodeActivity, "Sign in timed out. Please try again.", Toast.LENGTH_LONG).show()
-                            finish()
-                        }
-                        is DeviceAuthService.PollResult.Cancelled -> {
-                            // User cancelled, no action needed
-                        }
-                        null -> {
-                            // No result yet
-                        }
-                    }
-                }
-            }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            deviceAuthService = null
-            isServiceBound = false
-            Log.d(tag, "DeviceAuthService disconnected")
-        }
-    }
-
-    // Notification permission launcher
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Log.d(tag, "Notification permission granted")
-        } else {
-            Log.w(tag, "Notification permission denied - service will run without notification on older Android")
-        }
-        // Start device auth regardless of permission result
-        startDeviceAuth()
-    }
 
     companion object {
         const val EXTRA_HOSTNAME = "extra_hostname"
@@ -188,10 +125,9 @@ class SignInCodeActivity : AppCompatActivity() {
                     binding.openLoginButton.visibility = View.VISIBLE
                     binding.urlText.visibility = View.VISIBLE
 
-                    // Start foreground service for polling and auto-open browser
+                    // Auto-open browser with the code
                     if (!hasAutoOpenedBrowser) {
                         hasAutoOpenedBrowser = true
-                        startPollingService(code)
                         autoOpenBrowser(code)
                     }
                 } else {
@@ -230,27 +166,11 @@ class SignInCodeActivity : AppCompatActivity() {
             }
         }
 
-        // Request notification permission and start device auth
-        requestNotificationPermissionAndStart()
-    }
-
-    private fun requestNotificationPermissionAndStart() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            when {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED -> {
-                    // Permission already granted
-                    startDeviceAuth()
-                }
-                else -> {
-                    // Request permission
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
+        // Check if this is a deep link callback
+        if (intent?.data?.scheme == "pangolin") {
+            handleDeepLinkCallback()
         } else {
-            // No runtime permission needed for older Android versions
+            // Start device auth flow
             startDeviceAuth()
         }
     }
@@ -310,42 +230,52 @@ class SignInCodeActivity : AppCompatActivity() {
         }
     }
 
-    private fun startPollingService(code: String) {
-        // Bind to the service first
-        val bindIntent = Intent(this, DeviceAuthService::class.java)
-        bindService(bindIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+    private fun handleDeepLinkCallback() {
+        Log.i(tag, "Received deep link callback - polling for auth token")
+        Toast.makeText(this, "Completing sign in...", Toast.LENGTH_SHORT).show()
         
-        // Start the foreground service
-        val serviceIntent = Intent(this, DeviceAuthService::class.java).apply {
-            action = DeviceAuthService.ACTION_START_POLLING
-            putExtra(DeviceAuthService.EXTRA_CODE, code)
-            putExtra(DeviceAuthService.EXTRA_HOSTNAME, hostname)
-            putExtra(DeviceAuthService.EXTRA_EXPIRES_IN_SECONDS, expiresInSeconds)
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+        // Poll once to get the token since the code should now be verified
+        val code = currentCode
+        if (code != null) {
+            pollForToken(code)
         } else {
-            startService(serviceIntent)
+            // If we don't have the code in memory, we need to wait for it
+            // This shouldn't normally happen, but handle it gracefully
+            lifecycleScope.launch {
+                // Wait for the code to be available
+                authManager.deviceAuthCode.collect { deviceCode ->
+                    if (deviceCode != null && currentCode == null) {
+                        currentCode = deviceCode
+                        pollForToken(deviceCode)
+                    }
+                }
+            }
         }
-        
-        Log.d(tag, "Started DeviceAuthService for polling")
     }
 
-    private fun stopPollingService() {
-        // Stop the service
-        val serviceIntent = Intent(this, DeviceAuthService::class.java).apply {
-            action = DeviceAuthService.ACTION_STOP_POLLING
+    private fun pollForToken(code: String) {
+        lifecycleScope.launch {
+            try {
+                Log.i(tag, "Polling for auth token with code: $code")
+                
+                val (pollResponse, token) = withContext(Dispatchers.IO) {
+                    apiClient.pollDeviceAuth(code.replace("-", ""), hostname)
+                }
+                
+                if (pollResponse.verified && !token.isNullOrEmpty()) {
+                    Log.i(tag, "Poll successful - got auth token")
+                    handlePollSuccess(token, hostname)
+                } else {
+                    Log.w(tag, "Poll returned but code not yet verified, will retry...")
+                    // Code might not be verified yet, retry after a short delay
+                    delay(1000)
+                    pollForToken(code)
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Poll failed: ${e.message}", e)
+                Toast.makeText(this@SignInCodeActivity, "Failed to complete sign in: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
-        startService(serviceIntent)
-        
-        // Unbind from the service
-        if (isServiceBound) {
-            unbindService(serviceConnection)
-            isServiceBound = false
-        }
-        
-        Log.d(tag, "Stopped DeviceAuthService")
     }
 
     private suspend fun handlePollSuccess(token: String, hostname: String) {
@@ -380,9 +310,8 @@ class SignInCodeActivity : AppCompatActivity() {
         // Handle deep link callback from browser
         intent?.data?.let { uri ->
             if (uri.scheme == "pangolin") {
-                Log.i(tag, "Received deep link callback: $uri")
-                Toast.makeText(this, "Completing sign in...", Toast.LENGTH_SHORT).show()
-                // The polling service will automatically detect the successful auth
+                Log.i(tag, "Received deep link callback via onNewIntent: $uri")
+                handleDeepLinkCallback()
             }
         }
     }
@@ -392,7 +321,6 @@ class SignInCodeActivity : AppCompatActivity() {
             try {
                 Log.i(tag, "Starting device auth flow with hostname: $hostname")
                 // This will generate the code and set up initial state
-                // We'll use our service for the actual polling
                 val deviceName = android.os.Build.MODEL
                 val appName = "Pangolin Android"
                 
@@ -517,9 +445,6 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun showSuccess() {
-        // Stop the polling service
-        stopPollingService()
-        
         Toast.makeText(this, "Authentication Successful!", Toast.LENGTH_LONG).show()
 
         // Start MainActivity and clear the back stack
@@ -534,9 +459,6 @@ class SignInCodeActivity : AppCompatActivity() {
         
         // Cancel any ongoing device auth polling in AuthManager
         authManager.cancelDeviceAuth()
-        
-        // Stop polling service
-        stopPollingService()
         
         // Unbind Custom Tabs service
         customTabsConnection?.let {
@@ -553,7 +475,6 @@ class SignInCodeActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         authManager.cancelDeviceAuth()
-        stopPollingService()
         super.onBackPressed()
     }
 
