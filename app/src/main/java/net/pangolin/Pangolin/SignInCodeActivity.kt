@@ -259,7 +259,7 @@ class SignInCodeActivity : AppCompatActivity() {
                 Log.i(tag, "Polling for auth token with code: $code")
                 
                 val (pollResponse, token) = withContext(Dispatchers.IO) {
-                    apiClient.pollDeviceAuth(code.replace("-", ""), hostname)
+                    apiClient.pollDeviceAuth(code, hostname)
                 }
                 
                 if (pollResponse.verified && !token.isNullOrEmpty()) {
