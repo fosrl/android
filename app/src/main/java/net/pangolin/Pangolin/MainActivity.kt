@@ -106,62 +106,37 @@ class MainActivity : BaseNavigationActivity() {
         contentBinding.loadingOverlay.visibility = android.view.View.VISIBLE
         contentBinding.mainContent.visibility = android.view.View.GONE
 
-        // Setup toggle switch listener
-        contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                val currentState = tunnelManager.tunnelState.value
-                
-                // Check if the action is allowed based on current state
-                if (isChecked && !currentState.canEnable) {
-                    // Trying to enable but not in a state that allows it - revert toggle
-                    contentBinding.toggleConnect.setOnCheckedChangeListener(null)
-                    contentBinding.toggleConnect.isChecked = false
-                    contentBinding.toggleConnect.setOnCheckedChangeListener { _, checked ->
-                        lifecycleScope.launch {
-                            val state = tunnelManager.tunnelState.value
-                            if (checked && state.canEnable) {
-                                connectTunnel()
-                            } else if (!checked && state.canDisable) {
-                                tunnelManager.disconnect()
-                            } else {
-                                // Revert if action not allowed
-                                contentBinding.toggleConnect.setOnCheckedChangeListener(null)
-                                contentBinding.toggleConnect.isChecked = !checked
-                                contentBinding.toggleConnect.setOnCheckedChangeListener(this@setOnCheckedChangeListener)
-                            }
-                        }
+        // Setup toggle switch listener with helper function
+        fun setupToggleListener() {
+            contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
+                lifecycleScope.launch {
+                    val currentState = tunnelManager.tunnelState.value
+                    
+                    // Check if the action is allowed based on current state
+                    if (isChecked && !currentState.canEnable) {
+                        // Trying to enable but not in a state that allows it - revert toggle
+                        contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+                        contentBinding.toggleConnect.isChecked = false
+                        setupToggleListener()
+                        return@launch
+                    } else if (!isChecked && !currentState.canDisable) {
+                        // Trying to disable but not in a state that allows it - revert toggle
+                        contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+                        contentBinding.toggleConnect.isChecked = true
+                        setupToggleListener()
+                        return@launch
                     }
-                    return@launch
-                } else if (!isChecked && !currentState.canDisable) {
-                    // Trying to disable but not in a state that allows it - revert toggle
-                    contentBinding.toggleConnect.setOnCheckedChangeListener(null)
-                    contentBinding.toggleConnect.isChecked = true
-                    contentBinding.toggleConnect.setOnCheckedChangeListener { _, checked ->
-                        lifecycleScope.launch {
-                            val state = tunnelManager.tunnelState.value
-                            if (checked && state.canEnable) {
-                                connectTunnel()
-                            } else if (!checked && state.canDisable) {
-                                tunnelManager.disconnect()
-                            } else {
-                                // Revert if action not allowed
-                                contentBinding.toggleConnect.setOnCheckedChangeListener(null)
-                                contentBinding.toggleConnect.isChecked = !checked
-                                contentBinding.toggleConnect.setOnCheckedChangeListener(this@setOnCheckedChangeListener)
-                            }
-                        }
+                    
+                    // Action is allowed, proceed
+                    if (isChecked) {
+                        connectTunnel()
+                    } else {
+                        tunnelManager.disconnect()
                     }
-                    return@launch
-                }
-                
-                // Action is allowed, proceed
-                if (isChecked) {
-                    connectTunnel()
-                } else {
-                    tunnelManager.disconnect()
                 }
             }
         }
+        setupToggleListener()
 
 //        // Setup login button click listener
 //        contentBinding.btnLogin.setOnClickListener {
@@ -554,7 +529,17 @@ class MainActivity : BaseNavigationActivity() {
                         // Revert toggle if action not allowed
                         contentBinding.toggleConnect.setOnCheckedChangeListener(null)
                         contentBinding.toggleConnect.isChecked = !isChecked
-                        contentBinding.toggleConnect.setOnCheckedChangeListener(this@setOnCheckedChangeListener)
+                        // Re-attach listener after revert
+                        contentBinding.toggleConnect.setOnCheckedChangeListener { _, checked ->
+                            lifecycleScope.launch {
+                                val state = tunnelManager.tunnelState.value
+                                if (checked && state.canEnable) {
+                                    connectTunnel()
+                                } else if (!checked && state.canDisable) {
+                                    tunnelManager.disconnect()
+                                }
+                            }
+                        }
                     }
                 }
             }
