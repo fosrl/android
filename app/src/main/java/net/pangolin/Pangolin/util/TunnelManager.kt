@@ -173,7 +173,7 @@ class TunnelManager private constructor(
                     .setEnableAPI(true)
                     .setLogLevel("debug")
                     .setAgent("Pangolin Android")
-                    .setVersion("1.0.0")
+                    .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
                     .build()
 
