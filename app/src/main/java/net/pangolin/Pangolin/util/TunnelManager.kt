@@ -421,4 +421,18 @@ data class TunnelState(
 ) {
     val isFullyConnected: Boolean
         get() = isServiceRunning && isSocketConnected && isRegistered && !isConnecting
+    
+    /**
+     * Can enable the tunnel only if fully disconnected and ready to connect
+     */
+    val canEnable: Boolean
+        get() = !isServiceRunning && !isConnecting && !isSocketConnected && !isRegistered
+    
+    /**
+     * Can disable the tunnel if:
+     * - Currently connected/connecting (to allow stopping a connection attempt)
+     * - Service is running (regardless of connection state)
+     */
+    val canDisable: Boolean
+        get() = isServiceRunning || isConnecting || isSocketConnected
 }
