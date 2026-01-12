@@ -437,14 +437,54 @@ class AuthManager(
     }
 
     suspend fun ensureOlmCredentials(userId: String) {
+        // Check if OLM credentials already exist locally
+        if (secretManager.hasOlmCredentials(userId)) {
+            // Verify OLM exists on server by getting the OLM directly
+            val olmIdString = secretManager.getOlmId(userId)
+            if (olmIdString != null) {
+                try {
+                    val olm = apiClient.getUserOlm(userId, olmIdString)
+                    
+                    // Verify the olmId and userId match
+                    if (olm.olmId == olmIdString && olm.userId == userId) {
+                        Log.d(tag, "OLM credentials verified successfully")
+                    } else {
+                        Log.e(tag, "OLM mismatch - returned olmId: ${olm.olmId}, userId: ${olm.userId}, stored olmId: $olmIdString")
+                        // Clear invalid credentials
+                        secretManager.deleteOlmCredentials(userId)
+                    }
+                } catch (e: Exception) {
+                    // If getting OLM fails, the OLM might not exist
+                    Log.e(tag, "Failed to verify OLM credentials: ${e.message}", e)
+                    // Clear invalid credentials so we can try to create new ones
+                    secretManager.deleteOlmCredentials(userId)
+                }
+            } else {
+                // No olmId found, clear credentials
+                Log.e(tag, "Cannot verify OLM - olmId not found")
+                secretManager.deleteOlmCredentials(userId)
+            }
+        }
+        
+        // If credentials don't exist or were cleared, create new ones
         if (!secretManager.hasOlmCredentials(userId)) {
             try {
+                // Use the actual device name (user's device model) for OLM
                 val deviceName = android.os.Build.MODEL
-                val response = apiClient.createOlm(userId, deviceName)
-                secretManager.saveOlmCredentials(userId, response.olmId, response.secret)
-                Log.i(tag, "Created new OLM credentials for user $userId")
+                val olmResponse = apiClient.createOlm(userId, deviceName)
+                
+                // Save OLM credentials
+                val saved = secretManager.saveOlmCredentials(userId, olmResponse.olmId, olmResponse.secret)
+                
+                if (!saved) {
+                    Log.e(tag, "Failed to save OLM credentials")
+                    // TODO: Show error dialog to user
+                } else {
+                    Log.i(tag, "Created new OLM credentials for user $userId")
+                }
             } catch (e: Exception) {
                 Log.e(tag, "Failed to create OLM credentials: ${e.message}", e)
+                // TODO: Show error dialog to user
             }
         }
     }
