@@ -44,6 +44,8 @@ class SignInCodeActivity : AppCompatActivity() {
 
     private var hostname: String = "https://app.pangolin.net"
     private var hasAutoOpenedBrowser = false
+    private var hasLaunchedBrowser = false
+    private var isPolling = false
     private var currentCode: String? = null
     private var expiresInSeconds: Long = 300
 
@@ -236,15 +238,15 @@ class SignInCodeActivity : AppCompatActivity() {
         
         // Poll once to get the token since the code should now be verified
         val code = currentCode
-        if (code != null) {
+        if (code != null && !isPolling) {
             pollForToken(code)
-        } else {
+        } else if (!isPolling) {
             // If we don't have the code in memory, we need to wait for it
             // This shouldn't normally happen, but handle it gracefully
             lifecycleScope.launch {
                 // Wait for the code to be available
                 authManager.deviceAuthCode.collect { deviceCode ->
-                    if (deviceCode != null && currentCode == null) {
+                    if (deviceCode != null && currentCode == null && !isPolling) {
                         currentCode = deviceCode
                         pollForToken(deviceCode)
                     }
@@ -254,6 +256,12 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun pollForToken(code: String) {
+        if (isPolling) {
+            Log.d(tag, "Already polling, ignoring duplicate poll request")
+            return
+        }
+        
+        isPolling = true
         lifecycleScope.launch {
             try {
                 Log.i(tag, "Polling for auth token with code: $code")
@@ -269,10 +277,12 @@ class SignInCodeActivity : AppCompatActivity() {
                     Log.w(tag, "Poll returned but code not yet verified, will retry...")
                     // Code might not be verified yet, retry after a short delay
                     delay(1000)
+                    isPolling = false  // Reset before retry
                     pollForToken(code)
                 }
             } catch (e: Exception) {
                 Log.e(tag, "Poll failed: ${e.message}", e)
+                isPolling = false
                 Toast.makeText(this@SignInCodeActivity, "Failed to complete sign in: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
@@ -377,6 +387,8 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun openLoginPage() {
+        // Reset polling state to allow fresh polling when user returns
+        isPolling = false
         currentCode?.let { autoOpenBrowser(it) }
     }
 
@@ -387,6 +399,8 @@ class SignInCodeActivity : AppCompatActivity() {
 
         Log.i(tag, "Opening in-app browser with URL: $autoOpenURL")
 
+        hasLaunchedBrowser = true
+        
         try {
             launchCustomTab(Uri.parse(autoOpenURL))
         } catch (e: Exception) {
@@ -452,6 +466,21 @@ class SignInCodeActivity : AppCompatActivity() {
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        
+        // If we launched the browser and user came back, start polling
+        // This handles the case where the user closed the custom tab after completing login
+        if (hasLaunchedBrowser && !isPolling) {
+            val code = currentCode
+            if (code != null) {
+                Log.i(tag, "Returned from browser, starting polling for auth completion")
+                Toast.makeText(this, "Checking authentication status...", Toast.LENGTH_SHORT).show()
+                pollForToken(code)
+            }
+        }
     }
 
     override fun onDestroy() {
