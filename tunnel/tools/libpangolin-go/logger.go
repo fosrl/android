@@ -17,6 +17,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Global file logger
+var logFile *os.File
+
 // LogLevel represents the severity of a log message
 type LogLevel int
 
@@ -71,7 +74,7 @@ func (l *Logger) formatMessage(format string, args ...interface{}) string {
 	return format
 }
 
-// logToAndroid sends a log message to Android logcat
+// logToAndroid sends a log message to Android logcat AND file
 func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}) {
 	if l.logLevel > level {
 		return
@@ -81,20 +84,34 @@ func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}
 
 	// Map Go log levels to Android log levels
 	var androidLogLevel C.int
+	var levelStr string
 	switch level {
 	case LogLevelDebug:
 		androidLogLevel = C.ANDROID_LOG_DEBUG
+		levelStr = "DEBUG"
 	case LogLevelInfo:
 		androidLogLevel = C.ANDROID_LOG_INFO
+		levelStr = "INFO"
 	case LogLevelWarn:
 		androidLogLevel = C.ANDROID_LOG_WARN
+		levelStr = "WARN"
 	case LogLevelError:
 		androidLogLevel = C.ANDROID_LOG_ERROR
+		levelStr = "ERROR"
 	default:
 		androidLogLevel = C.ANDROID_LOG_INFO
+		levelStr = "INFO"
 	}
 
+	// Log to logcat
 	C.__android_log_write(androidLogLevel, l.tag, cstring(message))
+	
+	// Log to file
+	if logFile != nil {
+		timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+		logLine := fmt.Sprintf("%s [%s] %s: %s\n", timestamp, levelStr, l.prefix, message)
+		logFile.WriteString(logLine)
+	}
 }
 
 // Debug logs a debug message
@@ -182,6 +199,30 @@ func init() {
         }
     }()
 	
+}
+
+// InitFileLogger initializes file logging - call this from Java/Kotlin with the app's file directory
+//
+//export InitFileLogger
+func InitFileLogger(filePath *C.char) {
+	goPath := C.GoString(filePath)
+	var err error
+	logFile, err = os.OpenFile(goPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		appLogger.Error("Failed to open log file: %v", err)
+		return
+	}
+	appLogger.Info("File logging initialized: %s", goPath)
+}
+
+// CloseFileLogger closes the file logger
+//
+//export CloseFileLogger
+func CloseFileLogger() {
+	if logFile != nil {
+		logFile.Close()
+		logFile = nil
+	}
 }
 
 // setLogLevel sets the log level for the Go logger

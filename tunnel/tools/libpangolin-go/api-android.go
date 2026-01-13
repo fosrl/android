@@ -17,11 +17,12 @@ import "time"
 
 // InitOlmConfig represents the JSON configuration for initOlm
 type InitOlmConfig struct {
-	EnableAPI  bool   `json:"enableAPI"`
-	SocketPath string `json:"socketPath"`
-	LogLevel   string `json:"logLevel"`
-	Version    string `json:"version"`
-	Agent      string `json:"agent"`
+	EnableAPI   bool   `json:"enableAPI"`
+	SocketPath  string `json:"socketPath"`
+	LogLevel    string `json:"logLevel"`
+	Version     string `json:"version"`
+	Agent       string `json:"agent"`
+	LogFilePath string `json:"logFilePath"`
 }
 
 // StartTunnelConfig represents the JSON configuration for startTunnel
@@ -64,6 +65,11 @@ func initOlm(configJSON *C.char) *C.char {
 
 	// print out the config we got
 	appLogger.Debug("Init config: %+v", config)
+
+	// Initialize file logging if path provided
+	if config.LogFilePath != "" {
+		InitFileLogger(cstring(config.LogFilePath))
+	}
 
 	// Create context for OLM
 	olmContext = context.Background()
