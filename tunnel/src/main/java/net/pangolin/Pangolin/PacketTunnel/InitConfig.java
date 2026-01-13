@@ -20,6 +20,7 @@ public class InitConfig {
     private final String logLevel;
     private final String version;
     private final String agent;
+    private final String logFilePath;
 
     private InitConfig(Builder builder) {
         this.enableAPI = builder.enableAPI;
@@ -27,6 +28,7 @@ public class InitConfig {
         this.logLevel = builder.logLevel;
         this.version = builder.version;
         this.agent = builder.agent;
+        this.logFilePath = builder.logFilePath;
     }
 
     /**
@@ -42,6 +44,7 @@ public class InitConfig {
         json.put("logLevel", logLevel);
         json.put("version", version);
         json.put("agent", agent);
+        json.put("logFilePath", logFilePath);
         return json.toString();
     }
 
@@ -65,6 +68,10 @@ public class InitConfig {
         return agent;
     }
 
+    public String getLogFilePath() {
+        return logFilePath;
+    }
+
     @Override
     public String toString() {
         return "InitConfig{" +
@@ -73,6 +80,7 @@ public class InitConfig {
                 ", logLevel='" + logLevel + '\'' +
                 ", version='" + version + '\'' +
                 ", agent='" + agent + '\'' +
+                ", logFilePath='" + logFilePath + '\'' +
                 '}';
     }
 
@@ -85,6 +93,7 @@ public class InitConfig {
         private String logLevel = "info";
         private String version = "";
         private String agent = "android";
+        private String logFilePath = "";
 
         public Builder setEnableAPI(boolean enableAPI) {
             this.enableAPI = enableAPI;
@@ -108,6 +117,11 @@ public class InitConfig {
 
         public Builder setAgent(String agent) {
             this.agent = agent != null ? agent : "android";
+            return this;
+        }
+
+        public Builder setLogFilePath(String logFilePath) {
+            this.logFilePath = logFilePath != null ? logFilePath : "";
             return this;
         }
 
