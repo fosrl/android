@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"unsafe"
 
 	olmpkg "github.com/fosrl/olm/olm"
 )
@@ -17,11 +18,12 @@ import "time"
 
 // InitOlmConfig represents the JSON configuration for initOlm
 type InitOlmConfig struct {
-	EnableAPI  bool   `json:"enableAPI"`
-	SocketPath string `json:"socketPath"`
-	LogLevel   string `json:"logLevel"`
-	Version    string `json:"version"`
-	Agent      string `json:"agent"`
+	EnableAPI   bool   `json:"enableAPI"`
+	SocketPath  string `json:"socketPath"`
+	LogLevel    string `json:"logLevel"`
+	Version     string `json:"version"`
+	Agent       string `json:"agent"`
+	LogFilePath string `json:"logFilePath"`
 }
 
 // StartTunnelConfig represents the JSON configuration for startTunnel
@@ -60,6 +62,14 @@ func initOlm(configJSON *C.char) *C.char {
 	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
 		appLogger.Error("Failed to parse init config JSON: %v", err)
 		return C.CString(fmt.Sprintf("Error: Failed to parse config JSON: %v", err))
+	}
+
+	// Enable file logging if log file path is provided
+	if config.LogFilePath != "" {
+		result := enableFileLogging(C.CString(config.LogFilePath))
+		resultStr := C.GoString(result)
+		C.free(unsafe.Pointer(result))
+		appLogger.Info("File logging setup: %s", resultStr)
 	}
 
 	// print out the config we got
@@ -176,6 +186,13 @@ func stopTunnel() *C.char {
 	olmpkg.StopApi()
 
 	tunnelRunning = false
+	
+	// Disable file logging when tunnel stops
+	result := disableFileLogging()
+	resultStr := C.GoString(result)
+	C.free(unsafe.Pointer(result))
+	appLogger.Debug("File logging cleanup: %s", resultStr)
+	
 	appLogger.Debug("Tunnel stopped successfully")
 	return C.CString("Tunnel stopped")
 }

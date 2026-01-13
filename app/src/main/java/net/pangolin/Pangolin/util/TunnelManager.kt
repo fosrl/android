@@ -59,6 +59,9 @@ class TunnelManager private constructor(
         val socketPath = File(context.filesDir, "pangolin.sock").absolutePath
         statusPollingManager = StatusPollingManager(socketPath)
 
+        // Clean up old log files (keep only 5 most recent)
+        cleanupOldLogFiles()
+
         // Observe status updates
         scope.launch {
             statusPollingManager?.statusFlow?.collect { status ->
@@ -169,13 +172,20 @@ class TunnelManager private constructor(
 
             // Start tunnel
             withContext(Dispatchers.IO) {
+                // Create timestamped log file path
+                val timestamp = System.currentTimeMillis()
+                val logFilePath = File(context.filesDir, "pangolin_go_$timestamp.txt").absolutePath
+                
                 val initConfig = InitConfig.Builder()
                     .setEnableAPI(true)
                     .setLogLevel("debug")
                     .setAgent("Pangolin Android")
                     .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
+                    .setLogFilePath(logFilePath)
                     .build()
+                
+                Log.i(tag, "Go backend logs will be written to: $logFilePath")
 
                 val upstreamDns = mutableListOf<String>()
                 upstreamDns.add("$primaryDNS:53")
@@ -369,6 +379,69 @@ class TunnelManager private constructor(
             goBackend?.getState(tunnel!!)
         } else {
             Tunnel.State.DOWN
+        }
+    }
+
+    /**
+     * Clean up old log files, keeping only the 5 most recent
+     */
+    private fun cleanupOldLogFiles() {
+        try {
+            val logFiles = context.filesDir.listFiles { file ->
+                file.name.startsWith("pangolin_go_") && file.name.endsWith(".txt")
+            }?.sortedByDescending { it.lastModified() } ?: return
+
+            val filesToDelete = logFiles.drop(5)
+            var deletedCount = 0
+            
+            for (file in filesToDelete) {
+                if (file.delete()) {
+                    deletedCount++
+                    Log.d(tag, "Deleted old log file: ${file.name}")
+                }
+            }
+            
+            if (deletedCount > 0) {
+                Log.i(tag, "Cleaned up $deletedCount old log files")
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error cleaning up old log files", e)
+        }
+    }
+
+    /**
+     * Get the path to the most recent log file
+     * 
+     * @return File path to the most recent log file, or null if none exist
+     */
+    fun getMostRecentLogFilePath(): String? {
+        try {
+            val logFiles = context.filesDir.listFiles { file ->
+                file.name.startsWith("pangolin_go_") && file.name.endsWith(".txt")
+            }?.sortedByDescending { it.lastModified() }
+            
+            return logFiles?.firstOrNull()?.absolutePath
+        } catch (e: Exception) {
+            Log.e(tag, "Error getting most recent log file", e)
+            return null
+        }
+    }
+
+    /**
+     * Get all log file paths
+     * 
+     * @return List of log file paths, sorted by newest first
+     */
+    fun getAllLogFilePaths(): List<String> {
+        try {
+            val logFiles = context.filesDir.listFiles { file ->
+                file.name.startsWith("pangolin_go_") && file.name.endsWith(".txt")
+            }?.sortedByDescending { it.lastModified() } ?: emptyList()
+            
+            return logFiles.map { it.absolutePath }
+        } catch (e: Exception) {
+            Log.e(tag, "Error getting log files", e)
+            return emptyList()
         }
     }
 

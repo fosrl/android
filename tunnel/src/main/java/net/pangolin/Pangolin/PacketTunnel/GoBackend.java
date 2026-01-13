@@ -72,6 +72,10 @@ public final class GoBackend implements Backend {
 
     private static native String getNetworkSettings();
 
+    private static native String enableFileLogging(String filePath);
+
+    private static native String disableFileLogging();
+
     /**
      * Method to get the names of running tunnels.
      *
@@ -144,6 +148,25 @@ public final class GoBackend implements Backend {
      */
     public String getNetworkSettingsJSON() {
         return getNetworkSettings();
+    }
+
+    /**
+     * Enable file logging to the specified path.
+     *
+     * @param filePath The path where log files should be written
+     * @return Result string from enabling file logging
+     */
+    public String enableGoFileLogging(String filePath) {
+        return enableFileLogging(filePath);
+    }
+
+    /**
+     * Disable file logging and close the log file.
+     *
+     * @return Result string from disabling file logging
+     */
+    public String disableGoFileLogging() {
+        return disableFileLogging();
     }
 
     /**

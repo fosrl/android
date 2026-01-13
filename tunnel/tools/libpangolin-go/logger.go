@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 	"runtime/debug"
 	
@@ -39,9 +40,11 @@ func cstring(s string) *C.char {
 
 // Logger provides formatted logging functionality
 type Logger struct {
-	prefix   string
-	logLevel LogLevel
-	tag      *C.char
+	prefix      string
+	logLevel    LogLevel
+	tag         *C.char
+	logFile     *os.File
+	logFileMux  sync.Mutex
 }
 
 // NewLogger creates a new logger instance
@@ -50,6 +53,7 @@ func NewLogger(prefix string) *Logger {
 		prefix:   prefix,
 		logLevel: LogLevelDebug,
 		tag:      cstring("GoBackend/" + prefix),
+		logFile:  nil,
 	}
 }
 
@@ -71,6 +75,35 @@ func (l *Logger) formatMessage(format string, args ...interface{}) string {
 	return format
 }
 
+// logToFile writes a log message to the file if file logging is enabled
+func (l *Logger) logToFile(level LogLevel, message string) {
+	l.logFileMux.Lock()
+	defer l.logFileMux.Unlock()
+
+	if l.logFile == nil {
+		return
+	}
+
+	// Get level string
+	levelStr := ""
+	switch level {
+	case LogLevelDebug:
+		levelStr = "DEBUG"
+	case LogLevelInfo:
+		levelStr = "INFO"
+	case LogLevelWarn:
+		levelStr = "WARN"
+	case LogLevelError:
+		levelStr = "ERROR"
+	}
+
+	// Format: timestamp [LEVEL] prefix: message
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	logLine := fmt.Sprintf("%s [%s] %s: %s\n", timestamp, levelStr, l.prefix, message)
+	
+	l.logFile.WriteString(logLine)
+}
+
 // logToAndroid sends a log message to Android logcat
 func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}) {
 	if l.logLevel > level {
@@ -78,6 +111,9 @@ func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}
 	}
 
 	message := l.formatMessage(format, args...)
+
+	// Also log to file if enabled
+	l.logToFile(level, message)
 
 	// Map Go log levels to Android log levels
 	var androidLogLevel C.int
@@ -244,4 +280,60 @@ func InitOLMLogger() {
 // GetLogLevelString returns the current log level as a string for OLM config
 func GetLogLevelString() string {
 	return logLevelToString(getCurrentLogLevel())
+}
+
+// enableFileLogging enables logging to a file at the specified path
+// Call this from Android/Kotlin with a path in the app's files directory
+//
+//export enableFileLogging
+func enableFileLogging(filePath *C.char) *C.char {
+	path := C.GoString(filePath)
+	
+	appLogger.logFileMux.Lock()
+	defer appLogger.logFileMux.Unlock()
+	
+	// Close existing file if any
+	if appLogger.logFile != nil {
+		appLogger.logFile.Close()
+	}
+	
+	// Open new log file (create or append)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to open log file: %v", err)
+		appLogger.logToAndroid(LogLevelError, errMsg)
+		return C.CString(fmt.Sprintf("Error: %s", errMsg))
+	}
+	
+	appLogger.logFile = file
+	
+	// Write a header to indicate new session
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	header := fmt.Sprintf("\n========== Log Session Started: %s ==========\n", timestamp)
+	file.WriteString(header)
+	
+	appLogger.logToAndroid(LogLevelInfo, "File logging enabled: %s", path)
+	return C.CString(fmt.Sprintf("File logging enabled: %s", path))
+}
+
+// disableFileLogging disables logging to file and closes the file
+//
+//export disableFileLogging
+func disableFileLogging() *C.char {
+	appLogger.logFileMux.Lock()
+	defer appLogger.logFileMux.Unlock()
+	
+	if appLogger.logFile != nil {
+		// Write footer before closing
+		timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+		footer := fmt.Sprintf("========== Log Session Ended: %s ==========\n\n", timestamp)
+		appLogger.logFile.WriteString(footer)
+		
+		appLogger.logFile.Close()
+		appLogger.logFile = nil
+		appLogger.logToAndroid(LogLevelInfo, "File logging disabled")
+		return C.CString("File logging disabled")
+	}
+	
+	return C.CString("File logging was not enabled")
 }

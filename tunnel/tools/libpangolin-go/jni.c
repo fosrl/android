@@ -13,6 +13,8 @@ extern char *addDevice(int fd);
 extern char *stopTunnel();
 extern long getNetworkSettingsVersion();
 extern char *getNetworkSettings();
+extern char *enableFileLogging(char *filePath);
+extern char *disableFileLogging();
 
 JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
 {
@@ -66,6 +68,28 @@ JNIEXPORT jlong JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_getNet
 JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_getNetworkSettings(JNIEnv *env, jclass c)
 {
 	char *result = getNetworkSettings();
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_enableFileLogging(JNIEnv *env, jclass c, jstring filePath)
+{
+	const char *path_str = (*env)->GetStringUTFChars(env, filePath, 0);
+	char *result = enableFileLogging((char *)path_str);
+	(*env)->ReleaseStringUTFChars(env, filePath, path_str);
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_disableFileLogging(JNIEnv *env, jclass c)
+{
+	char *result = disableFileLogging();
 	if (!result)
 		return NULL;
 	jstring ret = (*env)->NewStringUTF(env, result);
