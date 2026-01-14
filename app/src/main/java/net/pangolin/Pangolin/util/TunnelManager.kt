@@ -46,6 +46,9 @@ class TunnelManager private constructor(
     private var statusPollingManager: StatusPollingManager? = null
     private var pollingJob: Job? = null
 
+    // Power state monitoring
+    private var powerStateMonitor: PowerStateMonitor? = null
+
     // Tunnel state
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
@@ -58,6 +61,10 @@ class TunnelManager private constructor(
         goBackend = GoBackend(context)
         val socketPath = File(context.filesDir, "pangolin.sock").absolutePath
         statusPollingManager = StatusPollingManager(socketPath)
+
+        // Initialize power state monitor
+        powerStateMonitor = PowerStateMonitor(context)
+        powerStateMonitor?.startMonitoring()
 
         // Observe status updates
         scope.launch {
@@ -374,10 +381,18 @@ class TunnelManager private constructor(
     }
 
     /**
+     * Get current power state
+     */
+    fun getPowerState(): String {
+        return powerStateMonitor?.getCurrentPowerStateString() ?: "Unknown"
+    }
+
+    /**
      * Clean up resources
      */
     fun cleanup() {
         stopSocketPolling()
+        powerStateMonitor?.stopMonitoring()
         scope.cancel()
     }
 
