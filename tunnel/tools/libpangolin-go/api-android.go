@@ -46,6 +46,7 @@ var (
 	tunnelRunning bool
 	tunnelMutex   sync.Mutex
 	olmContext    context.Context
+	olmInstance   *olmpkg.Olm
 )
 
 //export initOlm
@@ -74,8 +75,8 @@ func initOlm(configJSON *C.char) *C.char {
 	// Create context for OLM
 	olmContext = context.Background()
 
-	// Create OLM GlobalConfig with values from Swift
-	olmConfig := olmpkg.GlobalConfig{
+	// Create OLM config with values from Swift
+	olmConfig := olmpkg.OlmConfig{
 		LogLevel:   GetLogLevelString(),
 		EnableAPI:  config.EnableAPI,
 		SocketPath: config.SocketPath,
@@ -83,8 +84,13 @@ func initOlm(configJSON *C.char) *C.char {
 		Agent:      config.Agent,
 	}
 
-	// Initialize OLM with context and GlobalConfig
-	olmpkg.Init(olmContext, olmConfig)
+	// Initialize OLM with context and config
+	var err error
+	olmInstance, err = olmpkg.Init(olmContext, olmConfig)
+	if err != nil {
+		appLogger.Error("Failed to initialize OLM: %v", err)
+		return C.CString(fmt.Sprintf("Error: Failed to initialize OLM: %v", err))
+	}
 
 	appLogger.Info("Init completed successfully")
 	return C.CString("Init completed successfully")
@@ -135,12 +141,16 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 	// print the config for debugging
 	appLogger.Debug("Tunnel config: %+v", olmConfig)
 
-	olmpkg.StartApi()
+	if err := olmInstance.StartApi(); err != nil {
+		appLogger.Error("Failed to start API: %v", err)
+		tunnelRunning = false
+		return C.CString(fmt.Sprintf("Error: Failed to start API: %v", err))
+	}
 
 	// Start OLM tunnel with config
 	appLogger.Info("Starting OLM tunnel...")
 	go func() {
-		olmpkg.StartTunnel(olmConfig)
+		olmInstance.StartTunnel(olmConfig)
 		appLogger.Info("OLM tunnel stopped")
 
 		// Update tunnel state when OLM stops
@@ -155,8 +165,12 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 
 //export addDevice
 func addDevice(fd C.int) *C.char {
-	// call olmpkg.AddDevice with the file descriptor as a uint32
-	err := olmpkg.AddDevice(uint32(fd))
+	if olmInstance == nil {
+		appLogger.Error("OLM instance not initialized")
+		return C.CString("Error: OLM instance not initialized")
+	}
+	// call AddDevice with the file descriptor as a uint32
+	err := olmInstance.AddDevice(uint32(fd))
 	if err != nil {
 		appLogger.Error("Failed to add device: %v", err)
 		return C.CString(fmt.Sprintf("Error: Failed to add device: %v", err))
@@ -178,8 +192,14 @@ func stopTunnel() *C.char {
 	}
 
 	// Stop OLM tunnel
-	olmpkg.StopTunnel()
-	olmpkg.StopApi()
+	if olmInstance != nil {
+		if err := olmInstance.StopTunnel(); err != nil {
+			appLogger.Error("Failed to stop tunnel: %v", err)
+		}
+		if err := olmInstance.StopApi(); err != nil {
+			appLogger.Error("Failed to stop API: %v", err)
+		}
+	}
 
 	tunnelRunning = false
 	appLogger.Debug("Tunnel stopped successfully")
@@ -221,6 +241,12 @@ func getNetworkSettings() *C.char {
 	}
 
 	return C.CString(settingsJSON)
+}
+
+//export logFromAndroid
+func logFromAndroid(message *C.char) {
+	msg := C.GoString(message)
+	appLogger.Info("[Android] %s", msg)
 }
 
 // We need an entry point; it's ok for this to be empty

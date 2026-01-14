@@ -1,4 +1,4 @@
-arguments=--init-script /home/owen/.local/share/zed/extensions/work/java/jdtls/jdt-language-server-1.54.0-202511261751/configuration/org.eclipse.osgi/58/0/.cp/gradle/init/init.gradle
+arguments=--init-script /home/owen/.local/share/zed/extensions/work/java/jdtls/jdt-language-server-1.55.0-202601131729/configuration/org.eclipse.osgi/58/0/.cp/gradle/init/init.gradle
 auto.sync=false
 build.scans.enabled=false
 connection.gradle.distribution=GRADLE_DISTRIBUTION(WRAPPER)

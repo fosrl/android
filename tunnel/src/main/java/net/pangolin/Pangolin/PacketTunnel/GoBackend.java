@@ -72,6 +72,18 @@ public final class GoBackend implements Backend {
 
     private static native String getNetworkSettings();
 
+    private static native void nativeLogFromAndroid(String message);
+
+    /**
+     * Log a message from Android to the Go backend logger.
+     * This is a static method that can be called from anywhere.
+     *
+     * @param message The message to log
+     */
+    public static void logFromAndroid(String message) {
+        nativeLogFromAndroid(message);
+    }
+
     /**
      * Method to get the names of running tunnels.
      *
