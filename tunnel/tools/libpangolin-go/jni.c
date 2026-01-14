@@ -14,6 +14,7 @@ extern char *stopTunnel();
 extern long getNetworkSettingsVersion();
 extern char *getNetworkSettings();
 extern void logFromAndroid(char *message);
+extern char *setPowerMode(char *mode);
 
 JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
 {
@@ -79,4 +80,16 @@ JNIEXPORT void JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_nativeL
 	const char *msg_str = (*env)->GetStringUTFChars(env, message, 0);
 	logFromAndroid((char *)msg_str);
 	(*env)->ReleaseStringUTFChars(env, message, msg_str);
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_nativeSetPowerMode(JNIEnv *env, jclass c, jstring mode)
+{
+	const char *mode_str = (*env)->GetStringUTFChars(env, mode, 0);
+	char *result = setPowerMode((char *)mode_str);
+	(*env)->ReleaseStringUTFChars(env, mode, mode_str);
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
 }
