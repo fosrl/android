@@ -249,5 +249,24 @@ func logFromAndroid(message *C.char) {
 	appLogger.Info("[Android] %s", msg)
 }
 
+//export setPowerMode
+func setPowerMode(mode *C.char) *C.char {
+	modeStr := C.GoString(mode)
+	appLogger.Info("Setting power mode to: %s", modeStr)
+
+	if olmInstance == nil {
+		appLogger.Error("OLM instance not initialized")
+		return C.CString("Error: OLM instance not initialized")
+	}
+
+	if err := olmInstance.SetPowerMode(modeStr); err != nil {
+		appLogger.Error("Failed to set power mode: %v", err)
+		return C.CString(fmt.Sprintf("Error: %v", err))
+	}
+
+	appLogger.Info("Power mode set to: %s", modeStr)
+	return C.CString("Power mode set successfully")
+}
+
 // We need an entry point; it's ok for this to be empty
 func main() {}

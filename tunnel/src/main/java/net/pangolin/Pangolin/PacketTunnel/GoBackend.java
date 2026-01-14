@@ -5,10 +5,13 @@
 
 package net.pangolin.Pangolin.PacketTunnel;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.os.PowerManager;
 import android.util.Log;
 
 import net.pangolin.Pangolin.PacketTunnel.BackendException.Reason;
@@ -74,6 +77,8 @@ public final class GoBackend implements Backend {
 
     private static native void nativeLogFromAndroid(String message);
 
+    private static native String nativeSetPowerMode(String mode);
+
     /**
      * Log a message from Android to the Go backend logger.
      * This is a static method that can be called from anywhere.
@@ -82,6 +87,17 @@ public final class GoBackend implements Backend {
      */
     public static void logFromAndroid(String message) {
         nativeLogFromAndroid(message);
+    }
+
+    /**
+     * Set the power mode of the OLM tunnel.
+     * This is a static method that can be called from anywhere.
+     *
+     * @param mode The power mode to set ("normal" or "low")
+     * @return Result message from the Go backend
+     */
+    public static String setPowerMode(String mode) {
+        return nativeSetPowerMode(mode);
     }
 
     /**
@@ -486,7 +502,28 @@ public final class GoBackend implements Backend {
      * {@link android.net.VpnService} implementation for {@link GoBackend}
      */
     public static class VpnService extends android.net.VpnService {
+        private static final String TAG = "VpnService/PowerState";
         @Nullable private GoBackend owner;
+        @Nullable private PowerManager powerManager;
+        private boolean isReceiverRegistered = false;
+        private boolean isInDozeMode = false;
+        private boolean isInPowerSaveMode = false;
+
+        private final BroadcastReceiver powerStateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null || intent.getAction() == null) return;
+
+                switch (intent.getAction()) {
+                    case PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED:
+                        handleDozeModeChange();
+                        break;
+                    case PowerManager.ACTION_POWER_SAVE_MODE_CHANGED:
+                        handlePowerSaveModeChange();
+                        break;
+                }
+            }
+        };
 
         public Builder getBuilder() {
             return new Builder();
@@ -496,10 +533,17 @@ public final class GoBackend implements Backend {
         public void onCreate() {
             vpnService.complete(this);
             super.onCreate();
+
+            // Initialize power manager and start monitoring
+            powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            startPowerStateMonitoring();
         }
 
         @Override
         public void onDestroy() {
+            // Stop power state monitoring
+            stopPowerStateMonitoring();
+
             if (owner != null) {
                 // Stop network settings polling
                 owner.stopNetworkSettingsPolling();
@@ -530,6 +574,134 @@ public final class GoBackend implements Backend {
 
         public void setOwner(final GoBackend owner) {
             this.owner = owner;
+        }
+
+        /**
+         * Start monitoring power states (Doze mode and Power Save mode)
+         */
+        private void startPowerStateMonitoring() {
+            if (isReceiverRegistered) {
+                Log.d(TAG, "Power state monitoring already active");
+                return;
+            }
+
+            try {
+                IntentFilter filter = new IntentFilter();
+                filter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
+                filter.addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED);
+
+                registerReceiver(powerStateReceiver, filter);
+                isReceiverRegistered = true;
+
+                // Log and apply initial state
+                logCurrentPowerState();
+                updatePowerMode();
+
+                Log.i(TAG, "Power state monitoring started");
+                logFromAndroid("[PowerState] Power state monitoring started in VpnService");
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to start power state monitoring", e);
+            }
+        }
+
+        /**
+         * Stop monitoring power states
+         */
+        private void stopPowerStateMonitoring() {
+            if (!isReceiverRegistered) {
+                return;
+            }
+
+            try {
+                unregisterReceiver(powerStateReceiver);
+                isReceiverRegistered = false;
+
+                Log.i(TAG, "Power state monitoring stopped");
+                logFromAndroid("[PowerState] Power state monitoring stopped in VpnService");
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to stop power state monitoring", e);
+            }
+        }
+
+        /**
+         * Handle doze mode state changes
+         */
+        private void handleDozeModeChange() {
+            if (powerManager == null) return;
+
+            boolean wasInDozeMode = isInDozeMode;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                isInDozeMode = powerManager.isDeviceIdleMode();
+            } else {
+                isInDozeMode = false;
+            }
+
+            if (wasInDozeMode != isInDozeMode) {
+                String message = isInDozeMode ? "Device ENTERED Doze mode" : "Device EXITED Doze mode";
+                Log.i(TAG, message);
+                logFromAndroid("[PowerState] " + message);
+                updatePowerMode();
+            }
+        }
+
+        /**
+         * Handle power save mode changes
+         */
+        private void handlePowerSaveModeChange() {
+            if (powerManager == null) return;
+
+            boolean wasInPowerSaveMode = isInPowerSaveMode;
+            isInPowerSaveMode = powerManager.isPowerSaveMode();
+
+            if (wasInPowerSaveMode != isInPowerSaveMode) {
+                String message = isInPowerSaveMode ? "Device ENTERED Power Save mode" : "Device EXITED Power Save mode";
+                Log.i(TAG, message);
+                logFromAndroid("[PowerState] " + message);
+                updatePowerMode();
+            }
+        }
+
+        /**
+         * Update OLM power mode based on current power states.
+         * If either Doze mode OR Power Save mode is active, use low power mode.
+         * Only use normal mode when both are inactive.
+         */
+        private void updatePowerMode() {
+            String mode = (isInDozeMode || isInPowerSaveMode) ? "low" : "normal";
+            Log.i(TAG, "Setting OLM power mode to: " + mode + " (doze=" + isInDozeMode + ", powerSave=" + isInPowerSaveMode + ")");
+            
+            try {
+                String result = setPowerMode(mode);
+                Log.d(TAG, "setPowerMode result: " + result);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to set power mode", e);
+            }
+        }
+
+        /**
+         * Log current power state
+         */
+        private void logCurrentPowerState() {
+            if (powerManager == null) return;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                isInDozeMode = powerManager.isDeviceIdleMode();
+            }
+            isInPowerSaveMode = powerManager.isPowerSaveMode();
+
+            String ignoringBatteryOpt = "N/A";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                boolean ignoring = powerManager.isIgnoringBatteryOptimizations(getPackageName());
+                ignoringBatteryOpt = ignoring ? "YES" : "NO";
+            }
+
+            String status = String.format("Power State: Doze=%s, PowerSave=%s, IgnoringBatteryOpt=%s",
+                    isInDozeMode ? "YES" : "NO",
+                    isInPowerSaveMode ? "YES" : "NO",
+                    ignoringBatteryOpt);
+
+            Log.i(TAG, status);
+            logFromAndroid("[PowerState] " + status);
         }
     }
 }
