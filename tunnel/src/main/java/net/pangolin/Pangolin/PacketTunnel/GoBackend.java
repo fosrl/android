@@ -219,6 +219,26 @@ public final class GoBackend implements Backend {
     }
 
     /**
+     * Pause network settings polling (called when entering low power mode).
+     */
+    public void pauseNetworkSettingsPolling() {
+        if (networkSettingsPoller != null) {
+            networkSettingsPoller.pausePolling();
+            Log.d(TAG, "Paused network settings polling (low power mode)");
+        }
+    }
+
+    /**
+     * Resume network settings polling (called when exiting low power mode).
+     */
+    public void resumeNetworkSettingsPolling() {
+        if (networkSettingsPoller != null) {
+            networkSettingsPoller.resumePolling();
+            Log.d(TAG, "Resumed network settings polling (normal power mode)");
+        }
+    }
+
+    /**
      * Apply network settings to the VPN service.
      *
      * @param service The VPN service
@@ -232,7 +252,7 @@ public final class GoBackend implements Backend {
         try {
             final VpnService.Builder builder = service.getBuilder();
             Log.d(TAG, "Got VpnService.Builder");
-            
+
             NetworkSettingsPoller.applySettingsToBuilder(builder, settings, tunnelName);
             Log.d(TAG, "Applied settings to builder");
 
@@ -243,18 +263,18 @@ public final class GoBackend implements Backend {
 
             Log.d(TAG, "Calling builder.establish()...");
             ParcelFileDescriptor tun = builder.establish();
-            
+
             if (tun != null) {
                 Log.d(TAG, "Successfully established tunnel, got ParcelFileDescriptor");
-                
+
                 // Hot-swap the new tunnel interface into the Go backend
                 // We need to detach the fd to pass ownership to the Go side
                 int fd = tun.detachFd();
                 Log.d(TAG, "Detached fd=" + fd + ", calling addDevice()...");
-                
+
                 String result = addDevice(fd);
                 Log.d(TAG, "addDevice() returned: " + result);
-                
+
                 if (result != null && result.startsWith("Error:")) {
                     Log.e(TAG, "Failed to add device to Go backend: " + result);
                     // The fd was detached, so we can't return it as a ParcelFileDescriptor anymore
@@ -262,7 +282,7 @@ public final class GoBackend implements Backend {
                     return null;
                 }
                 Log.d(TAG, "Successfully hot-swapped tunnel interface to Go backend: " + result);
-                
+
                 // Update the current tunnel fd reference
                 // Note: Since we detached the fd, we create a new ParcelFileDescriptor if needed
                 // but typically after addDevice, the Go backend owns the fd
@@ -669,12 +689,21 @@ public final class GoBackend implements Backend {
         private void updatePowerMode() {
             String mode = (isInDozeMode || isInPowerSaveMode) ? "low" : "normal";
             Log.i(TAG, "Setting OLM power mode to: " + mode + " (doze=" + isInDozeMode + ", powerSave=" + isInPowerSaveMode + ")");
-            
+
             try {
                 String result = setPowerMode(mode);
                 Log.d(TAG, "setPowerMode result: " + result);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to set power mode", e);
+            }
+
+            // Pause/resume network settings polling based on power mode
+            if (owner != null) {
+                if (isInDozeMode || isInPowerSaveMode) {
+                    owner.pauseNetworkSettingsPolling();
+                } else {
+                    owner.resumeNetworkSettingsPolling();
+                }
             }
         }
 

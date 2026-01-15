@@ -333,6 +333,22 @@ class TunnelManager private constructor(
     }
 
     /**
+     * Pause status polling (called when entering low power mode)
+     */
+    fun pauseStatusPolling() {
+        statusPollingManager?.pausePolling()
+        Log.d(tag, "Status polling paused (low power mode)")
+    }
+
+    /**
+     * Resume status polling (called when exiting low power mode)
+     */
+    fun resumeStatusPolling() {
+        statusPollingManager?.resumePolling()
+        Log.d(tag, "Status polling resumed (normal power mode)")
+    }
+
+    /**
      * Update tunnel state
      */
     private fun updateState(newState: TunnelState) {
