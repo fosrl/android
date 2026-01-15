@@ -3,6 +3,7 @@ package net.pangolin.Pangolin
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayoutMediator
@@ -32,9 +33,9 @@ class StatusActivity : BaseNavigationActivity(), StatusPollingProvider {
         // Bind content layout
         contentBinding = ContentStatusBinding.bind(binding.content.root)
         
-        // Initialize StatusPollingManager
+        // Initialize StatusPollingManager with context
         val socketPath = File(filesDir, "pangolin.sock").absolutePath
-        statusPollingManager = StatusPollingManager(socketPath)
+        statusPollingManager = StatusPollingManager(this, socketPath)
         
         // Setup ViewPager with fragments
         setupViewPager()
@@ -43,6 +44,7 @@ class StatusActivity : BaseNavigationActivity(), StatusPollingProvider {
     override fun onResume() {
         super.onResume()
         // Start polling when activity is visible
+        // StatusPollingManager will handle standby detection internally
         statusPollingManager?.startPolling()
     }
     

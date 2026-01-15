@@ -1,5 +1,6 @@
 package net.pangolin.Pangolin.util
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import net.pangolin.Pangolin.PangolinApplication
 import java.io.File
 
 /**
@@ -14,9 +16,10 @@ import java.io.File
  * Polls every 3 seconds when active and provides status updates via StateFlow.
  */
 class StatusPollingManager(
+    private val context: Context,
     private val socketPath: String,
     private val pollingIntervalMs: Long = 3000L
-) {
+) : PangolinApplication.StandbyListener {
     private val tag = "StatusPollingManager"
     private val json = Json { 
         ignoreUnknownKeys = true
@@ -59,6 +62,9 @@ class StatusPollingManager(
         Log.d(tag, "Starting status polling (interval: ${pollingIntervalMs}ms)")
         _isPolling.value = true
         _errorFlow.value = null
+        
+        // Register for standby notifications
+        (context.applicationContext as? PangolinApplication)?.registerStandbyListener(this)
         
         // Initialize socket manager
         socketManager = SocketManager(socketPath)
@@ -171,6 +177,9 @@ class StatusPollingManager(
         _isPolling.value = false
         isPaused = false
         
+        // Unregister from standby notifications
+        (context.applicationContext as? PangolinApplication)?.unregisterStandbyListener(this)
+        
         // Cancel the polling job
         pollingJob?.cancel()
         pollingJob = null
@@ -231,5 +240,16 @@ class StatusPollingManager(
         Log.d(tag, "Cleaning up StatusPollingManager")
         stopPolling()
         coroutineScope.cancel()
+    }
+    
+    // StandbyListener implementation
+    override fun onEnterStandby() {
+        Log.d(tag, "Entering standby - pausing polling")
+        pausePolling()
+    }
+    
+    override fun onExitStandby() {
+        Log.d(tag, "Exiting standby - resuming polling")
+        resumePolling()
     }
 }

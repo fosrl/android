@@ -57,7 +57,7 @@ class TunnelManager private constructor(
     init {
         goBackend = GoBackend(context)
         val socketPath = File(context.filesDir, "pangolin.sock").absolutePath
-        statusPollingManager = StatusPollingManager(socketPath)
+        statusPollingManager = StatusPollingManager(context, socketPath)
 
         // Observe status updates
         // Note: Power state monitoring is now handled in the VpnService (GoBackend.java)
