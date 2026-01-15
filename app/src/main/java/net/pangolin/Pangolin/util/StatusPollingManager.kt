@@ -43,6 +43,9 @@ class StatusPollingManager(
     private val _isPolling = MutableStateFlow(false)
     val isPolling: StateFlow<Boolean> = _isPolling.asStateFlow()
     
+    // Flag to track if polling is paused (e.g., due to low power mode)
+    private var isPaused = false
+    
     /**
      * Start polling the socket for status updates.
      * This should be called when the tunnel is turned on.
@@ -63,6 +66,12 @@ class StatusPollingManager(
         // Start the polling coroutine
         pollingJob = coroutineScope.launch {
             while (isActive && _isPolling.value) {
+                // Skip polling if paused
+                if (isPaused) {
+                    delay(pollingIntervalMs)
+                    continue
+                }
+                
                 try {
                     // Check if socket exists before attempting to poll
                     if (!File(socketPath).exists()) {
@@ -111,6 +120,44 @@ class StatusPollingManager(
     }
     
     /**
+     * Pause polling temporarily without stopping it completely.
+     * This should be called when entering low power mode.
+     */
+    fun pausePolling() {
+        if (!_isPolling.value) {
+            Log.d(tag, "Polling not active, ignoring pause request")
+            return
+        }
+        
+        if (isPaused) {
+            Log.d(tag, "Polling already paused, ignoring pause request")
+            return
+        }
+        
+        Log.d(tag, "Pausing status polling (low power mode)")
+        isPaused = true
+    }
+    
+    /**
+     * Resume polling after being paused.
+     * This should be called when exiting low power mode.
+     */
+    fun resumePolling() {
+        if (!_isPolling.value) {
+            Log.d(tag, "Polling not active, ignoring resume request")
+            return
+        }
+        
+        if (!isPaused) {
+            Log.d(tag, "Polling not paused, ignoring resume request")
+            return
+        }
+        
+        Log.d(tag, "Resuming status polling (normal power mode)")
+        isPaused = false
+    }
+    
+    /**
      * Stop polling the socket for status updates.
      * This should be called when the tunnel is turned off.
      */
@@ -122,6 +169,7 @@ class StatusPollingManager(
         
         Log.d(tag, "Stopping status polling")
         _isPolling.value = false
+        isPaused = false
         
         // Cancel the polling job
         pollingJob?.cancel()

@@ -40,6 +40,7 @@ public class NetworkSettingsPoller {
     private final GoBackend goBackend;
     private final AtomicLong lastSettingsVersion = new AtomicLong(0);
     private final AtomicBoolean isPolling = new AtomicBoolean(false);
+    private final AtomicBoolean isPaused = new AtomicBoolean(false);
     private final Object lock = new Object();
 
     @Nullable private HandlerThread handlerThread;
@@ -89,6 +90,7 @@ public class NetworkSettingsPoller {
             Log.d(TAG, "Starting network settings polling");
             lastSettingsVersion.set(0);
             consecutiveErrors = 0;
+            isPaused.set(false);
 
             // Create a HandlerThread with foreground priority
             // This helps ensure the thread gets CPU time while VPN is active
@@ -104,6 +106,42 @@ public class NetworkSettingsPoller {
     }
 
     /**
+     * Pause polling temporarily without stopping it completely.
+     * This should be called when entering low power mode.
+     */
+    public void pausePolling() {
+        if (!isPolling.get()) {
+            Log.d(TAG, "Polling not active, ignoring pause request");
+            return;
+        }
+
+        if (isPaused.getAndSet(true)) {
+            Log.d(TAG, "Polling already paused, ignoring pause request");
+            return;
+        }
+
+        Log.d(TAG, "Pausing network settings polling (low power mode)");
+    }
+
+    /**
+     * Resume polling after being paused.
+     * This should be called when exiting low power mode.
+     */
+    public void resumePolling() {
+        if (!isPolling.get()) {
+            Log.d(TAG, "Polling not active, ignoring resume request");
+            return;
+        }
+
+        if (!isPaused.getAndSet(false)) {
+            Log.d(TAG, "Polling not paused, ignoring resume request");
+            return;
+        }
+
+        Log.d(TAG, "Resuming network settings polling (normal power mode)");
+    }
+
+    /**
      * Stop polling for network settings changes.
      */
     public void stopPolling() {
@@ -113,6 +151,7 @@ public class NetworkSettingsPoller {
             }
 
             Log.d(TAG, "Stopping network settings polling");
+            isPaused.set(false);
 
             if (handler != null) {
                 handler.removeCallbacks(pollRunnable);
@@ -156,6 +195,17 @@ public class NetworkSettingsPoller {
         @Override
         public void run() {
             if (!isPolling.get()) {
+                return;
+            }
+
+            // Skip polling if paused (e.g., in low power mode)
+            if (isPaused.get()) {
+                // Reschedule for the next poll
+                synchronized (lock) {
+                    if (isPolling.get() && handler != null) {
+                        handler.postDelayed(this, POLL_INTERVAL_MS);
+                    }
+                }
                 return;
             }
 
