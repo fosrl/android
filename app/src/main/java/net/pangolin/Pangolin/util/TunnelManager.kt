@@ -177,7 +177,7 @@ class TunnelManager private constructor(
                     .setAgent("Pangolin Android")
                     .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
-                    .setLogFilePath(File(context.filesDir, "pangolin_go.log").absolutePath)
+                    // .setLogFilePath(File(context.filesDir, "pangolin_go.log").absolutePath)
                     .build()
 
                 val upstreamDns = mutableListOf<String>()
