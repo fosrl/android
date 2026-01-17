@@ -263,6 +263,10 @@ class MainActivity : BaseNavigationActivity() {
             return
         }
         
+        // Sync APIClient with active account token - critical after returning from sign-in
+        // where a different APIClient instance may have been used
+        authManager.syncApiClientForActiveAccount()
+        
         // Update authentication state
         updateAccountOrgCard()
     }

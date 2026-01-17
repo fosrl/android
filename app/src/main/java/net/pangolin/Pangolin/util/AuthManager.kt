@@ -285,6 +285,29 @@ class AuthManager(
         _isAuthenticated.value = true
     }
 
+    /**
+     * Synchronize the APIClient with the current active account's token and hostname.
+     * This should be called when the activity resumes to ensure the APIClient is
+     * properly configured, especially after returning from another activity that
+     * may have added or switched accounts.
+     */
+    fun syncApiClientForActiveAccount() {
+        val activeAccount = accountManager.activeAccount
+        if (activeAccount == null) {
+            Log.d(tag, "syncApiClientForActiveAccount: No active account")
+            return
+        }
+
+        val token = secretManager.getSecret("session-token-${activeAccount.userId}")
+        if (token != null) {
+            apiClient.updateBaseURL(activeAccount.hostname)
+            apiClient.updateSessionToken(token)
+            Log.d(tag, "syncApiClientForActiveAccount: Updated APIClient for user ${activeAccount.userId}")
+        } else {
+            Log.w(tag, "syncApiClientForActiveAccount: No token found for user ${activeAccount.userId}")
+        }
+    }
+
     private suspend fun ensureOrgIsSelected(): String {
         val user = _currentUser.value ?: throw AuthError.Unauthenticated
 
@@ -437,6 +460,21 @@ class AuthManager(
     }
 
     suspend fun ensureOlmCredentials(userId: String) {
+        // Ensure APIClient has the correct token for this user
+        // This is critical when called from a different context (e.g., TunnelManager)
+        // where the APIClient may not have been updated with the current user's token
+        val token = secretManager.getSecret("session-token-$userId")
+        if (token != null) {
+            val account = accountManager.accounts[userId]
+            if (account != null) {
+                apiClient.updateBaseURL(account.hostname)
+            }
+            apiClient.updateSessionToken(token)
+            Log.d(tag, "ensureOlmCredentials: Updated APIClient token for user $userId")
+        } else {
+            Log.w(tag, "ensureOlmCredentials: No token found for user $userId")
+        }
+
         // Check if OLM credentials already exist locally
         if (secretManager.hasOlmCredentials(userId)) {
             // Verify OLM exists on server by getting the OLM directly
