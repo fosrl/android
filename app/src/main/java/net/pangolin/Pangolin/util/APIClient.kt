@@ -48,7 +48,7 @@ class APIClient(
     private val tag = "APIClient"
     private val sessionCookieName = "p_session_token"
     private val csrfTokenValue = "x-csrf-protection"
-    private val agentName = "pangolin-android"
+    private val agentName = "pangolin-android-${BuildConfig.VERSION_NAME}"
 
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
