@@ -16,6 +16,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -253,6 +254,29 @@ class MainActivity : BaseNavigationActivity() {
             authManager.currentOrg.collect {
                 updateAccountOrgCard()
             }
+        }
+
+        // Observe OLM errors and show alert dialog
+        lifecycleScope.launch {
+            tunnelManager.olmErrorFlow?.collectLatest { olmError ->
+                Log.w("MainActivity", "OLM error received: code=${olmError.code}, message=${olmError.message}")
+                showOlmErrorDialog(olmError.code, olmError.message)
+            }
+        }
+    }
+
+    private fun showOlmErrorDialog(code: String, message: String) {
+        runOnUiThread {
+            val icon = ContextCompat.getDrawable(this, R.drawable.ic_error)
+            val errorColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorError, android.graphics.Color.RED)
+            icon?.setTint(errorColor)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Connection Error")
+                .setIcon(icon)
+                .setMessage("$message\n\nError code: $code")
+                .setPositiveButton("Dismiss", null)
+                .show()
         }
     }
 

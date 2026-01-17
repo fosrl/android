@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
@@ -53,6 +54,10 @@ class TunnelManager private constructor(
     // Connection status from socket
     private val _connectionStatus = MutableStateFlow<SocketStatusResponse?>(null)
     val connectionStatus: StateFlow<SocketStatusResponse?> = _connectionStatus.asStateFlow()
+
+    // OLM error flow - exposes errors from status polling that need user attention
+    val olmErrorFlow: SharedFlow<OlmError>?
+        get() = statusPollingManager?.olmErrorFlow
 
     init {
         goBackend = GoBackend(context)

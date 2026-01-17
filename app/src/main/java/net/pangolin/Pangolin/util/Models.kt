@@ -231,6 +231,14 @@ enum class TunnelStatus {
 
 // MARK: - Socket API
 
+// MARK: - OLM Error
+
+@Serializable
+data class OlmError(
+    val code: String,
+    val message: String
+)
+
 @Serializable
 data class SocketStatusResponse(
     val status: String? = null,
@@ -242,7 +250,8 @@ data class SocketStatusResponse(
     val peers: Map<String, SocketPeer>? = null,
     val registered: Boolean? = null,
     val orgId: String? = null,
-    val networkSettings: NetworkSettings? = null
+    val networkSettings: NetworkSettings? = null,
+    val error: OlmError? = null
 )
 
 @Serializable

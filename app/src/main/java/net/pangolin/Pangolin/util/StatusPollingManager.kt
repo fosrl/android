@@ -3,8 +3,11 @@ package net.pangolin.Pangolin.util
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -41,6 +44,13 @@ class StatusPollingManager(
     // StateFlow for error messages
     private val _errorFlow = MutableStateFlow<String?>(null)
     val errorFlow: StateFlow<String?> = _errorFlow.asStateFlow()
+    
+    // SharedFlow for OLM errors that need to be shown to the user (emits only on new/changed errors)
+    private val _olmErrorFlow = MutableSharedFlow<OlmError>(replay = 0)
+    val olmErrorFlow: SharedFlow<OlmError> = _olmErrorFlow.asSharedFlow()
+    
+    // Track the last alerted error code to avoid duplicate alerts
+    private var lastAlertedErrorCode: String? = null
     
     // Flag to track if polling is active
     private val _isPolling = MutableStateFlow(false)
@@ -105,6 +115,23 @@ class StatusPollingManager(
                         
                         // Clear any previous errors
                         _errorFlow.value = null
+                        
+                        // Check for OLM errors and emit if it's a new/changed error
+                        val olmError = status.error
+                        if (olmError != null) {
+                            // Only emit if error code is different from last alerted
+                            if (olmError.code != lastAlertedErrorCode) {
+                                Log.d(tag, "New OLM error detected: code=${olmError.code}, message=${olmError.message}")
+                                lastAlertedErrorCode = olmError.code
+                                _olmErrorFlow.emit(olmError)
+                            }
+                        } else {
+                            // Error cleared - reset tracking so same error can alert again if it returns
+                            if (lastAlertedErrorCode != null) {
+                                Log.d(tag, "OLM error cleared, resetting last alerted code")
+                                lastAlertedErrorCode = null
+                            }
+                        }
                         
                         Log.d(tag, "Status updated: connected=${status.connected}, tunnelIP=${status.tunnelIP}")
                     }
@@ -191,6 +218,7 @@ class StatusPollingManager(
         _statusFlow.value = null
         _statusJsonFlow.value = "Tunnel disconnected"
         _errorFlow.value = null
+        lastAlertedErrorCode = null
     }
     
     /**
