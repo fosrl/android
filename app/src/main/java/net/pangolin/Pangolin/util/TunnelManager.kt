@@ -72,6 +72,21 @@ class TunnelManager private constructor(
                 if (status != null) {
                     _connectionStatus.value = status
                     updateConnectionStatusFromSocket(status)
+                    
+                    // Stop tunnel if an error is detected from the API or if terminated
+                    // Only disconnect if the service is currently running to avoid duplicate calls
+                    val currentState = _tunnelState.value
+                    if ((status.error != null || status.terminated) && currentState.isServiceRunning) {
+                        val reason = when {
+                            status.error != null -> "API error: ${status.error.message}"
+                            status.terminated -> "Connection terminated"
+                            else -> "Unknown"
+                        }
+                        Log.w(tag, "Stopping tunnel due to: $reason")
+                        // Small delay to allow OLM error to be emitted and shown in UI before stopping
+                        delay(100)
+                        disconnect()
+                    }
                 }
             }
         }

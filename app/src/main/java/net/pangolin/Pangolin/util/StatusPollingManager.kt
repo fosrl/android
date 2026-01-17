@@ -101,22 +101,8 @@ class StatusPollingManager(
                     val status = socketManager?.getStatus()
                     
                     if (status != null) {
-                        // Update status flow
-                        _statusFlow.value = status
-                        
-                        // Format as pretty JSON
-                        val formattedJson = try {
-                            json.encodeToString(status)
-                        } catch (e: Exception) {
-                            Log.e(tag, "Failed to format status as JSON", e)
-                            "Error formatting status: ${e.message}"
-                        }
-                        _statusJsonFlow.value = formattedJson
-                        
-                        // Clear any previous errors
-                        _errorFlow.value = null
-                        
-                        // Check for OLM errors and emit if it's a new/changed error
+                        // Check for OLM errors FIRST and emit before updating statusFlow
+                        // This ensures the error dialog is shown before TunnelManager disconnects
                         val olmError = status.error
                         if (olmError != null) {
                             // Only emit if error code is different from last alerted
@@ -132,6 +118,21 @@ class StatusPollingManager(
                                 lastAlertedErrorCode = null
                             }
                         }
+                        
+                        // Update status flow (TunnelManager collects this and may disconnect)
+                        _statusFlow.value = status
+                        
+                        // Format as pretty JSON
+                        val formattedJson = try {
+                            json.encodeToString(status)
+                        } catch (e: Exception) {
+                            Log.e(tag, "Failed to format status as JSON", e)
+                            "Error formatting status: ${e.message}"
+                        }
+                        _statusJsonFlow.value = formattedJson
+                        
+                        // Clear any previous errors
+                        _errorFlow.value = null
                         
                         Log.d(tag, "Status updated: connected=${status.connected}, tunnelIP=${status.tunnelIP}")
                     }

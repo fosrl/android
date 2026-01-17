@@ -274,7 +274,7 @@ class MainActivity : BaseNavigationActivity() {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Connection Error")
                 .setIcon(icon)
-                .setMessage("$message\n\nError code: $code")
+                .setMessage(message)
                 .setPositiveButton("Dismiss", null)
                 .show()
         }
