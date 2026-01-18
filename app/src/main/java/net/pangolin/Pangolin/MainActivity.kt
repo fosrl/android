@@ -63,11 +63,18 @@ class MainActivity : BaseNavigationActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Get version name
+        val versionName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "1.0.0"
+        }
+
         // Initialize authentication managers first (before navigation setup)
         secretManager = SecretManager.getInstance(applicationContext)
         accountManager = AccountManager.getInstance(applicationContext)
         configManager = ConfigManager.getInstance(applicationContext)
-        apiClient = APIClient("https://app.pangolin.net")
+        apiClient = APIClient("https://app.pangolin.net", versionName = versionName)
         authManager = AuthManager(
             context = applicationContext,
             apiClient = apiClient,

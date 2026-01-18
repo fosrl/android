@@ -129,7 +129,7 @@ class LogsActivity : BaseNavigationActivity() {
         try {
             val logFile = File(filesDir, "pangolin_go.log")
             
-            if (!logFile.exists() || logFile.length() == 0) {
+            if (!logFile.exists() || logFile.length() == 0L) {
                 Log.w(tag, "Log file does not exist or is empty")
                 return
             }

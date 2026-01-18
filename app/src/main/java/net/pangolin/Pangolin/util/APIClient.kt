@@ -43,12 +43,13 @@ sealed class APIError : Exception() {
 
 class APIClient(
     private var _baseURL: String,
-    private var sessionToken: String? = null
+    private var sessionToken: String? = null,
+    versionName: String? = null
 ) {
     private val tag = "APIClient"
     private val sessionCookieName = "p_session_token"
     private val csrfTokenValue = "x-csrf-protection"
-    private val agentName = "pangolin-android-${BuildConfig.VERSION_NAME}"
+    private val agentName = "pangolin-android-${versionName ?: "1.0.0"}"
 
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
@@ -150,7 +151,7 @@ class APIClient(
             }
             throw APIError.HttpError(response.code, errorMessage)
         }
-        
+
         Log.d(tag, "Parsing response body: $bodyString")
 
         if (bodyString.isEmpty() || bodyString == "{}") {
@@ -303,10 +304,10 @@ class APIClient(
         val hostname = hostnameOverride ?: _baseURL
         val normalizedHostname = normalizeBaseURL(hostname)
         val healthUrl = "$normalizedHostname/api/v1/"
-        
+
         Log.d(tag, "Performing health check to: $healthUrl")
-        
-        val url = healthUrl.toHttpUrlOrNull() 
+
+        val url = healthUrl.toHttpUrlOrNull()
             ?: return@withContext HealthCheckResult(
                 success = false,
                 message = "Invalid URL: $healthUrl",
@@ -323,7 +324,7 @@ class APIClient(
         try {
             client.newCall(request).execute().use { response ->
                 val bodyString = response.body?.string() ?: ""
-                
+
                 if (response.isSuccessful) {
                     Log.i(tag, "Health check successful: $bodyString")
                     HealthCheckResult(

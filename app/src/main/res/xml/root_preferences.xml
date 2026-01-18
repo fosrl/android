@@ -1,6 +1,6 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="DNS Settings">
+    <PreferenceCategory>
 
         <SwitchPreferenceCompat
             app:key="overrideDns"
@@ -23,11 +23,6 @@
             app:title="Secondary Upstream DNS Server"
             app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="Debug Settings">
-
         <SwitchPreferenceCompat
             app:key="logCollectionEnabled"
             app:summary="When enabled, tunnel logs are saved to a file that can be downloaded for troubleshooting."

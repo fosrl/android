@@ -73,11 +73,18 @@ class SignInCodeActivity : AppCompatActivity() {
         // Get hostname from intent
         hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: "https://app.pangolin.net"
 
+        // Get version name
+        val versionName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "1.0.0"
+        }
+
         // Initialize managers
         secretManager = SecretManager.getInstance(applicationContext)
         accountManager = AccountManager.getInstance(applicationContext)
         configManager = ConfigManager.getInstance(applicationContext)
-        apiClient = APIClient(hostname)
+        apiClient = APIClient(hostname, versionName = versionName)
         authManager = AuthManager(
             context = applicationContext,
             apiClient = apiClient,
