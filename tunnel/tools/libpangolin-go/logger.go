@@ -19,6 +19,13 @@ import (
 
 // Global file logger
 var logFile *os.File
+var logFilePath string
+
+// Log rotation settings
+const (
+	maxLogFileSize = 10 * 1024 * 1024 // 10 MB
+	maxLogBackups  = 3                // Keep 3 old log files
+)
 
 // LogLevel represents the severity of a log message
 type LogLevel int
@@ -111,6 +118,9 @@ func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}
 		timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 		logLine := fmt.Sprintf("%s [%s] %s: %s\n", timestamp, levelStr, l.prefix, message)
 		logFile.WriteString(logLine)
+		
+		// Check if we need to rotate the log
+		checkAndRotateLog()
 	}
 }
 
@@ -206,6 +216,11 @@ func init() {
 //export InitFileLogger
 func InitFileLogger(filePath *C.char) {
 	goPath := C.GoString(filePath)
+	logFilePath = goPath
+	
+	// Clean up old backup logs on initialization
+	cleanupOldBackups()
+	
 	var err error
 	logFile, err = os.OpenFile(goPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -222,6 +237,68 @@ func CloseFileLogger() {
 	if logFile != nil {
 		logFile.Close()
 		logFile = nil
+	}
+}
+
+// checkAndRotateLog checks if the log file exceeds the maximum size and rotates it if needed
+func checkAndRotateLog() {
+	if logFile == nil || logFilePath == "" {
+		return
+	}
+	
+	// Get current file info
+	fileInfo, err := logFile.Stat()
+	if err != nil {
+		return
+	}
+	
+	// Check if rotation is needed
+	if fileInfo.Size() < maxLogFileSize {
+		return
+	}
+	
+	// Close current log file
+	logFile.Close()
+	
+	// Rotate existing backups (delete oldest if at max)
+	for i := maxLogBackups - 1; i >= 1; i-- {
+		oldName := fmt.Sprintf("%s.%d", logFilePath, i)
+		newName := fmt.Sprintf("%s.%d", logFilePath, i+1)
+		
+		// Delete the oldest backup if it exists
+		if i == maxLogBackups-1 {
+			os.Remove(newName)
+		}
+		
+		// Rename if the old backup exists
+		if _, err := os.Stat(oldName); err == nil {
+			os.Rename(oldName, newName)
+		}
+	}
+	
+	// Rename current log to .1
+	backupName := fmt.Sprintf("%s.1", logFilePath)
+	os.Rename(logFilePath, backupName)
+	
+	// Create new log file
+	var err2 error
+	logFile, err2 = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err2 != nil {
+		// If we can't open the new file, try to reopen the backup
+		logFile, _ = os.OpenFile(backupName, os.O_APPEND|os.O_WRONLY, 0644)
+	}
+}
+
+// cleanupOldBackups removes backup log files that exceed maxLogBackups
+func cleanupOldBackups() {
+	if logFilePath == "" {
+		return
+	}
+	
+	// Remove any backups beyond our max
+	for i := maxLogBackups + 1; i <= maxLogBackups + 10; i++ {
+		backupName := fmt.Sprintf("%s.%d", logFilePath, i)
+		os.Remove(backupName)
 	}
 }
 
