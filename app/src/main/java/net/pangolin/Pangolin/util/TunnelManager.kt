@@ -166,19 +166,25 @@ class TunnelManager private constructor(
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: false
             val tunnelDns = config.dnsTunnelEnabled ?: false
+            val logCollectionEnabled = config.logCollectionEnabled ?: false
 
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
+            Log.d(tag, "Log collection enabled: $logCollectionEnabled")
 
             // Start tunnel
             withContext(Dispatchers.IO) {
-                val initConfig = InitConfig.Builder()
+                val initConfigBuilder = InitConfig.Builder()
                     .setEnableAPI(true)
                     .setLogLevel("debug")
                     .setAgent("Pangolin Android")
                     .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
-                    // .setLogFilePath(File(context.filesDir, "pangolin_go.log").absolutePath)
-                    .build()
+                
+                if (logCollectionEnabled) {
+                    initConfigBuilder.setLogFilePath(File(context.filesDir, "pangolin_go.log").absolutePath)
+                }
+                
+                val initConfig = initConfigBuilder.build()
 
                 val upstreamDns = mutableListOf<String>()
                 upstreamDns.add("$primaryDNS:53")

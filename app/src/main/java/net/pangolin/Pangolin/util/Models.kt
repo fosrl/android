@@ -10,7 +10,8 @@ data class Config(
     val dnsOverrideEnabled: Boolean? = null,
     val dnsTunnelEnabled: Boolean? = null,
     val primaryDNSServer: String? = null,
-    val secondaryDNSServer: String? = null
+    val secondaryDNSServer: String? = null,
+    val logCollectionEnabled: Boolean? = null
 )
 
 // MARK: - Account Types
