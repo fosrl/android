@@ -237,6 +237,13 @@ class APIClient(
         parseResponse<EmptyResponse>(response)
     }
 
+    // MARK: - Server Info
+
+    suspend fun getServerInfo(hostnameOverride: String? = null): ServerInfo {
+        val response = makeRequest("GET", "/server-info", hostnameOverride = hostnameOverride)
+        return parseResponse(response)
+    }
+
     // MARK: - User
 
     suspend fun getUser(): User {

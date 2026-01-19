@@ -131,6 +131,24 @@ class AccountManager private constructor(private val context: Context) {
         save()
     }
 
+    fun updateAccountUserInfo(userId: String, username: String?, name: String?) {
+        val currentStore = _store.value
+        val account = currentStore.accounts[userId]
+
+        if (account != null) {
+            val updatedAccount = account.copy(username = username, name = name)
+            val updatedAccounts = currentStore.accounts.toMutableMap()
+            updatedAccounts[userId] = updatedAccount
+
+            _store.value = currentStore.copy(accounts = updatedAccounts)
+            save()
+            
+            Log.i(tag, "Updated user info for userId=$userId: username=$username, name=$name")
+        } else {
+            Log.w(tag, "Account not found for userId=$userId, cannot update user info")
+        }
+    }
+
     fun removeAccount(userId: String) {
         val currentStore = _store.value
         val updatedAccounts = currentStore.accounts.toMutableMap()

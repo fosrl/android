@@ -21,7 +21,9 @@ data class Account(
     val userId: String,
     val hostname: String,
     val email: String,
-    var orgId: String
+    var orgId: String,
+    var username: String? = null,
+    var name: String? = null
 )
 
 @Serializable
@@ -79,6 +81,17 @@ data class DeviceAuthPollResponse(
     val verified: Boolean,
     val message: String? = null,
     val token: String? = null
+)
+
+// MARK: - Server Info
+
+@Serializable
+data class ServerInfo(
+    val version: String,
+    val supporterStatusValid: Boolean,
+    val build: String, // "oss" | "enterprise" | "saas"
+    val enterpriseLicenseValid: Boolean,
+    val enterpriseLicenseType: String? = null
 )
 
 // MARK: - User
@@ -310,3 +323,29 @@ data class SocketSwitchOrgRequest(
 data class SocketSwitchOrgResponse(
     val status: String
 )
+
+// MARK: - Display Name Helpers
+
+/**
+ * Returns a display name for a User with precedence: email > name > username > "User"
+ */
+fun userDisplayName(user: User): String {
+    return when {
+        user.email.isNotEmpty() -> user.email
+        !user.name.isNullOrEmpty() -> user.name!!
+        !user.username.isNullOrEmpty() -> user.username!!
+        else -> "User"
+    }
+}
+
+/**
+ * Returns a display name for an Account with precedence: email > name > username > "Account"
+ */
+fun accountDisplayName(account: Account): String {
+    return when {
+        account.email.isNotEmpty() -> account.email
+        !account.name.isNullOrEmpty() -> account.name!!
+        !account.username.isNullOrEmpty() -> account.username!!
+        else -> "Account"
+    }
+}

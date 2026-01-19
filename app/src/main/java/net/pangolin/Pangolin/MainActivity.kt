@@ -29,6 +29,8 @@ import net.pangolin.Pangolin.util.ConfigManager
 import net.pangolin.Pangolin.util.SecretManager
 import net.pangolin.Pangolin.util.TunnelManager
 import net.pangolin.Pangolin.util.TunnelState
+import net.pangolin.Pangolin.util.accountDisplayName
+import net.pangolin.Pangolin.util.userDisplayName
 
 class MainActivity : BaseNavigationActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -325,10 +327,17 @@ class MainActivity : BaseNavigationActivity() {
         val currentUser = authManager.currentUser.value
         val currentOrg = authManager.currentOrg.value
 
-        if (activeAccount != null && currentUser != null) {
+        if (activeAccount != null) {
             // Show the account/org card
             contentBinding.accountOrgCard.visibility = View.VISIBLE
-            contentBinding.tvAccountEmail.text = currentUser.email
+            
+            // Use userDisplayName if currentUser exists, else accountDisplayName
+            val displayName = if (currentUser != null) {
+                userDisplayName(currentUser)
+            } else {
+                accountDisplayName(activeAccount)
+            }
+            contentBinding.tvAccountEmail.text = displayName
 
             // Show organization section if we have an org
             if (currentOrg != null) {
@@ -347,8 +356,17 @@ class MainActivity : BaseNavigationActivity() {
         val accounts = accountManager.accounts.values.toList()
         val currentUserId = accountManager.activeUserId
 
-        // Create array of account emails for the dialog
-        val accountEmails = accounts.map { it.email }.toTypedArray()
+        // Create array of account display names for the dialog
+        val accountDisplayNames = accounts.map { account ->
+            val displayName = accountDisplayName(account)
+            // Add hostname suffix if multiple accounts share the same email
+            val emailCount = accounts.count { it.email == account.email }
+            if (emailCount > 1 && account.email.isNotEmpty()) {
+                "$displayName (${account.hostname})"
+            } else {
+                displayName
+            }
+        }.toTypedArray()
         
         // Find the currently selected account index
         val currentIndex = accounts.indexOfFirst { it.userId == currentUserId }
@@ -361,7 +379,7 @@ class MainActivity : BaseNavigationActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Select Account")
             .setIcon(icon)
-            .setSingleChoiceItems(accountEmails, checkedItem) { dialog, which ->
+            .setSingleChoiceItems(accountDisplayNames, checkedItem) { dialog, which ->
                 val selectedUserId = accounts[which].userId
                 if (selectedUserId != currentUserId) {
                     dialog.dismiss()

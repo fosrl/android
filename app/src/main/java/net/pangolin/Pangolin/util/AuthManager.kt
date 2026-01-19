@@ -62,6 +62,9 @@ class AuthManager(
     private val _deviceAuthLoginURL = MutableStateFlow<String?>(null)
     val deviceAuthLoginURL: StateFlow<String?> = _deviceAuthLoginURL.asStateFlow()
 
+    private val _serverInfo = MutableStateFlow<ServerInfo?>(null)
+    val serverInfo: StateFlow<ServerInfo?> = _serverInfo.asStateFlow()
+
     private var deviceAuthJob: Job? = null
 
     suspend fun initialize() {
@@ -90,6 +93,17 @@ class AuthManager(
             val user = apiClient.getUser()
             _currentUser.value = user
             _isAuthenticated.value = true
+
+            // Fetch server info
+            try {
+                val serverInfo = apiClient.getServerInfo()
+                _serverInfo.value = serverInfo
+            } catch (e: Exception) {
+                Log.w(tag, "Failed to fetch server info: ${e.message}")
+            }
+
+            // Update account with username and name
+            accountManager.updateAccountUserInfo(user.userId, user.username, user.name)
 
             refreshOrganizations()
 
@@ -260,6 +274,14 @@ class AuthManager(
 
         ensureOlmCredentials(user.userId)
 
+        // Fetch server info
+        try {
+            val serverInfo = apiClient.getServerInfo()
+            _serverInfo.value = serverInfo
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to fetch server info: ${e.message}")
+        }
+
         refreshOrganizations()
 
         val orgId = ensureOrgIsSelected()
@@ -268,7 +290,9 @@ class AuthManager(
             userId = user.userId,
             hostname = hostname,
             email = user.email,
-            orgId = orgId
+            orgId = orgId,
+            username = user.username,
+            name = user.name
         )
 
         accountManager.addAccount(account, makeActive = true)
@@ -384,6 +408,17 @@ class AuthManager(
             _isAuthenticated.value = true
 
             accountManager.setActiveUser(userId)
+
+            // Fetch server info
+            try {
+                val serverInfo = apiClient.getServerInfo()
+                _serverInfo.value = serverInfo
+            } catch (e: Exception) {
+                Log.w(tag, "Failed to fetch server info: ${e.message}")
+            }
+
+            // Update account with username and name
+            accountManager.updateAccountUserInfo(user.userId, user.username, user.name)
 
             refreshOrganizations()
 
