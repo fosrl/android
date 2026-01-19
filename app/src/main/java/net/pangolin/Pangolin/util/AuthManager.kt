@@ -65,6 +65,9 @@ class AuthManager(
     private val _serverInfo = MutableStateFlow<ServerInfo?>(null)
     val serverInfo: StateFlow<ServerInfo?> = _serverInfo.asStateFlow()
 
+    private val _isServerDown = MutableStateFlow(false)
+    val isServerDown: StateFlow<Boolean> = _isServerDown.asStateFlow()
+
     private var deviceAuthJob: Job? = null
 
     suspend fun initialize() {
@@ -90,6 +93,19 @@ class AuthManager(
             apiClient.updateBaseURL(activeAccount.hostname)
             apiClient.updateSessionToken(token)
 
+            // Health check before fetching data
+            val isHealthy = apiClient.checkHealth()
+            if (!isHealthy) {
+                Log.w(tag, "Server appears to be down")
+                _isServerDown.value = true
+                _errorMessage.value = "The server appears to be down."
+                _isAuthenticated.value = true
+                return
+            }
+
+            _isServerDown.value = false
+            _errorMessage.value = null
+
             val user = apiClient.getUser()
             _currentUser.value = user
             _isAuthenticated.value = true
@@ -113,6 +129,9 @@ class AuthManager(
                 orgId = orgResponse.org.orgId,
                 name = orgResponse.org.name
             )
+
+            // Clear error message on successful initialization
+            _errorMessage.value = null
 
             Log.i(tag, "Successfully initialized with user: ${user.email}")
         } catch (e: Exception) {
@@ -303,12 +322,31 @@ class AuthManager(
             name = orgResponse.org.name
         )
 
+        // Clear error message on successful authentication
+        _errorMessage.value = null
+
         Log.i(tag, "Successfully authenticated as ${user.email}")
         
         // Set authenticated flag last, after account is saved to disk
         _isAuthenticated.value = true
     }
 
+    fun updateServerStatus(isHealthy: Boolean) {
+        if (!isHealthy) {
+            _isServerDown.value = true
+            if (_errorMessage.value == null) {
+                _errorMessage.value = "The server appears to be down."
+            }
+        } else {
+            _isServerDown.value = false
+            // Clear server-down error message when server becomes healthy
+            if (_errorMessage.value == "The server appears to be down.") {
+                _errorMessage.value = null
+            }
+        }
+    }
+
+    // MARK: - API Client Sync
     /**
      * Synchronize the APIClient with the current active account's token and hostname.
      * This should be called when the activity resumes to ensure the APIClient is
@@ -392,22 +430,43 @@ class AuthManager(
                 return
             }
 
-            apiClient.updateBaseURL(account.hostname)
+            // Step 1: Switch account locally first
+            accountManager.setActiveUser(userId)
             apiClient.updateSessionToken(token)
+            apiClient.updateBaseURL(account.hostname)
+
+            // Step 2: Clear user data immediately
+            _currentUser.value = null
+            _currentOrg.value = null
+            _organizations.value = emptyList()
+            _serverInfo.value = null
+
+            // Step 3: Set authenticated to show UI
+            _isAuthenticated.value = true
+
+            // Step 4: Reset server status
+            _isServerDown.value = false
+            _errorMessage.value = null
+
+            // Step 5: Validate with server
+            // Health check before fetching data
+            val isHealthy = apiClient.checkHealth()
+            if (!isHealthy) {
+                Log.w(tag, "Server appears to be down")
+                _isServerDown.value = true
+                _errorMessage.value = "The server appears to be down."
+                return
+            }
 
             val user = try {
                 apiClient.getUser()
             } catch (e: Exception) {
                 Log.e(tag, "Failed to get user info: ${e.message}", e)
-                accountManager.removeAccount(userId)
-                secretManager.deleteSecret("session-token-$userId")
-                throw e
+                _errorMessage.value = "Failed to get user info: ${e.message}"
+                return
             }
 
             _currentUser.value = user
-            _isAuthenticated.value = true
-
-            accountManager.setActiveUser(userId)
 
             // Fetch server info
             try {
@@ -449,6 +508,9 @@ class AuthManager(
                 )
 
             }
+
+            // Clear error message on successful completion
+            _errorMessage.value = null
 
             Log.i(tag, "Switched to account: ${user.email}")
         } catch (e: Exception) {

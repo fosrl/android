@@ -307,6 +307,34 @@ class APIClient(
 
     // MARK: - Health Check
 
+    suspend fun checkHealth(hostnameOverride: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val hostname = hostnameOverride ?: _baseURL
+        val normalizedHostname = normalizeBaseURL(hostname)
+        val healthUrl = "$normalizedHostname/api/v1/"
+
+        Log.d(tag, "Checking server health: $healthUrl")
+
+        val url = healthUrl.toHttpUrlOrNull() ?: return@withContext false
+
+        val request = Request.Builder()
+            .url(url)
+            .method("GET", null)
+            .addHeader("Accept", "application/json")
+            .addHeader("User-Agent", agentName)
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                val isHealthy = response.code in 200..299 || response.code == 401 || response.code == 403
+                Log.d(tag, "Health check result: ${response.code}, healthy: $isHealthy")
+                isHealthy
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Health check failed: ${e.message}")
+            false
+        }
+    }
+
     suspend fun healthCheck(hostnameOverride: String? = null): HealthCheckResult = withContext(Dispatchers.IO) {
         val hostname = hostnameOverride ?: _baseURL
         val normalizedHostname = normalizeBaseURL(hostname)

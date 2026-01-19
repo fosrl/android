@@ -258,6 +258,28 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
 
+        // Observe server info changes
+        lifecycleScope.launch {
+            authManager.serverInfo.collect {
+                updateWatermarkMessage()
+            }
+        }
+
+        // Observe server down status
+        lifecycleScope.launch {
+            authManager.isServerDown.collect { isServerDown ->
+                contentBinding.serverDownBanner.visibility = if (isServerDown) View.VISIBLE else View.GONE
+                updateErrorMessage()
+            }
+        }
+
+        // Observe error messages
+        lifecycleScope.launch {
+            authManager.errorMessage.collect {
+                updateErrorMessage()
+            }
+        }
+
         // Observe OLM errors and show alert dialog
         lifecycleScope.launch {
             tunnelManager.olmErrorFlow?.collectLatest { olmError ->
@@ -300,6 +322,18 @@ class MainActivity : BaseNavigationActivity() {
         // where a different APIClient instance may have been used
         authManager.syncApiClientForActiveAccount()
         
+        // Perform health check when app resumes
+        if (authManager.isAuthenticated.value) {
+            lifecycleScope.launch {
+                try {
+                    val isHealthy = apiClient.checkHealth()
+                    authManager.updateServerStatus(isHealthy)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Health check failed on resume: ${e.message}")
+                }
+            }
+        }
+        
         // Update authentication state
         updateAccountOrgCard()
     }
@@ -326,9 +360,10 @@ class MainActivity : BaseNavigationActivity() {
         val activeAccount = accountManager.activeAccount
         val currentUser = authManager.currentUser.value
         val currentOrg = authManager.currentOrg.value
+        val isAuthenticated = authManager.isAuthenticated.value
 
-        if (activeAccount != null) {
-            // Show the account/org card
+        if (isAuthenticated && activeAccount != null) {
+            // Show the account/org card even when server is down
             contentBinding.accountOrgCard.visibility = View.VISIBLE
             
             // Use userDisplayName if currentUser exists, else accountDisplayName
@@ -349,6 +384,51 @@ class MainActivity : BaseNavigationActivity() {
         } else {
             // Hide the card if not authenticated
             contentBinding.accountOrgCard.visibility = View.GONE
+        }
+    }
+
+    private fun updateErrorMessage() {
+        val errorMessage = authManager.errorMessage.value
+        val isServerDown = authManager.isServerDown.value
+
+        // Show error message banner only if there's an error and it's not a server down error
+        if (!errorMessage.isNullOrEmpty() && !isServerDown) {
+            contentBinding.errorMessageBanner.visibility = View.VISIBLE
+            contentBinding.tvErrorMessage.text = errorMessage
+        } else {
+            contentBinding.errorMessageBanner.visibility = View.GONE
+        }
+    }
+
+    private fun updateWatermarkMessage() {
+        val serverInfo = authManager.serverInfo.value
+
+        if (serverInfo == null) {
+            contentBinding.tvWatermarkMessage.visibility = View.GONE
+            return
+        }
+
+        val message = when {
+            // Enterprise + Personal License
+            serverInfo.build == "enterprise" && serverInfo.enterpriseLicenseType?.lowercase() == "personal" -> {
+                "Licensed for personal use only."
+            }
+            // Enterprise + Unlicensed
+            serverInfo.build == "enterprise" && !serverInfo.enterpriseLicenseValid -> {
+                "This server is unlicensed."
+            }
+            // OSS + No Supporter Key
+            serverInfo.build == "oss" && !serverInfo.supporterStatusValid -> {
+                "Community Edition. Consider supporting."
+            }
+            else -> null
+        }
+
+        if (message != null) {
+            contentBinding.tvWatermarkMessage.text = message
+            contentBinding.tvWatermarkMessage.visibility = View.VISIBLE
+        } else {
+            contentBinding.tvWatermarkMessage.visibility = View.GONE
         }
     }
 
