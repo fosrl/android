@@ -349,3 +349,25 @@ fun accountDisplayName(account: Account): String {
         else -> "Account"
     }
 }
+
+@Serializable
+data class Fingerprint(
+    val username: String,
+    val hostname: String,
+    val platform: String,
+    val osVersion: String,
+    val kernelVersion: String,
+    val arch: String,
+    val deviceModel: String,
+    val serialNumber: String,
+    val platformFingerprint: String
+)
+
+@Serializable
+data class Postures(
+    val autoUpdatesEnabled: Boolean,
+    val biometricsEnabled: Boolean,
+    val diskEncrypted: Boolean,
+    val firewallEnabled: Boolean,
+    val tpmAvailable: Boolean
+)
