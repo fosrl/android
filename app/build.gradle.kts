@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.cardview)
     implementation(libs.androidx.browser)
+    implementation(libs.androidx.biometric.ktx.v140alpha02)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
