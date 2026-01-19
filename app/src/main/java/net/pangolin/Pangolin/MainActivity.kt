@@ -120,6 +120,15 @@ class MainActivity : BaseNavigationActivity() {
         fun setupToggleListener() {
             contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
                 lifecycleScope.launch {
+                    // Check if server is down first
+                    if (authManager.isServerDown.value && isChecked) {
+                        // Server is down, can't connect - revert toggle
+                        contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+                        contentBinding.toggleConnect.isChecked = false
+                        setupToggleListener()
+                        return@launch
+                    }
+                    
                     val currentState = tunnelManager.tunnelState.value
                     
                     // Check if the action is allowed based on current state
@@ -157,6 +166,11 @@ class MainActivity : BaseNavigationActivity() {
         // Setup status card click listener to toggle the switch
         contentBinding.statusCard.setOnClickListener {
             lifecycleScope.launch {
+                // Don't allow interaction if server is down
+                if (authManager.isServerDown.value) {
+                    return@launch
+                }
+                
                 val currentState = tunnelManager.tunnelState.value
                 val currentToggleState = contentBinding.toggleConnect.isChecked
                 
@@ -228,11 +242,14 @@ class MainActivity : BaseNavigationActivity() {
                 // Hide loading overlay and show content once initialization is complete
                 contentBinding.loadingOverlay.visibility = android.view.View.GONE
                 contentBinding.mainContent.visibility = android.view.View.VISIBLE
+                // Update connection controls based on server status
+                updateConnectionControls()
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error initializing auth manager", e)
                 // Hide loading overlay even on error
                 contentBinding.loadingOverlay.visibility = android.view.View.GONE
                 contentBinding.mainContent.visibility = android.view.View.VISIBLE
+                updateConnectionControls()
             }
         }
 
@@ -269,6 +286,7 @@ class MainActivity : BaseNavigationActivity() {
         lifecycleScope.launch {
             authManager.isServerDown.collect { isServerDown ->
                 contentBinding.serverDownBanner.visibility = if (isServerDown) View.VISIBLE else View.GONE
+                updateConnectionControls()
                 updateErrorMessage()
             }
         }
@@ -397,6 +415,24 @@ class MainActivity : BaseNavigationActivity() {
             contentBinding.tvErrorMessage.text = errorMessage
         } else {
             contentBinding.errorMessageBanner.visibility = View.GONE
+        }
+    }
+
+    private fun updateConnectionControls() {
+        val isServerDown = authManager.isServerDown.value
+
+        if (isServerDown) {
+            // Disable toggle and status card when server is down
+            contentBinding.toggleConnect.isEnabled = false
+            contentBinding.statusCard.isEnabled = false
+            contentBinding.statusCard.isClickable = false
+            contentBinding.statusCard.alpha = 0.5f
+        } else {
+            // Re-enable toggle and status card when server is back up
+            contentBinding.toggleConnect.isEnabled = true
+            contentBinding.statusCard.isEnabled = true
+            contentBinding.statusCard.isClickable = true
+            contentBinding.statusCard.alpha = 1.0f
         }
     }
 

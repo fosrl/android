@@ -35,8 +35,8 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:visibility="gone"
-            app:cardBackgroundColor="#FFF3E0"
-            app:cardCornerRadius="8dp"
+            app:cardBackgroundColor="@color/card_background_light"
+            app:cardCornerRadius="24dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -44,7 +44,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="12dp"
+                android:padding="16dp"
                 android:gravity="center_vertical">
 
                 <ImageView
@@ -74,8 +74,8 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:visibility="gone"
-            app:cardBackgroundColor="#FFEBEE"
-            app:cardCornerRadius="8dp"
+            app:cardBackgroundColor="@color/card_background_light"
+            app:cardCornerRadius="24dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -83,7 +83,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="12dp"
+                android:padding="16dp"
                 android:gravity="center_vertical">
 
                 <ImageView
