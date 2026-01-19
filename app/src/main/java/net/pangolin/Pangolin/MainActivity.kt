@@ -329,10 +329,10 @@ class MainActivity : BaseNavigationActivity() {
             .setSingleChoiceItems(accountEmails, checkedItem) { dialog, which ->
                 val selectedUserId = accounts[which].userId
                 if (selectedUserId != currentUserId) {
+                    dialog.dismiss()
                     lifecycleScope.launch {
                         try {
                             authManager.switchAccount(selectedUserId)
-                            dialog.dismiss()
                         } catch (e: Exception) {
                             Log.e("MainActivity", "Error switching account", e)
                             runOnUiThread {
