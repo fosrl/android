@@ -351,6 +351,17 @@ fun accountDisplayName(account: Account): String {
 }
 
 @Serializable
+data class UpdateMetadataRequest(
+    val fingerprint: Fingerprint,
+    val postures: Postures
+)
+
+@Serializable
+data class UpdateMetadataResponse(
+    val status: String,
+)
+
+@Serializable
 data class Fingerprint(
     val username: String,
     val hostname: String,
