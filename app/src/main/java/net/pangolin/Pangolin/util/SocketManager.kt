@@ -54,6 +54,11 @@ class SocketManager(
         return performRequest("POST", "/switch-org", body)
     }
 
+    suspend fun updateMetadata(fingerprint: Fingerprint, postures: Postures): UpdateMetadataResponse {
+        val body = json.encodeToString(UpdateMetadataRequest(fingerprint, postures))
+        return performRequest("PUT", "/metadata", body)
+    }
+
     private suspend inline fun <reified T> performRequest(
         method: String,
         path: String,
