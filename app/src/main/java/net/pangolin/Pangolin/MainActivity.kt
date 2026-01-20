@@ -80,7 +80,7 @@ class MainActivity : BaseNavigationActivity() {
         configManager = ConfigManager.getInstance(applicationContext)
         apiClient = APIClient("https://app.pangolin.net", versionName = versionName)
         socketManager = (application as PangolinApplication).socketManager
-        fingerprintManager = FingerprintManager(socketManager, AndroidFingerprintCollector(applicationContext))
+        fingerprintManager = FingerprintManager(applicationContext, socketManager, AndroidFingerprintCollector(applicationContext))
         authManager = AuthManager(
             context = applicationContext,
             apiClient = apiClient,
