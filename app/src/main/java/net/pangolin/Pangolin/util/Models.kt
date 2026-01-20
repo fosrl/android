@@ -216,6 +216,17 @@ data class CreateOlmResponse(
     val secret: String
 )
 
+@Serializable
+data class RecoverOlmRequest(
+    val platformFingerprint: String
+)
+
+@Serializable
+data class RecoverOlmResponse(
+    val olmId: String,
+    val secret: String
+)
+
 // MARK: - Tunnel Status
 
 @Serializable

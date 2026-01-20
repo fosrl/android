@@ -99,7 +99,7 @@ class AndroidFingerprintCollector(
             }
     }
 
-    fun computePlatformFingerprint(persistentId: String): String {
+    fun computePlatformFingerprint(persistentId: String = getOrCreatePersistentId()): String {
         val raw = "android|$persistentId"
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(raw.toByteArray())
