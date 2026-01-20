@@ -1,7 +1,6 @@
 package net.pangolin.Pangolin
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -12,21 +11,21 @@ import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.PreferenceManager
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 import net.pangolin.Pangolin.databinding.ActivityMainBinding
 import net.pangolin.Pangolin.databinding.ContentMainBinding
 import net.pangolin.Pangolin.util.APIClient
 import net.pangolin.Pangolin.util.AuthManager
 import net.pangolin.Pangolin.util.AccountManager
+import net.pangolin.Pangolin.util.AndroidFingerprintCollector
 import net.pangolin.Pangolin.util.ConfigManager
+import net.pangolin.Pangolin.util.FingerprintManager
 import net.pangolin.Pangolin.util.SecretManager
+import net.pangolin.Pangolin.util.SocketManager
 import net.pangolin.Pangolin.util.TunnelManager
 import net.pangolin.Pangolin.util.TunnelState
 import net.pangolin.Pangolin.util.accountDisplayName
@@ -42,6 +41,8 @@ class MainActivity : BaseNavigationActivity() {
     private lateinit var accountManager: AccountManager
     private lateinit var configManager: ConfigManager
     private lateinit var secretManager: SecretManager
+    private lateinit var socketManager: SocketManager
+    private lateinit var fingerprintManager: FingerprintManager
     
     // Tunnel manager
     private lateinit var tunnelManager: TunnelManager
@@ -78,6 +79,8 @@ class MainActivity : BaseNavigationActivity() {
         accountManager = AccountManager.getInstance(applicationContext)
         configManager = ConfigManager.getInstance(applicationContext)
         apiClient = APIClient("https://app.pangolin.net", versionName = versionName)
+        socketManager = (application as PangolinApplication).socketManager
+        fingerprintManager = FingerprintManager(socketManager, AndroidFingerprintCollector(applicationContext))
         authManager = AuthManager(
             context = applicationContext,
             apiClient = apiClient,
@@ -85,7 +88,6 @@ class MainActivity : BaseNavigationActivity() {
             accountManager = accountManager,
             secretManager = secretManager
         )
-
         // Check if there are any accounts - if not, go to LoginActivity
         val accounts = accountManager.accounts
         // // log the accounts for debugging
@@ -106,7 +108,9 @@ class MainActivity : BaseNavigationActivity() {
             authManager = authManager,
             accountManager = accountManager,
             secretManager = secretManager,
-            configManager = configManager
+            configManager = configManager,
+            socketManager = socketManager,
+            fingerprintManager = fingerprintManager,
         )
 
         // Bind content layout
@@ -712,8 +716,6 @@ class MainActivity : BaseNavigationActivity() {
                     }
                 }
             }
-
-
         }
     }
 }

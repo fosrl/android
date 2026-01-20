@@ -32,10 +32,12 @@ class StatusActivity : BaseNavigationActivity(), StatusPollingProvider {
         
         // Bind content layout
         contentBinding = ContentStatusBinding.bind(binding.content.root)
+
+        val socketManager =
+            (application as PangolinApplication).socketManager
         
-        // Initialize StatusPollingManager with context
-        val socketPath = File(filesDir, "pangolin.sock").absolutePath
-        statusPollingManager = StatusPollingManager(this, socketPath)
+
+        statusPollingManager = StatusPollingManager(this, socketManager)
         
         // Setup ViewPager with fragments
         setupViewPager()

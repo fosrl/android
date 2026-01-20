@@ -30,7 +30,9 @@ class TunnelManager private constructor(
     private val authManager: AuthManager,
     private val accountManager: AccountManager,
     private val secretManager: SecretManager,
-    private val configManager: ConfigManager
+    private val configManager: ConfigManager,
+    private val socketManager: SocketManager,
+    private val fingerprintManager: FingerprintManager,
 ) {
     private val tag = "TunnelManager"
 
@@ -61,8 +63,7 @@ class TunnelManager private constructor(
 
     init {
         goBackend = GoBackend(context)
-        val socketPath = File(context.filesDir, "pangolin.sock").absolutePath
-        statusPollingManager = StatusPollingManager(context, socketPath)
+        statusPollingManager = StatusPollingManager(context, socketManager)
 
         // Observe status updates
         // Note: Power state monitoring is now handled in the VpnService (GoBackend.java)
@@ -246,6 +247,7 @@ class TunnelManager private constructor(
             // Start socket polling
             startSocketPolling()
 
+            fingerprintManager.start()
         } catch (e: Exception) {
             Log.e(tag, "Failed to start tunnel", e)
             updateState(_tunnelState.value.copy(
@@ -271,6 +273,8 @@ class TunnelManager private constructor(
         ))
 
         try {
+            fingerprintManager.stop()
+
             stopSocketPolling()
 
             withContext(Dispatchers.IO) {
@@ -306,8 +310,6 @@ class TunnelManager private constructor(
         Log.i(tag, "Switching to organization: $orgId")
 
         try {
-            val socketPath = File(context.filesDir, "pangolin.sock").absolutePath
-            val socketManager = SocketManager(socketPath)
             val response = socketManager.switchOrg(orgId)
             Log.i(tag, "Organization switched: ${response.status}")
 
@@ -434,7 +436,9 @@ class TunnelManager private constructor(
             authManager: AuthManager,
             accountManager: AccountManager,
             secretManager: SecretManager,
-            configManager: ConfigManager
+            configManager: ConfigManager,
+            socketManager: SocketManager,
+            fingerprintManager: FingerprintManager
         ): TunnelManager {
             return instance ?: synchronized(this) {
                 instance ?: TunnelManager(
@@ -442,7 +446,9 @@ class TunnelManager private constructor(
                     authManager,
                     accountManager,
                     secretManager,
-                    configManager
+                    configManager,
+                    socketManager,
+                    fingerprintManager
                 ).also { instance = it }
             }
         }

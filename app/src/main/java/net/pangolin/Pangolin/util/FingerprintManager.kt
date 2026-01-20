@@ -1,3 +1,5 @@
+package net.pangolin.Pangolin.util
+
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.pangolin.Pangolin.PangolinApplication
-import java.io.File
 
 /**
  * Manager for polling tunnel status from the socket manager.
@@ -20,7 +19,7 @@ import java.io.File
  */
 class StatusPollingManager(
     private val context: Context,
-    private val socketPath: String,
+    private val socketManager: SocketManager,
     private val pollingIntervalMs: Long = 3000L
 ) : PangolinApplication.StandbyListener {
     private val tag = "StatusPollingManager"
@@ -28,8 +27,6 @@ class StatusPollingManager(
         ignoreUnknownKeys = true
         prettyPrint = true
     }
-    
-    private var socketManager: SocketManager? = null
     private var pollingJob: Job? = null
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     
@@ -76,9 +73,6 @@ class StatusPollingManager(
         // Register for standby notifications
         (context.applicationContext as? PangolinApplication)?.registerStandbyListener(this)
         
-        // Initialize socket manager
-        socketManager = SocketManager(socketPath)
-        
         // Start the polling coroutine
         pollingJob = coroutineScope.launch {
             while (isActive && _isPolling.value) {
@@ -89,53 +83,49 @@ class StatusPollingManager(
                 }
                 
                 try {
-                    // Check if socket exists before attempting to poll
-                    if (!File(socketPath).exists()) {
-                        Log.w(tag, "Socket file does not exist at: $socketPath")
-                        _errorFlow.value = "Socket not available (tunnel may not be running)"
-                        delay(pollingIntervalMs)
-                        continue
-                    }
-                    
                     // Fetch status from socket
-                    val status = socketManager?.getStatus()
-                    
-                    if (status != null) {
-                        // Check for OLM errors FIRST and emit before updating statusFlow
-                        // This ensures the error dialog is shown before TunnelManager disconnects
-                        val olmError = status.error
-                        if (olmError != null) {
-                            // Only emit if error code is different from last alerted
-                            if (olmError.code != lastAlertedErrorCode) {
-                                Log.d(tag, "New OLM error detected: code=${olmError.code}, message=${olmError.message}")
-                                lastAlertedErrorCode = olmError.code
-                                _olmErrorFlow.emit(olmError)
-                            }
-                        } else {
-                            // Error cleared - reset tracking so same error can alert again if it returns
-                            if (lastAlertedErrorCode != null) {
-                                Log.d(tag, "OLM error cleared, resetting last alerted code")
-                                lastAlertedErrorCode = null
-                            }
+                    val status = socketManager.getStatus()
+
+                    // Check for OLM errors FIRST and emit before updating statusFlow
+                    // This ensures the error dialog is shown before TunnelManager disconnects
+                    val olmError = status.error
+                    if (olmError != null) {
+                        // Only emit if error code is different from last alerted
+                        if (olmError.code != lastAlertedErrorCode) {
+                            Log.d(tag, "New OLM error detected: code=${olmError.code}, message=${olmError.message}")
+                            lastAlertedErrorCode = olmError.code
+                            _olmErrorFlow.emit(olmError)
                         }
-                        
-                        // Update status flow (TunnelManager collects this and may disconnect)
-                        _statusFlow.value = status
-                        
-                        // Format as pretty JSON
-                        val formattedJson = try {
-                            json.encodeToString(status)
-                        } catch (e: Exception) {
-                            Log.e(tag, "Failed to format status as JSON", e)
-                            "Error formatting status: ${e.message}"
+                    } else {
+                        // Error cleared - reset tracking so same error can alert again if it returns
+                        if (lastAlertedErrorCode != null) {
+                            Log.d(tag, "OLM error cleared, resetting last alerted code")
+                            lastAlertedErrorCode = null
                         }
-                        _statusJsonFlow.value = formattedJson
-                        
-                        // Clear any previous errors
-                        _errorFlow.value = null
-                        
-                        Log.d(tag, "Status updated: connected=${status.connected}, tunnelIP=${status.tunnelIP}")
                     }
+
+                    // Update status flow (TunnelManager collects this and may disconnect)
+                    _statusFlow.value = status
+
+                    // Format as pretty JSON
+                    val formattedJson = try {
+                        json.encodeToString(status)
+                    } catch (e: Exception) {
+                        Log.e(tag, "Failed to format status as JSON", e)
+                        "Error formatting status: ${e.message}"
+                    }
+                    _statusJsonFlow.value = formattedJson
+
+                    // Clear any previous errors
+                    _errorFlow.value = null
+
+                    Log.d(tag, "Status updated: connected=${status.connected}, tunnelIP=${status.tunnelIP}")
+                    _statusJsonFlow.value = formattedJson
+
+                    // Clear any previous errors
+                    _errorFlow.value = null
+
+                    Log.d(tag, "Status updated: connected=${status.connected}, tunnelIP=${status.tunnelIP}")
                 } catch (e: SocketError.SocketDoesNotExist) {
                     Log.w(tag, "Socket does not exist")
                     _errorFlow.value = "Socket not available"
@@ -211,10 +201,7 @@ class StatusPollingManager(
         // Cancel the polling job
         pollingJob?.cancel()
         pollingJob = null
-        
-        // Clean up socket manager
-        socketManager = null
-        
+
         // Reset state
         _statusFlow.value = null
         _statusJsonFlow.value = "Tunnel disconnected"
@@ -242,19 +229,13 @@ class StatusPollingManager(
      * This is useful for immediate updates.
      */
     suspend fun fetchStatusNow() {
-        if (socketManager == null) {
-            socketManager = SocketManager(socketPath)
-        }
-        
         try {
-            val status = socketManager?.getStatus()
-            if (status != null) {
-                _statusFlow.value = status
-                val formattedJson = json.encodeToString(status)
-                _statusJsonFlow.value = formattedJson
-                _errorFlow.value = null
-                Log.d(tag, "Manual status fetch successful")
-            }
+            val status = socketManager.getStatus()
+            _statusFlow.value = status
+            val formattedJson = json.encodeToString(status)
+            _statusJsonFlow.value = formattedJson
+            _errorFlow.value = null
+            Log.d(tag, "Manual status fetch successful")
         } catch (e: Exception) {
             Log.e(tag, "Manual status fetch failed", e)
             _errorFlow.value = "Error: ${e.message}"

@@ -2,7 +2,9 @@ package net.pangolin.Pangolin
 
 import android.app.Application
 import android.util.Log
+import net.pangolin.Pangolin.util.SocketManager
 import net.pangolin.Pangolin.util.StandbyDetector
+import java.io.File
 
 /**
  * Application class for Pangolin.
@@ -16,11 +18,13 @@ class PangolinApplication : Application(), StandbyDetector.StandbyListener {
     
     // List of listeners that want to be notified of standby changes
     private val standbyListeners = mutableListOf<StandbyListener>()
+
+    lateinit var socketManager: SocketManager private set
     
     override fun onCreate() {
         super.onCreate()
         Log.d(tag, "Pangolin application starting")
-        
+
         // Initialize standby detector
         standbyDetector = StandbyDetector(this, this)
         standbyDetector?.start()
