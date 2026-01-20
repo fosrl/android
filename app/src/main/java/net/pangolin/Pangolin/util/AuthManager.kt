@@ -34,7 +34,7 @@ class AuthManager(
     val configManager: ConfigManager,
     val accountManager: AccountManager,
     val secretManager: SecretManager,
-    var tunnelManager: TunnelManager? = null
+    var tunnelManager: TunnelManager? = null,
 ) {
     private val tag = "AuthManager"
 
@@ -579,10 +579,11 @@ class AuthManager(
             if (olmIdString != null) {
                 try {
                     val olm = apiClient.getUserOlm(userId, olmIdString)
-                    
+
                     // Verify the olmId and userId match
                     if (olm.olmId == olmIdString && olm.userId == userId) {
                         Log.d(tag, "OLM credentials verified successfully")
+                        return
                     } else {
                         Log.e(tag, "OLM mismatch - returned olmId: ${olm.olmId}, userId: ${olm.userId}, stored olmId: $olmIdString")
                         // Clear invalid credentials
@@ -600,7 +601,22 @@ class AuthManager(
                 secretManager.deleteOlmCredentials(userId)
             }
         }
-        
+
+        // First, try to recover the OLM with the calculated platform fingerprint
+        // hash, to prevent a duplicate device from being created in the OLM and
+        // client lists.
+        try {
+            val c = AndroidFingerprintCollector(context.applicationContext)
+            val platformFingerprint = c.computePlatformFingerprint()
+
+            val recoveredOlm = apiClient.recoverOlmWithFingerprint(userId, platformFingerprint)
+            Log.i(tag, "Recovered OLM credentials using platform fingerprint")
+            secretManager.saveOlmCredentials(userId, recoveredOlm.olmId, recoveredOlm.secret)
+            return
+        } catch (_: Exception) {
+            Log.i(tag, "ensureOlmCredentials: credentials not recovered, creating new ones")
+        }
+
         // If credentials don't exist or were cleared, create new ones
         if (!secretManager.hasOlmCredentials(userId)) {
             try {

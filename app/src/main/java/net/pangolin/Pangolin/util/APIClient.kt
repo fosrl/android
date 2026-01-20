@@ -267,6 +267,12 @@ class APIClient(
         return parseResponse(response)
     }
 
+    suspend fun recoverOlmWithFingerprint(userId: String, platformFingerprint: String): RecoverOlmResponse {
+        val requestBody = json.encodeToString(RecoverOlmRequest(platformFingerprint))
+        val response = makeRequest("POST", "/user/$userId/olm/recover", requestBody)
+        return parseResponse(response)
+    }
+
     // MARK: - Organization
 
     suspend fun getOrg(orgId: String): GetOrgResponse {
