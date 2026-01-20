@@ -385,6 +385,18 @@ data class Fingerprint(
     val platformFingerprint: String
 )
 
+fun Fingerprint.toMap(): Map<String, Any> = mapOf(
+    "username" to username,
+    "hostname" to hostname,
+    "platform" to platform,
+    "osVersion" to osVersion,
+    "kernelVersion" to kernelVersion,
+    "arch" to arch,
+    "deviceModel" to deviceModel,
+    "serialNumber" to serialNumber,
+    "platformFingerprint" to platformFingerprint
+)
+
 @Serializable
 data class Postures(
     val autoUpdatesEnabled: Boolean,
@@ -392,4 +404,12 @@ data class Postures(
     val diskEncrypted: Boolean,
     val firewallEnabled: Boolean,
     val tpmAvailable: Boolean
+)
+
+fun Postures.toMap(): Map<String, Any> = mapOf(
+    "autoUpdatesEnabled" to autoUpdatesEnabled,
+    "biometricsEnabled" to biometricsEnabled,
+    "diskEncrypted" to diskEncrypted,
+    "firewallEnabled" to firewallEnabled,
+    "tpmAvailable" to tpmAvailable
 )

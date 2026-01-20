@@ -10,7 +10,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import androidx.annotation.Nullable;
 
@@ -32,6 +34,8 @@ public class TunnelConfig {
     private final List<String> upstreamDNS;
     private final boolean overrideDNS;
     private final boolean tunnelDNS;
+    private final Map<String, Object> fingerprint;
+    private final Map<String, Object> postures;
 
     private TunnelConfig(Builder builder) {
         this.endpoint = builder.endpoint;
@@ -47,6 +51,8 @@ public class TunnelConfig {
         this.upstreamDNS = builder.upstreamDNS;
         this.overrideDNS = builder.overrideDNS;
         this.tunnelDNS = builder.tunnelDNS;
+        this.fingerprint = builder.fingerprint;
+        this.postures = builder.postures;
     }
 
     /**
@@ -82,6 +88,9 @@ public class TunnelConfig {
         
         json.put("overrideDNS", overrideDNS);
         json.put("tunnelDNS", tunnelDNS);
+
+        json.put("fingerprint", new JSONObject(fingerprint));
+        json.put("postures", new JSONObject(postures));
         
         return json.toString();
     }
@@ -156,6 +165,8 @@ public class TunnelConfig {
                 ", upstreamDNS=" + upstreamDNS +
                 ", overrideDNS=" + overrideDNS +
                 ", tunnelDNS=" + tunnelDNS +
+                ", fingerprint=" + fingerprint +
+                ", postures=" + postures +
                 '}';
     }
 
@@ -176,6 +187,8 @@ public class TunnelConfig {
         private List<String> upstreamDNS = new ArrayList<>();
         private boolean overrideDNS = false;
         private boolean tunnelDNS = false;
+        private Map<String, Object> fingerprint = new HashMap<>();
+        private Map<String, Object> postures = new HashMap<>();
 
         public Builder setEndpoint(String endpoint) {
             this.endpoint = endpoint;
@@ -244,6 +257,16 @@ public class TunnelConfig {
 
         public Builder setTunnelDNS(boolean tunnelDNS) {
             this.tunnelDNS = tunnelDNS;
+            return this;
+        }
+
+        public Builder setFingerprint(Map<String, Object> fingerprint) {
+            this.fingerprint = fingerprint;
+            return this;
+        }
+
+        public Builder setPostures(Map<String, Object> postures) {
+            this.postures = postures;
             return this;
         }
 
