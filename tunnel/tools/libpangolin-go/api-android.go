@@ -27,19 +27,21 @@ type InitOlmConfig struct {
 
 // StartTunnelConfig represents the JSON configuration for startTunnel
 type StartTunnelConfig struct {
-	Endpoint            string   `json:"endpoint"`
-	ID                  string   `json:"id"`
-	Secret              string   `json:"secret"`
-	MTU                 int      `json:"mtu"`
-	DNS                 string   `json:"dns"`
-	Holepunch           bool     `json:"holepunch"`
-	PingIntervalSeconds int      `json:"pingIntervalSeconds"`
-	PingTimeoutSeconds  int      `json:"pingTimeoutSeconds"`
-	UserToken           string   `json:"userToken"`
-	OrgID               string   `json:"orgId"`
-	UpstreamDNS         []string `json:"upstreamDNS"`
-	OverrideDNS         bool     `json:"overrideDNS"`
-	TunnelDNS           bool     `json:"tunnelDNS"`
+	Endpoint            string         `json:"endpoint"`
+	ID                  string         `json:"id"`
+	Secret              string         `json:"secret"`
+	MTU                 int            `json:"mtu"`
+	DNS                 string         `json:"dns"`
+	Holepunch           bool           `json:"holepunch"`
+	PingIntervalSeconds int            `json:"pingIntervalSeconds"`
+	PingTimeoutSeconds  int            `json:"pingTimeoutSeconds"`
+	UserToken           string         `json:"userToken"`
+	OrgID               string         `json:"orgId"`
+	UpstreamDNS         []string       `json:"upstreamDNS"`
+	OverrideDNS         bool           `json:"overrideDNS"`
+	TunnelDNS           bool           `json:"tunnelDNS"`
+	Fingerprint         map[string]any `json:"fingerprint"`
+	Postures            map[string]any `json:"postures"`
 }
 
 var (
@@ -53,7 +55,7 @@ var (
 func initOlm(configJSON *C.char) *C.char {
 	// Initialize OLM logger with current log level
 	InitOLMLogger()
-	
+
 	appLogger.Info("Initializing with config")
 
 	// Parse JSON configuration
@@ -136,6 +138,8 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 		TunnelDNS:            config.TunnelDNS,
 		UpstreamDNS:          config.UpstreamDNS,
 		OrgID:                config.OrgID,
+		InitialFingerprint:   config.Fingerprint,
+		InitialPostures:      config.Postures,
 	}
 
 	// print the config for debugging

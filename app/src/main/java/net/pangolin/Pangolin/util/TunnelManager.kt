@@ -192,6 +192,10 @@ class TunnelManager private constructor(
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
             Log.d(tag, "Log collection enabled: $logCollectionEnabled")
 
+            val fpCollector = AndroidFingerprintCollector(context)
+            val initialFingerprint = fpCollector.gatherFingerprintInfo()
+            val initialPostures = fpCollector.gatherPostureChecks()
+
             // Start tunnel
             withContext(Dispatchers.IO) {
                 val initConfigBuilder = InitConfig.Builder()
@@ -227,6 +231,8 @@ class TunnelManager private constructor(
                     .setHolepunch(true)
                     .setOverrideDNS(overrideDns)
                     .setTunnelDNS(tunnelDns)
+                    .setFingerprint(initialFingerprint.toMap())
+                    .setPostures(initialPostures.toMap())
                     .build()
 
                 Log.d(tag, "=== TUNNEL CONFIG: Starting tunnel with OLM ID: $olmId, Org ID: $orgId ===")
