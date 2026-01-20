@@ -19,7 +19,6 @@ class AndroidFingerprintCollector(
     fun gatherFingerprintInfo(): Fingerprint {
         val arch = System.getProperty("os.arch") ?: "unknown"
         val model = Build.MODEL ?: "unknown"
-        val serial = getOrCreatePersistentId()
 
         return Fingerprint(
             username = "",
@@ -29,8 +28,8 @@ class AndroidFingerprintCollector(
             kernelVersion = getKernelVersion(),
             arch = arch,
             deviceModel = model,
-            serialNumber = serial,
-            platformFingerprint = computePlatformFingerprint(serial)
+            serialNumber = "",
+            platformFingerprint = computePlatformFingerprint()
         )
     }
 
