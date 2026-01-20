@@ -1,3 +1,5 @@
+package net.pangolin.Pangolin.util
+
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.pm.PackageManager
