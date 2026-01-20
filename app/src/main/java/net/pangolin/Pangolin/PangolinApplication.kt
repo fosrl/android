@@ -25,6 +25,10 @@ class PangolinApplication : Application(), StandbyDetector.StandbyListener {
         super.onCreate()
         Log.d(tag, "Pangolin application starting")
 
+        // Initialize socket manager
+        val socketPath = File(filesDir, "pangolin.sock").absolutePath
+        socketManager = SocketManager(socketPath)
+
         // Initialize standby detector
         standbyDetector = StandbyDetector(this, this)
         standbyDetector?.start()
