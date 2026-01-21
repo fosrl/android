@@ -430,6 +430,15 @@ class AuthManager(
                 return
             }
 
+            // Step 0: Disconnect tunnel if running
+            tunnelManager?.let { tm ->
+                val currentState = tm.tunnelState.value
+                if (currentState.isServiceRunning || currentState.isConnecting) {
+                    Log.i(tag, "Disconnecting tunnel before switching accounts")
+                    tm.disconnect()
+                }
+            }
+
             // Step 1: Switch account locally first
             accountManager.setActiveUser(userId)
             apiClient.updateSessionToken(token)

@@ -113,6 +113,9 @@ class MainActivity : BaseNavigationActivity() {
             fingerprintManager = fingerprintManager,
         )
 
+        // Set tunnelManager on authManager so it can disconnect when switching accounts
+        authManager.tunnelManager = tunnelManager
+
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
 
