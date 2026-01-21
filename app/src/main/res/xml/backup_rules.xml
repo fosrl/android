@@ -1,13 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup rules file to exclude sensitive encrypted data.
    See https://developer.android.com/guide/topics/data/autobackup
    for details.
    Note: This file is ignored for devices older than API 31
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Exclude encrypted SharedPreferences files -->
+    <!-- These cannot be restored because the Android Keystore master key is not backed up -->
+    <exclude domain="sharedpref" path="pangolin_secrets.xml"/>
+    <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs_key_keyset__.xml"/>
+    <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs_value_keyset__.xml"/>
+    
+    <!-- Exclude account store since it references secrets that won't be restored -->
+    <exclude domain="file" path="Pangolin/accounts.json"/>
 </full-backup-content>
