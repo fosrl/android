@@ -60,9 +60,10 @@ class AndroidFingerprintCollector(
     }
 
     private fun isDiskEncrypted(): Boolean {
-        return DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ==
-            context.getSystemService(DevicePolicyManager::class.java)
-                ?.storageEncryptionStatus
+        val status = context.getSystemService(DevicePolicyManager::class.java)
+            ?.storageEncryptionStatus
+        return status == DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ||
+            status == DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE_PER_USER
     }
 
     private fun hasStrongBox(): Boolean {
