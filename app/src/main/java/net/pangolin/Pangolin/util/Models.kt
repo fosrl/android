@@ -327,7 +327,7 @@ data class SocketExitResponse(
 
 @Serializable
 data class SocketSwitchOrgRequest(
-    val orgId: String
+    @SerialName("org_id") val orgId: String
 )
 
 @Serializable

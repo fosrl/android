@@ -539,6 +539,16 @@ class AuthManager(
             }
 
             Log.i(tag, "=== ORG SWITCH: Switching user ${user.userId} to org ${organization.orgId} (${organization.name}) ===")
+            
+            // Disconnect tunnel if running before switching orgs
+            tunnelManager?.let { tm ->
+                val currentState = tm.tunnelState.value
+                if (currentState.isServiceRunning || currentState.isConnecting) {
+                    Log.i(tag, "Disconnecting tunnel before switching organizations")
+                    tm.disconnect()
+                }
+            }
+            
             accountManager.setUserOrganization(user.userId, organization.orgId)
             _currentOrg.value = organization
             
