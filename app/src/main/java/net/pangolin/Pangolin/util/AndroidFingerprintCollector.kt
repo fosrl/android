@@ -22,7 +22,8 @@ class AndroidFingerprintCollector(
 
         return Fingerprint(
             username = "",
-            hostname = Build.DEVICE ?: "",
+            // hostname = Build.DEVICE ?: "",
+            hostname = "",
             platform = "android",
             osVersion = Build.VERSION.RELEASE ?: "",
             kernelVersion = getKernelVersion(),

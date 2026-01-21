@@ -150,9 +150,14 @@ class AccountManager private constructor(private val context: Context) {
     }
 
     fun removeAccount(userId: String) {
+        Log.i(tag, "removeAccount called for userId: $userId")
         val currentStore = _store.value
+        Log.i(tag, "Accounts before removal: ${currentStore.accounts.keys}")
+        
         val updatedAccounts = currentStore.accounts.toMutableMap()
         updatedAccounts.remove(userId)
+        
+        Log.i(tag, "Accounts after removal: ${updatedAccounts.keys}")
 
         val updatedActiveUserId = if (currentStore.activeUserId == userId) {
             ""
@@ -166,6 +171,7 @@ class AccountManager private constructor(private val context: Context) {
         )
 
         save()
+        Log.i(tag, "removeAccount completed. Store now has: ${_store.value.accounts.keys}")
     }
 
     private fun getAccountStoreFile(): File {

@@ -641,39 +641,61 @@ class AuthManager(
     }
 
     suspend fun logout(): Boolean {
-        try {
-            val user = _currentUser.value
-            if (user != null) {
+        // Use activeAccount from AccountManager instead of _currentUser
+        // because _currentUser can be null when server is down
+        val activeAccount = accountManager.activeAccount
+        Log.i(tag, "=== LOGOUT STARTED ===")
+        Log.i(tag, "Active account being logged out: ${activeAccount?.userId} (${activeAccount?.email})")
+        Log.i(tag, "All accounts before logout: ${accountManager.accounts.keys}")
+        
+        if (activeAccount != null) {
+            // Try to logout from server, but don't fail if it doesn't work
+            try {
                 apiClient.logout()
-                secretManager.deleteSecret("session-token-${user.userId}")
-                accountManager.removeAccount(user.userId)
+                Log.i(tag, "Successfully logged out from server")
+            } catch (e: Exception) {
+                Log.w(tag, "Failed to logout from server (server may be down): ${e.message}")
+                // Continue with local cleanup even if server logout fails
             }
             
-            // Pick the next available logged-in account
-            val remainingAccounts = accountManager.accounts
-            if (remainingAccounts.isNotEmpty()) {
-                val nextAccount = remainingAccounts.values.first()
-                Log.i(tag, "Switching to next available account: ${nextAccount.userId}")
+            // Always clean up local state, even if server logout failed
+            secretManager.deleteSecret("session-token-${activeAccount.userId}")
+            Log.i(tag, "Deleted session token for: ${activeAccount.userId}")
+            
+            accountManager.removeAccount(activeAccount.userId)
+            Log.i(tag, "Removed account from AccountManager: ${activeAccount.userId}")
+        }
+        
+        // Pick the next available logged-in account
+        val remainingAccounts = accountManager.accounts
+        Log.i(tag, "Remaining accounts after removal: ${remainingAccounts.keys}")
+        
+        if (remainingAccounts.isNotEmpty()) {
+            val nextAccount = remainingAccounts.values.first()
+            Log.i(tag, "Switching to next available account: ${nextAccount.userId} (${nextAccount.email})")
+            try {
                 switchAccount(nextAccount.userId)
+                Log.i(tag, "=== LOGOUT COMPLETE - Switched to next account ===")
                 return true
-            } else {
-                // No more accounts available, clear everything
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to switch to next account: ${e.message}", e)
+                // Clear everything if we can't switch to the next account
                 _currentUser.value = null
                 _isAuthenticated.value = false
                 _currentOrg.value = null
                 _organizations.value = emptyList()
                 apiClient.updateSessionToken(null)
-                Log.i(tag, "Logged out successfully - no more accounts available")
+                Log.i(tag, "=== LOGOUT COMPLETE - Failed to switch, cleared all state ===")
                 return false
             }
-        } catch (e: Exception) {
-            Log.e(tag, "Logout failed: ${e.message}", e)
-            // On error, clear everything to be safe
+        } else {
+            // No more accounts available, clear everything
             _currentUser.value = null
             _isAuthenticated.value = false
             _currentOrg.value = null
             _organizations.value = emptyList()
             apiClient.updateSessionToken(null)
+            Log.i(tag, "=== LOGOUT COMPLETE - No more accounts available ===")
             return false
         }
     }
