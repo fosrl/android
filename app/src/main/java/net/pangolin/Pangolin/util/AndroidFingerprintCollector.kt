@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin.util
 
 import android.app.admin.DevicePolicyManager
+import android.util.Log
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.biometric.BiometricManager
@@ -94,10 +95,37 @@ class AndroidFingerprintCollector(
 
     private fun getOrCreatePersistentId(): String {
         val prefs = context.getSharedPreferences("fingerprint", Context.MODE_PRIVATE)
-        return prefs.getString("device_id", null)
-            ?: UUID.randomUUID().toString().also {
-                prefs.edit { putString("device_id", it) }
-            }
+        
+        // First, check if we already have a stored ID (preserves existing fingerprints)
+        prefs.getString("device_id", null)?.let { 
+            Log.d(TAG, "Using existing stored device ID")
+            return it 
+        }
+        
+        // If not, try to get ANDROID_ID (persists across uninstall/reinstall)
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        )
+        Log.d(TAG, "ANDROID_ID available: ${!androidId.isNullOrEmpty()}")
+        
+        // Use ANDROID_ID if available, otherwise generate a UUID
+        val persistentId = if (!androidId.isNullOrEmpty()) {
+            Log.d(TAG, "Using ANDROID_ID as persistent ID")
+            androidId
+        } else {
+            Log.d(TAG, "ANDROID_ID unavailable, generating new UUID")
+            UUID.randomUUID().toString()
+        }
+        
+        // Store the ID for future use
+        Log.d(TAG, "Storing persistent ID in SharedPreferences")
+        prefs.edit { putString("device_id", persistentId) }
+        return persistentId
+    }
+
+    companion object {
+        private const val TAG = "AndroidFingerprintCollector"
     }
 
     fun computePlatformFingerprint(persistentId: String = getOrCreatePersistentId()): String {
