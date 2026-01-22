@@ -37,11 +37,11 @@ class AndroidFingerprintCollector(
 
     fun gatherPostureChecks(): Postures {
         return Postures(
-            autoUpdatesEnabled = isAutoUpdateEnabled(context),
-            biometricsEnabled = isBiometricsAvailable(),
-            diskEncrypted = isDiskEncrypted(),
+            autoUpdatesEnabled = isAutoUpdateEnabled(context), // it looks like this is opposite of what I toggle for auto system updates in the dev options on the Pixel
+            biometricsEnabled = isBiometricsAvailable(), // this is only for if you can use bio in the app - not on the system lock screen
+            diskEncrypted = isDiskEncrypted(), // file based encryption is always on for modern Android versions
             firewallEnabled = false, // No system firewall concept on Android
-            tpmAvailable = hasStrongBox()
+            tpmAvailable = hasStrongBox() // StrongBox is the closest equivalent to TPM on Android
         )
     }
 
