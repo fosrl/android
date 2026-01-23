@@ -4,7 +4,7 @@ This is the official Pangolin client with GUI for Android devices.
 
 This client can be used with both:
 
-- [Pangolin Cloud](https://app.pangolin.net/auth/signup) - Quickest and easiest way to get started using Pangolin.
+- [Pangolin Cloud](https://app.pangolin.net/auth/login) - Quickest and easiest way to get started using Pangolin.
 - [Self-hosted Pangolin](https://docs.pangolin.net/self-host/quick-install) - Fully self-hosted Community and Enterprise editions of Pangolin.
 
 ## Download & Install
