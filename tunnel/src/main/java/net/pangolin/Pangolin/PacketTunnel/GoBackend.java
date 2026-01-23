@@ -124,7 +124,7 @@ public final class GoBackend implements Backend {
     @Override
     public State getState(final Tunnel tunnel) {
         return currentTunnel == tunnel ? State.UP : State.DOWN;
-    }
+    }   
 
     /**
      * Initialize OLM with the given configuration.
