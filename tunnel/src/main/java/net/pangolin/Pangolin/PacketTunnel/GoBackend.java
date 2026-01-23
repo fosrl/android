@@ -124,7 +124,7 @@ public final class GoBackend implements Backend {
     @Override
     public State getState(final Tunnel tunnel) {
         return currentTunnel == tunnel ? State.UP : State.DOWN;
-    }   
+    }
 
     /**
      * Initialize OLM with the given configuration.
@@ -462,11 +462,28 @@ public final class GoBackend implements Backend {
                if (startResult != null && startResult.startsWith("Error:")) {
                    throw new BackendException(Reason.GO_ACTIVATION_ERROR_CODE, -1);
                }
-           } catch (JSONException e) {
-               Log.e(TAG, "Failed to serialize tunnel config", e);
+           } catch (Exception e) {
+               Log.e(TAG, "Failed to start tunnel", e);
                if (currentTunFd != null) {
-                   currentTunFd.close();
+                   try {
+                       currentTunFd.close();
+                   } catch (Exception ignored) {}
                    currentTunFd = null;
+               }
+               // Stop the VPN service since tunnel start failed
+               try {
+                   final VpnService svc = vpnService.get(2, TimeUnit.SECONDS);
+                   Log.i(TAG, "Stopping VPN service due to tunnel start failure");
+                   svc.stopSelf();
+               } catch (final TimeoutException te) {
+                   Log.w(TAG, "VPN service not available when trying to stop after failure");
+                   try {
+                       context.stopService(new Intent(context, VpnService.class));
+                   } catch (Exception ex) {
+                       Log.e(TAG, "Failed to stop VPN service via context after failure", ex);
+                   }
+               } catch (final Exception ex) {
+                   Log.e(TAG, "Error stopping VPN service after tunnel start failure", ex);
                }
                throw new BackendException(Reason.GO_ACTIVATION_ERROR_CODE, -1);
            }
@@ -479,17 +496,20 @@ public final class GoBackend implements Backend {
            startNetworkSettingsPolling(tunnel.getName());
 
        } else {
+           // Always attempt to stop, even if tunnelActive is false
+           // This ensures VPN service cleanup if tunnel didn't fully start
            if (!tunnelActive) {
-               Log.w(TAG, "Tunnel already down");
-               return;
+               Log.w(TAG, "Tunnel not marked as active, but attempting cleanup anyway");
            }
 
            // Stop network settings polling
            stopNetworkSettingsPolling();
 
-           // Stop the tunnel via Go API
-           String stopResult = stopTunnel();
-           Log.d(TAG, "Tunnel stop result: " + stopResult);
+           // Stop the tunnel via Go API if it was active
+           if (tunnelActive) {
+               String stopResult = stopTunnel();
+               Log.d(TAG, "Tunnel stop result: " + stopResult);
+           }
 
            tunnelActive = false;
            currentTunnel = null;
@@ -502,9 +522,22 @@ public final class GoBackend implements Backend {
                currentTunFd = null;
            }
 
+           // Stop the VPN service - give it time to start if it hasn't yet
            try {
-               vpnService.get(0, TimeUnit.NANOSECONDS).stopSelf();
-           } catch (final TimeoutException ignored) { }
+               final VpnService service = vpnService.get(2, TimeUnit.SECONDS);
+               Log.i(TAG, "Stopping VPN service");
+               service.stopSelf();
+           } catch (final TimeoutException e) {
+               Log.w(TAG, "VPN service not available when trying to stop, may not have started yet");
+               // Try to stop the service directly via context if it exists
+               try {
+                   context.stopService(new Intent(context, VpnService.class));
+               } catch (Exception ex) {
+                   Log.e(TAG, "Failed to stop VPN service via context", ex);
+               }
+           } catch (final Exception e) {
+               Log.e(TAG, "Error stopping VPN service", e);
+           }
        }
 
        tunnel.onStateChange(state);
