@@ -1,33 +1,34 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory>
 
         <SwitchPreferenceCompat
-            app:key="overrideDns"
-            app:summary="When enabled, the tunnel uses custom DNS servers to resolve internal resources and aliases. External queries use your configured upstream DNS."
-            app:title="Override DNS"
+            android:key="overrideDns"
+            android:summary="When enabled, the tunnel uses custom DNS servers to resolve internal resources and aliases. External queries use your configured upstream DNS."
+            android:title="Override DNS"
+            android:defaultValue="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
-            app:key="tunnelDns"
-            app:summary="When enabled, DNS queries are sent through the tunnel to a resource. A private resource must be created for the address for it to work and resolve to the correct site."
-            app:title="DNS Tunnel"
+            android:key="tunnelDns"
+            android:summary="When enabled, DNS queries are sent through the tunnel to a resource. A private resource must be created for the address for it to work and resolve to the correct site."
+            android:title="DNS Tunnel"
             app:iconSpaceReserved="false" />
         <EditTextPreference
-            app:defaultValue="1.1.1.1"
-            app:key="primaryDNSServer"
-            app:title="Primary Upstream DNS Server"
+            android:defaultValue="1.1.1.1"
+            android:key="primaryDNSServer"
+            android:title="Primary Upstream DNS Server"
             app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
         <EditTextPreference
-            app:key="secondaryDNSServer"
-            app:title="Secondary Upstream DNS Server"
+            android:key="secondaryDNSServer"
+            android:title="Secondary Upstream DNS Server"
             app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
-            app:key="logCollectionEnabled"
-            app:summary="When enabled, tunnel logs are saved to a file that can be downloaded for troubleshooting."
-            app:title="Enable Log Collection"
-            app:defaultValue="false"
+            android:key="logCollectionEnabled"
+            android:summary="When enabled, tunnel logs are saved to a file that can be downloaded for troubleshooting."
+            android:title="Enable Log Collection"
+            android:defaultValue="false"
             app:iconSpaceReserved="false" />
 
     </PreferenceCategory>
