@@ -2,6 +2,9 @@ package net.pangolin.Pangolin
 
 import android.os.Bundle
 import android.view.ViewGroup
+import android.text.InputType
+import android.util.Patterns
+import android.text.method.DigitsKeyListener
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -61,20 +64,52 @@ class SettingsActivity : BaseNavigationActivity() {
                 val editText = TextInputEditText(textInputLayout.context).apply {
                     setText(preference.text)
                 }
+
+                // If DNS fields, restrict to numeric + decimal input (to allow dots) and validate
+                val isDnsField = preference.key == "primaryDNSServer" || preference.key == "secondaryDNSServer"
+                if (isDnsField) {
+                    editText.keyListener = DigitsKeyListener.getInstance("0123456789.:")
+                }
                 
                 textInputLayout.addView(editText)
 
-                MaterialAlertDialogBuilder(requireContext())
+                val dialog = MaterialAlertDialogBuilder(requireContext())
                     .setTitle(preference.title)
                     .setView(textInputLayout)
-                    .setPositiveButton("OK") { _, _ ->
-                        val newValue = editText.text.toString()
-                        if (preference.callChangeListener(newValue)) {
-                            preference.text = newValue
+                    .setPositiveButton("OK", null) // we will override to keep the dialog open on invalid
+                    .setNegativeButton("Cancel", null)
+                    .create()
+
+                dialog.setOnShowListener {
+                    val okButton = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                    okButton.setOnClickListener {
+                        val newValue = editText.text?.toString()?.trim().orEmpty()
+                        val isSecondary = preference.key == "secondaryDNSServer"
+                        val isValid = if (isDnsField) {
+                            if (isSecondary && newValue.isEmpty()) {
+                                true // allow empty secondary DNS
+                            } else {
+                                Patterns.IP_ADDRESS.matcher(newValue).matches()
+                            }
+                        } else {
+                            true
+                        }
+
+                        if (!isValid) {
+                            textInputLayout.error = "Please enter a valid IP address"
+                            textInputLayout.helperText = "Examples: 1.1.1.1, 8.8.4.4, or IPv6 like 2001:4860:4860::8888"
+                        } else {
+                            textInputLayout.error = null
+                            textInputLayout.helperText = null
+                            if (preference.callChangeListener(newValue)) {
+                                preference.text = newValue
+                                dialog.dismiss()
+                            }
                         }
                     }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                }
+
+                dialog.show()
             } else {
                 super.onDisplayPreferenceDialog(preference)
             }
