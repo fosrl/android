@@ -55,6 +55,20 @@ class LogsActivity : BaseNavigationActivity() {
 
         // Update UI based on configuration
         updateLogStatus()
+        
+        // Hidden crash test - long press on log status text
+        logStatusText.setOnLongClickListener {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Test Crash Handler")
+                .setMessage("This will crash the app to test crash logging. Continue?")
+                .setPositiveButton("Yes, Crash It") { _, _ ->
+                    // Trigger a null pointer exception
+                    throw RuntimeException("Test crash triggered from LogsActivity")
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+            true
+        }
     }
 
     override fun onResume() {
@@ -69,7 +83,7 @@ class LogsActivity : BaseNavigationActivity() {
     private fun updateLogStatus() {
         val config = configManager.config.value
         val logCollectionEnabled = config.logCollectionEnabled ?: false
-        val logFile = File(filesDir, "pangolin_go.log")
+        val logFile = File(filesDir, "pangolin.log")
 
         if (logCollectionEnabled) {
             if (logFile.exists() && logFile.length() > 0) {
@@ -127,7 +141,7 @@ class LogsActivity : BaseNavigationActivity() {
     
     private fun downloadSingleLogFile() {
         try {
-            val logFile = File(filesDir, "pangolin_go.log")
+            val logFile = File(filesDir, "pangolin.log")
             
             if (!logFile.exists() || logFile.length() == 0L) {
                 Log.w(tag, "Log file does not exist or is empty")
@@ -165,16 +179,16 @@ class LogsActivity : BaseNavigationActivity() {
             // Create ZIP file with all logs
             ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
                 // Add main log file
-                val mainLog = File(filesDir, "pangolin_go.log")
+                val mainLog = File(filesDir, "pangolin.log")
                 if (mainLog.exists()) {
-                    addFileToZip(zipOut, mainLog, "pangolin_go.log")
+                    addFileToZip(zipOut, mainLog, "pangolin.log")
                 }
                 
                 // Add backup logs
                 for (i in 1..3) {
-                    val backupLog = File(filesDir, "pangolin_go.log.$i")
+                    val backupLog = File(filesDir, "pangolin.log.$i")
                     if (backupLog.exists()) {
-                        addFileToZip(zipOut, backupLog, "pangolin_go.log.$i")
+                        addFileToZip(zipOut, backupLog, "pangolin.log.$i")
                     }
                 }
             }
@@ -219,7 +233,7 @@ class LogsActivity : BaseNavigationActivity() {
     private fun getBackupLogCount(): Int {
         var count = 0
         for (i in 1..3) {
-            val backupFile = File(filesDir, "pangolin_go.log.$i")
+            val backupFile = File(filesDir, "pangolin.log.$i")
             if (backupFile.exists()) {
                 count++
             }
@@ -231,14 +245,14 @@ class LogsActivity : BaseNavigationActivity() {
         var totalSize = 0L
         
         // Main log
-        val mainLog = File(filesDir, "pangolin_go.log")
+        val mainLog = File(filesDir, "pangolin.log")
         if (mainLog.exists()) {
             totalSize += mainLog.length()
         }
         
         // Backup logs
         for (i in 1..3) {
-            val backupLog = File(filesDir, "pangolin_go.log.$i")
+            val backupLog = File(filesDir, "pangolin.log.$i")
             if (backupLog.exists()) {
                 totalSize += backupLog.length()
             }

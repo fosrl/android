@@ -206,7 +206,7 @@ class TunnelManager private constructor(
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
                 
                 if (logCollectionEnabled) {
-                    initConfigBuilder.setLogFilePath(File(context.filesDir, "pangolin_go.log").absolutePath)
+                    initConfigBuilder.setLogFilePath(File(context.filesDir, "pangolin.log").absolutePath)
                 }
                 
                 val initConfig = initConfigBuilder.build()

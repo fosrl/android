@@ -21,7 +21,7 @@ class CrashHandler private constructor(
 
     companion object {
         private const val TAG = "CrashHandler"
-        private const val LOG_FILE_NAME = "pangolin_go.log"
+        private const val LOG_FILE_NAME = "pangolin.log"
         
         @Volatile
         private var instance: CrashHandler? = null
