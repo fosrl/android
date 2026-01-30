@@ -247,12 +247,6 @@ func getNetworkSettings() *C.char {
 	return C.CString(settingsJSON)
 }
 
-//export logFromAndroid
-func logFromAndroid(message *C.char) {
-	msg := C.GoString(message)
-	appLogger.Info("[Android] %s", msg)
-}
-
 //export setPowerMode
 func setPowerMode(mode *C.char) *C.char {
 	modeStr := C.GoString(mode)

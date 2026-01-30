@@ -75,19 +75,7 @@ public final class GoBackend implements Backend {
 
     private static native String getNetworkSettings();
 
-    private static native void nativeLogFromAndroid(String message);
-
     private static native String nativeSetPowerMode(String mode);
-
-    /**
-     * Log a message from Android to the Go backend logger.
-     * This is a static method that can be called from anywhere.
-     *
-     * @param message The message to log
-     */
-    public static void logFromAndroid(String message) {
-        nativeLogFromAndroid(message);
-    }
 
     /**
      * Set the power mode of the OLM tunnel.
@@ -97,7 +85,13 @@ public final class GoBackend implements Backend {
      * @return Result message from the Go backend
      */
     public static String setPowerMode(String mode) {
-        return nativeSetPowerMode(mode);
+        try {
+            return nativeSetPowerMode(mode);
+        } catch (UnsatisfiedLinkError e) {
+            // Library not loaded yet
+            Log.w(TAG, "Native library not loaded, cannot set power mode: " + mode);
+            return "Error: Native library not loaded";
+        }
     }
 
     /**
@@ -651,7 +645,6 @@ public final class GoBackend implements Backend {
                 updatePowerMode();
 
                 Log.i(TAG, "Power state monitoring started");
-                logFromAndroid("[PowerState] Power state monitoring started in VpnService");
             } catch (Exception e) {
                 Log.e(TAG, "Failed to start power state monitoring", e);
             }
@@ -670,7 +663,6 @@ public final class GoBackend implements Backend {
                 isReceiverRegistered = false;
 
                 Log.i(TAG, "Power state monitoring stopped");
-                logFromAndroid("[PowerState] Power state monitoring stopped in VpnService");
             } catch (Exception e) {
                 Log.e(TAG, "Failed to stop power state monitoring", e);
             }
@@ -692,7 +684,6 @@ public final class GoBackend implements Backend {
             if (wasInDozeMode != isInDozeMode) {
                 String message = isInDozeMode ? "Device ENTERED Doze mode" : "Device EXITED Doze mode";
                 Log.i(TAG, message);
-                logFromAndroid("[PowerState] " + message);
                 updatePowerMode();
             }
         }
@@ -709,7 +700,6 @@ public final class GoBackend implements Backend {
             if (wasInPowerSaveMode != isInPowerSaveMode) {
                 String message = isInPowerSaveMode ? "Device ENTERED Power Save mode" : "Device EXITED Power Save mode";
                 Log.i(TAG, message);
-                logFromAndroid("[PowerState] " + message);
                 updatePowerMode();
             }
         }
@@ -763,7 +753,6 @@ public final class GoBackend implements Backend {
                     ignoringBatteryOpt);
 
             Log.i(TAG, status);
-            logFromAndroid("[PowerState] " + status);
         }
     }
 }
