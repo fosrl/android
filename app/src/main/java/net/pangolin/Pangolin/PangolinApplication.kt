@@ -2,6 +2,7 @@ package net.pangolin.Pangolin
 
 import android.app.Application
 import android.util.Log
+import net.pangolin.Pangolin.util.CrashHandler
 import net.pangolin.Pangolin.util.SocketManager
 import net.pangolin.Pangolin.util.StandbyDetector
 import java.io.File
@@ -23,6 +24,10 @@ class PangolinApplication : Application(), StandbyDetector.StandbyListener {
     
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize crash handler first to capture any crashes during initialization
+        CrashHandler.initialize(this)
+        
         Log.d(tag, "Pangolin application starting")
 
         // Initialize socket manager
