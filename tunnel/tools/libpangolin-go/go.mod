@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/fosrl/newt v1.9.0
-	github.com/fosrl/olm v1.4.0
+	github.com/fosrl/olm v1.4.1
 	golang.org/x/sys v0.40.0
 )
 
@@ -31,6 +31,6 @@ require (
 	software.sslmate.com/src/go-pkcs12 v0.7.0 // indirect
 )
 
-replace github.com/fosrl/olm => /home/owen/fossorial/olm
-
-replace github.com/fosrl/newt => /home/owen/fossorial/newt
+// To be used ONLY for local development
+// replace github.com/fosrl/olm => /home/owen/fossorial/olm
+// replace github.com/fosrl/newt => /home/owen/fossorial/newt
