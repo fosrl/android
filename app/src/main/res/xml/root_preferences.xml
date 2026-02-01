@@ -1,12 +1,20 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory android:title="Help">
+    <PreferenceCategory
+        app:layout="@layout/preference_category_material_card">
         <Preference
             android:title="See docs for more info on these settings"
-            android:summary=""/>
+            android:summary=""
+            android:layout="@layout/preference_link"
+            app:iconSpaceReserved="false">
+            <intent
+                android:action="android.intent.action.VIEW"
+                android:data="https://docs.pangolin.net/manage/clients/configure-client" />
+        </Preference>
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="DNS Settings">
+    <PreferenceCategory
+        app:layout="@layout/preference_category_material_card">
 
         <SwitchPreferenceCompat
             android:key="overrideDns"
