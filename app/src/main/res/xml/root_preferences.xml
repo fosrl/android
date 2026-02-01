@@ -1,17 +1,23 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory>
+    <PreferenceCategory android:title="Help">
+        <Preference
+            android:title="See docs for more info on these settings"
+            android:summary=""/>
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="DNS Settings">
 
         <SwitchPreferenceCompat
             android:key="overrideDns"
-            android:summary="When enabled, the tunnel uses custom DNS servers to resolve internal resources and aliases. External queries use your configured upstream DNS."
-            android:title="Override DNS"
+            android:summary="When enabled, the client uses custom DNS servers to resolve internal resources and aliases. This overrides your system's default DNS settings. Queries that cannot be resolved as a Pangolin resource will be forwarded to your configured Upstream DNS Server."
+            android:title="Enable Aliases (DNS Override)"
             android:defaultValue="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:key="tunnelDns"
-            android:summary="When enabled, DNS queries are sent through the tunnel to a resource. A private resource must be created for the address for it to work and resolve to the correct site."
-            android:title="DNS Tunnel"
+            android:summary="When enabled, DNS queries are routed through the tunnel for remote resolution. To ensure queries are tunneled correctly, you must define the DNS server as a Pangolin resource and enter its address as an Upstream DNS Server."
+            android:title="DNS Over Tunnel"
             app:iconSpaceReserved="false" />
         <EditTextPreference
             android:defaultValue="1.1.1.1"
