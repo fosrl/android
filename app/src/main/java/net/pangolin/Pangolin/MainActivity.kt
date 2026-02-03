@@ -1,11 +1,15 @@
 package net.pangolin.Pangolin
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,12 +56,30 @@ class MainActivity : BaseNavigationActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // Permission granted, start the tunnel
-            lifecycleScope.launch {
-                tunnelManager.connect()
-            }
+            // VPN permission granted, now check battery optimization
+            checkBatteryOptimizationAndConnect()
         } else {
             Log.e("MainActivity", "VPN permission denied")
+        }
+    }
+
+    // Battery optimization permission launcher
+    private val batteryOptimizationLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // User returned from battery optimization settings
+        // Check if they granted the permission and connect regardless
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                Log.i("MainActivity", "Battery optimization exemption granted")
+            } else {
+                Log.w("MainActivity", "Battery optimization exemption not granted, connecting anyway")
+            }
+        }
+        // Connect regardless of the result - the user can choose not to exempt
+        lifecycleScope.launch {
+            tunnelManager.connect()
         }
     }
 
@@ -634,10 +656,59 @@ class MainActivity : BaseNavigationActivity() {
         if (prepareIntent != null) {
             vpnPermissionLauncher.launch(prepareIntent)
         } else {
-            // Permission already granted
+            // VPN permission already granted, check battery optimization
+            checkBatteryOptimizationAndConnect()
+        }
+    }
+
+    /**
+     * Check if the app is exempt from battery optimizations and prompt if not.
+     * This helps ensure the VPN stays connected in the background.
+     */
+    private fun checkBatteryOptimizationAndConnect() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                // Show dialog explaining why we need this permission
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Battery Optimization")
+                    .setMessage("To keep the VPN connected reliably in the background, please disable battery optimization for this app. This prevents the system from interrupting the connection when the screen is off.")
+                    .setPositiveButton("Allow") { _, _ ->
+                        requestBatteryOptimizationExemption()
+                    }
+                    .setNegativeButton("Skip") { _, _ ->
+                        // User chose to skip, connect anyway
+                        Log.w("MainActivity", "User skipped battery optimization exemption")
+                        lifecycleScope.launch {
+                            tunnelManager.connect()
+                        }
+                    }
+                    .setCancelable(false)
+                    .show()
+            } else {
+                // Already exempt, proceed with connection
+                lifecycleScope.launch {
+                    tunnelManager.connect()
+                }
+            }
+        } else {
+            // Pre-Marshmallow, no battery optimization concerns
             lifecycleScope.launch {
                 tunnelManager.connect()
             }
+        }
+    }
+
+    /**
+     * Request exemption from battery optimizations using the system dialog.
+     */
+    @android.annotation.SuppressLint("BatteryLife")
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            batteryOptimizationLauncher.launch(intent)
         }
     }
 
