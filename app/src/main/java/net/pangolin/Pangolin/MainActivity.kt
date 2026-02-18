@@ -407,13 +407,14 @@ class MainActivity : BaseNavigationActivity() {
         val activeAccount = accountManager.activeAccount
         val currentUser = authManager.currentUser.value
         val currentOrg = authManager.currentOrg.value
-        val isAuthenticated = authManager.isAuthenticated.value
 
-        if (isAuthenticated && activeAccount != null) {
-            // Show the account/org card even when server is down
+        // Always show account card if there's an active account, even when auth fails
+        // This ensures users can access account picker to logout or switch accounts
+        if (activeAccount != null) {
+            // Show the account/org card
             contentBinding.accountOrgCard.visibility = View.VISIBLE
             
-            // Use userDisplayName if currentUser exists, else accountDisplayName
+            // Use userDisplayName if currentUser exists (when authenticated), else accountDisplayName
             val displayName = if (currentUser != null) {
                 userDisplayName(currentUser)
             } else {
@@ -421,7 +422,7 @@ class MainActivity : BaseNavigationActivity() {
             }
             contentBinding.tvAccountEmail.text = displayName
 
-            // Show organization section if we have an org
+            // Show organization section only if we have an org
             if (currentOrg != null) {
                 contentBinding.organizationSection.visibility = View.VISIBLE
                 contentBinding.tvOrganizationName.text = currentOrg.name
@@ -429,7 +430,7 @@ class MainActivity : BaseNavigationActivity() {
                 contentBinding.organizationSection.visibility = View.GONE
             }
         } else {
-            // Hide the card if not authenticated
+            // Hide the card only if there's no account at all
             contentBinding.accountOrgCard.visibility = View.GONE
         }
     }
