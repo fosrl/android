@@ -166,6 +166,34 @@
 
                 </LinearLayout>
 
+                <!-- Re-authentication UI (shown when session expired) -->
+                <LinearLayout
+                    android:id="@+id/reauth_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tv_session_expired"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Session expired. Please sign in again."
+                        android:textSize="14sp"
+                        android:textColor="?attr/colorError"
+                        android:gravity="center" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_reauth"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Re-authenticate"
+                        style="@style/Widget.Material3.Button" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_error"
                     android:layout_width="match_parent"

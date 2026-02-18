@@ -12,12 +12,17 @@ import android.text.style.URLSpan
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import net.pangolin.Pangolin.databinding.ActivityLoginBinding
+import net.pangolin.Pangolin.util.APIClient
 import net.pangolin.Pangolin.util.AccountManager
+import net.pangolin.Pangolin.util.AuthManager
+import net.pangolin.Pangolin.util.ConfigManager
+import net.pangolin.Pangolin.util.SecretManager
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var accountManager: AccountManager
+    private lateinit var authManager: AuthManager
     private var showingSelfHostedInput = false
 
     companion object {
@@ -32,6 +37,23 @@ class LoginActivity : AppCompatActivity() {
 
         // Initialize account manager
         accountManager = AccountManager.getInstance(applicationContext)
+        
+        // Initialize auth manager to check for auto-start flag
+        val secretManager = SecretManager.getInstance(applicationContext)
+        val configManager = ConfigManager.getInstance(applicationContext)
+        val versionName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "1.0.0"
+        }
+        val apiClient = APIClient("https://app.pangolin.net", versionName = versionName)
+        authManager = AuthManager(
+            context = applicationContext,
+            apiClient = apiClient,
+            configManager = configManager,
+            accountManager = accountManager,
+            secretManager = secretManager
+        )
 
         // Set theme-aware logo
         setThemeAwareLogo()
@@ -87,6 +109,27 @@ class LoginActivity : AppCompatActivity() {
         binding.serverUrlInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 binding.serverUrlInputLayout.error = null
+            }
+        }
+        
+        // Check if we should auto-start device auth (for re-authentication)
+        // This should happen after UI setup but before user interaction
+        if (authManager.startDeviceAuthImmediately.value) {
+            // Clear the flag
+            authManager.setStartDeviceAuthImmediately(false)
+            
+            // Get hostname from active account
+            val activeAccount = accountManager.activeAccount
+            if (activeAccount != null) {
+                // Auto-start with existing hostname
+                val intent = Intent(this, SignInCodeActivity::class.java)
+                intent.putExtra(SignInCodeActivity.EXTRA_HOSTNAME, activeAccount.hostname)
+                intent.putExtra("AUTO_START_DEVICE_AUTH", true)
+                startActivity(intent)
+                // Don't finish - let user go back if needed
+            } else {
+                // Shouldn't happen, but fallback to normal flow
+                android.util.Log.w("LoginActivity", "Auto-start requested but no active account found")
             }
         }
     }

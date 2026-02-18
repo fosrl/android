@@ -60,6 +60,9 @@ class APIClient(
 
     val baseURL: String
         get() = _baseURL
+    
+    // Callback invoked when a request with a session token returns 401 or 403
+    var onUnauthorized: (() -> Unit)? = null
 
     init {
         this._baseURL = normalizeBaseURL(_baseURL)
@@ -149,6 +152,13 @@ class APIClient(
             } catch (e: Exception) {
                 // Ignore decoding error for error response
             }
+            
+            // Invoke unauthorized callback if this was an authenticated request that got 401/403
+            if ((response.code == 401 || response.code == 403) && sessionToken != null) {
+                Log.w(tag, "Authenticated request returned ${response.code} - invoking unauthorized callback")
+                onUnauthorized?.invoke()
+            }
+            
             throw APIError.HttpError(response.code, errorMessage)
         }
 
