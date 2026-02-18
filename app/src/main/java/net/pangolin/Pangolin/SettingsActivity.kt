@@ -1,17 +1,21 @@
+
 package net.pangolin.Pangolin
 
 import android.os.Bundle
 import android.view.ViewGroup
-import android.text.InputType
-import android.util.Patterns
 import android.text.method.DigitsKeyListener
+import android.util.Patterns
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.databinding.SettingsActivityBinding
+import net.pangolin.Pangolin.util.TunnelManager
 
 class SettingsActivity : BaseNavigationActivity() {
 
@@ -39,11 +43,82 @@ class SettingsActivity : BaseNavigationActivity() {
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {
+        private var isTunnelActive = false
+        
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
+            
+            // Add info preference at the top to show lock status
+            val infoPreference = Preference(requireContext()).apply {
+                key = "tunnel_lock_info"
+                isSelectable = false
+                isVisible = false
+                layoutResource = android.R.layout.preference_category
+            }
+            preferenceScreen?.addPreference(infoPreference)
+            preferenceScreen?.getPreference(0)?.let { first ->
+                preferenceScreen?.removePreference(infoPreference)
+                preferenceScreen?.addPreference(infoPreference)
+                // Move to top
+                infoPreference.order = -1
+            }
+            
+            // Observe tunnel state and disable settings when tunnel is active
+            lifecycleScope.launch {
+                val tunnelManager = TunnelManager.getInstance()
+                if (tunnelManager != null) {
+                    tunnelManager.tunnelState.collectLatest { state ->
+                        isTunnelActive = state.isServiceRunning || state.isConnecting
+                        updatePreferencesEnabled()
+                        updateLockInfo()
+                    }
+                }
+            }
+        }
+        
+        private fun updateLockInfo() {
+            val infoPreference = findPreference<Preference>("tunnel_lock_info")
+            infoPreference?.apply {
+                isVisible = isTunnelActive
+                title = "Tunnel active"
+                summary = "Settings cannot be changed while the tunnel is active. Please disconnect first."
+            }
+        }
+        
+        private fun updatePreferencesEnabled() {
+            preferenceScreen?.let { screen ->
+                setPreferencesEnabledRecursive(screen, !isTunnelActive)
+            }
+        }
+        
+        private fun setPreferencesEnabledRecursive(preferenceGroup: androidx.preference.PreferenceGroup, enabled: Boolean) {
+            for (i in 0 until preferenceGroup.preferenceCount) {
+                val preference = preferenceGroup.getPreference(i)
+                
+                // Skip the info/link preference at the top
+                if (preference.key == null && preference.title?.toString()?.contains("docs") == true) {
+                    continue
+                }
+                
+                preference.isEnabled = enabled
+                
+                if (preference is androidx.preference.PreferenceGroup) {
+                    setPreferencesEnabledRecursive(preference, enabled)
+                }
+            }
         }
 
         override fun onDisplayPreferenceDialog(preference: Preference) {
+            // Don't allow opening dialogs when tunnel is active
+            if (isTunnelActive) {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Settings Locked")
+                    .setMessage("Settings cannot be changed while the tunnel is active. Please disconnect first.")
+                    .setPositiveButton("OK", null)
+                    .show()
+                return
+            }
+            
             if (preference is EditTextPreference) {
                 // Create Material3 text input
                 val textInputLayout = TextInputLayout(requireContext()).apply {
