@@ -68,7 +68,27 @@ class AuthManager(
     private val _isServerDown = MutableStateFlow(false)
     val isServerDown: StateFlow<Boolean> = _isServerDown.asStateFlow()
 
+    // Session expired state - set when the current session is no longer valid
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
+
+    // Login-in-progress state - set when device auth flow is running
+    private val _isDeviceAuthInProgress = MutableStateFlow(false)
+    val isDeviceAuthInProgress: StateFlow<Boolean> = _isDeviceAuthInProgress.asStateFlow()
+
+    // Auto-start device auth flag - set when re-authenticating from session expired state
+    private val _startDeviceAuthImmediately = MutableStateFlow(false)
+    val startDeviceAuthImmediately: StateFlow<Boolean> = _startDeviceAuthImmediately.asStateFlow()
+
     private var deviceAuthJob: Job? = null
+
+    init {
+        // Set up API client unauthorized callback
+        apiClient.onUnauthorized = {
+            Log.w(tag, "API client received 401/403 - marking session as expired")
+            markSessionExpired()
+        }
+    }
 
     suspend fun initialize() {
         _isInitializing.value = true
@@ -106,9 +126,22 @@ class AuthManager(
             _isServerDown.value = false
             _errorMessage.value = null
 
-            val user = apiClient.getUser()
+            val user = try {
+                apiClient.getUser()
+            } catch (e: APIError.HttpError) {
+                if (e.status == 401 || e.status == 403) {
+                    Log.w(tag, "Session expired during initialization (401/403)")
+                    _sessionExpired.value = true
+                    _isAuthenticated.value = true // Keep user in logged-in UI
+                    return
+                } else {
+                    throw e
+                }
+            }
+            
             _currentUser.value = user
             _isAuthenticated.value = true
+            _sessionExpired.value = false // Clear session expired on successful init
 
             // Fetch server info
             try {
@@ -143,11 +176,27 @@ class AuthManager(
         }
     }
 
+    /**
+     * Mark session as expired - called by API client or tunnel manager
+     */
+    fun markSessionExpired() {
+        Log.w(tag, "Marking session as expired")
+        _sessionExpired.value = true
+    }
+
+    /**
+     * Set the start device auth immediately flag (for re-authentication)
+     */
+    fun setStartDeviceAuthImmediately(value: Boolean) {
+        _startDeviceAuthImmediately.value = value
+    }
+
     suspend fun loginWithDeviceAuth(hostnameOverride: String? = null) {
         try {
             _deviceAuthCode.value = null
             _deviceAuthLoginURL.value = null
             _errorMessage.value = null
+            _isDeviceAuthInProgress.value = true
 
             val hostname = hostnameOverride ?: apiClient.baseURL
             apiClient.updateBaseURL(hostname)
@@ -197,6 +246,7 @@ class AuthManager(
 
                                 _deviceAuthCode.value = null
                                 _deviceAuthLoginURL.value = null
+                                _isDeviceAuthInProgress.value = false
                                 return@launch
                             }
                         } catch (e: APIError.HttpError) {
@@ -209,6 +259,7 @@ class AuthManager(
                                     _errorMessage.value = e.message
                                     _deviceAuthCode.value = null
                                     _deviceAuthLoginURL.value = null
+                                    _isDeviceAuthInProgress.value = false
                                 }
                                 return@launch
                             }
@@ -222,6 +273,7 @@ class AuthManager(
                                 _errorMessage.value = e.message
                                 _deviceAuthCode.value = null
                                 _deviceAuthLoginURL.value = null
+                                _isDeviceAuthInProgress.value = false
                             }
                             return@launch
                         } catch (e: CancellationException) {
@@ -240,10 +292,12 @@ class AuthManager(
                             _errorMessage.value = "Device authentication timed out"
                             _deviceAuthCode.value = null
                             _deviceAuthLoginURL.value = null
+                            _isDeviceAuthInProgress.value = false
                         }
                     }
                 } catch (e: CancellationException) {
                     Log.i(tag, "Device auth job cancelled")
+                    _isDeviceAuthInProgress.value = false
                     // Don't rethrow, just let the job end
                 } catch (e: Exception) {
                     Log.e(tag, "Fatal error in device auth job: ${e.message}", e)
@@ -251,6 +305,7 @@ class AuthManager(
                         _errorMessage.value = "Authentication failed: ${e.message}"
                         _deviceAuthCode.value = null
                         _deviceAuthLoginURL.value = null
+                        _isDeviceAuthInProgress.value = false
                     }
                 }
             }
@@ -259,6 +314,7 @@ class AuthManager(
             _errorMessage.value = e.message
             _deviceAuthCode.value = null
             _deviceAuthLoginURL.value = null
+            _isDeviceAuthInProgress.value = false
             throw e
         }
     }
@@ -268,6 +324,7 @@ class AuthManager(
         deviceAuthJob = null
         _deviceAuthCode.value = null
         _deviceAuthLoginURL.value = null
+        _isDeviceAuthInProgress.value = false
         Log.i(tag, "Device auth cancelled")
     }
 
@@ -324,6 +381,9 @@ class AuthManager(
 
         // Clear error message on successful authentication
         _errorMessage.value = null
+        
+        // Clear session expired flag on successful authentication
+        _sessionExpired.value = false
 
         Log.i(tag, "Successfully authenticated as ${user.email}")
         
@@ -444,11 +504,12 @@ class AuthManager(
             apiClient.updateSessionToken(token)
             apiClient.updateBaseURL(account.hostname)
 
-            // Step 2: Clear user data immediately
+            // Step 2: Clear user data immediately and clear session expired flag
             _currentUser.value = null
             _currentOrg.value = null
             _organizations.value = emptyList()
             _serverInfo.value = null
+            _sessionExpired.value = false
 
             // Step 3: Set authenticated to show UI
             _isAuthenticated.value = true
@@ -469,6 +530,17 @@ class AuthManager(
 
             val user = try {
                 apiClient.getUser()
+            } catch (e: APIError.HttpError) {
+                if (e.status == 401 || e.status == 403) {
+                    Log.w(tag, "Session expired for switched account (401/403)")
+                    _sessionExpired.value = true
+                    _errorMessage.value = "Session expired. Please sign in again."
+                    return
+                } else {
+                    Log.e(tag, "Failed to get user info: ${e.message}", e)
+                    _errorMessage.value = "Failed to get user info: ${e.message}"
+                    return
+                }
             } catch (e: Exception) {
                 Log.e(tag, "Failed to get user info: ${e.message}", e)
                 _errorMessage.value = "Failed to get user info: ${e.message}"

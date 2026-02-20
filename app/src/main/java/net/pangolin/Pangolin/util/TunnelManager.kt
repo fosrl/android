@@ -74,6 +74,14 @@ class TunnelManager private constructor(
                     _connectionStatus.value = status
                     updateConnectionStatusFromSocket(status)
                     
+                    // Check for session-expired error codes
+                    status.error?.let { olmError ->
+                        if (isSessionExpiredError(olmError.code)) {
+                            Log.w(tag, "Session expired error detected: ${olmError.code} - ${olmError.message}")
+                            authManager.markSessionExpired()
+                        }
+                    }
+                    
                     // Stop tunnel if an error is detected from the API or if terminated
                     // Only disconnect if the service is currently running to avoid duplicate calls
                     val currentState = _tunnelState.value
@@ -90,6 +98,20 @@ class TunnelManager private constructor(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Check if an error code indicates a session-expired condition
+     */
+    private fun isSessionExpiredError(errorCode: String): Boolean {
+        return when (errorCode.uppercase()) {
+            "UNAUTHORIZED",
+            "SESSION_EXPIRED",
+            "ORG_ACCESS_POLICY_SESSION_EXPIRED",
+            "INVALID_USER_SESSION",
+            "USER_ID_NOT_FOUND" -> true
+            else -> false
         }
     }
 

@@ -166,6 +166,51 @@
 
                 </LinearLayout>
 
+                <!-- Re-authentication UI (shown when session expired) -->
+                <LinearLayout
+                    android:id="@+id/reauth_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+
+                    <!-- Lock icon and Account Locked text -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@android:drawable/ic_lock_lock"
+                            android:tint="?attr/colorOnSurface"
+                            android:contentDescription="Account Locked" />
+
+                        <TextView
+                            android:id="@+id/tv_session_expired"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="Account Locked"
+                            android:textSize="16sp"
+                            android:textColor="?attr/colorOnSurface" />
+
+                    </LinearLayout>
+
+                    <!-- Log In button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_reauth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Log In"
+                        style="@style/Widget.Material3.Button" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_error"
                     android:layout_width="match_parent"

@@ -149,7 +149,16 @@ class MainActivity : BaseNavigationActivity() {
         fun setupToggleListener() {
             contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
                 lifecycleScope.launch {
-                    // Check if server is down first
+                    // Check if session is expired first
+                    if (authManager.sessionExpired.value && isChecked) {
+                        // Session expired, can't connect - revert toggle
+                        contentBinding.toggleConnect.setOnCheckedChangeListener(null)
+                        contentBinding.toggleConnect.isChecked = false
+                        setupToggleListener()
+                        return@launch
+                    }
+                    
+                    // Check if server is down
                     if (authManager.isServerDown.value && isChecked) {
                         // Server is down, can't connect - revert toggle
                         contentBinding.toggleConnect.setOnCheckedChangeListener(null)
@@ -195,8 +204,8 @@ class MainActivity : BaseNavigationActivity() {
         // Setup status card click listener to toggle the switch
         contentBinding.statusCard.setOnClickListener {
             lifecycleScope.launch {
-                // Don't allow interaction if server is down
-                if (authManager.isServerDown.value) {
+                // Don't allow interaction if session is expired or server is down
+                if (authManager.sessionExpired.value || authManager.isServerDown.value) {
                     return@launch
                 }
                 
@@ -222,7 +231,10 @@ class MainActivity : BaseNavigationActivity() {
 
         // Setup organization card click listener
         contentBinding.organizationButtonLayout.setOnClickListener {
-            showOrganizationPickerDialog()
+            // Don't allow org picker when session is expired
+            if (!authManager.sessionExpired.value) {
+                showOrganizationPickerDialog()
+            }
         }
 
         // Setup links card click listeners
@@ -334,6 +346,25 @@ class MainActivity : BaseNavigationActivity() {
                 showOlmErrorDialog(olmError.code, olmError.message)
             }
         }
+
+        // Observe session expired state
+        lifecycleScope.launch {
+            authManager.sessionExpired.collect { isExpired ->
+                updateConnectionControls()
+                updateAccountOrgCard()
+                updateWatermarkMessage()
+                updateErrorMessage()
+            }
+        }
+
+        // Observe device auth in progress to update re-auth button state
+        lifecycleScope.launch {
+            authManager.isDeviceAuthInProgress.collect { isInProgress ->
+                if (authManager.sessionExpired.value) {
+                    contentBinding.btnReauth.isEnabled = !isInProgress
+                }
+            }
+        }
     }
 
     private fun showOlmErrorDialog(code: String, message: String) {
@@ -369,14 +400,13 @@ class MainActivity : BaseNavigationActivity() {
         // where a different APIClient instance may have been used
         authManager.syncApiClientForActiveAccount()
         
-        // Perform health check when app resumes
+        // Re-check session validity when app returns to foreground
         if (authManager.isAuthenticated.value) {
             lifecycleScope.launch {
                 try {
-                    val isHealthy = apiClient.checkHealth()
-                    authManager.updateServerStatus(isHealthy)
+                    authManager.initialize()
                 } catch (e: Exception) {
-                    Log.e("MainActivity", "Health check failed on resume: ${e.message}")
+                    Log.e("MainActivity", "Failed to re-initialize auth on resume: ${e.message}")
                 }
             }
         }
@@ -422,12 +452,17 @@ class MainActivity : BaseNavigationActivity() {
             }
             contentBinding.tvAccountEmail.text = displayName
 
-            // Show organization section only if we have an org
-            if (currentOrg != null) {
+            // Show organization section only if we have an org and session is not expired
+            val sessionExpired = authManager.sessionExpired.value
+            if (currentOrg != null && !sessionExpired) {
                 contentBinding.organizationSection.visibility = View.VISIBLE
                 contentBinding.tvOrganizationName.text = currentOrg.name
+                contentBinding.organizationButtonLayout.isEnabled = true
+                contentBinding.organizationButtonLayout.alpha = 1.0f
             } else {
                 contentBinding.organizationSection.visibility = View.GONE
+                contentBinding.organizationButtonLayout.isEnabled = false
+                contentBinding.organizationButtonLayout.alpha = 0.5f
             }
         } else {
             // Hide the card only if there's no account at all
@@ -438,9 +473,11 @@ class MainActivity : BaseNavigationActivity() {
     private fun updateErrorMessage() {
         val errorMessage = authManager.errorMessage.value
         val isServerDown = authManager.isServerDown.value
+        val sessionExpired = authManager.sessionExpired.value
 
+        // Hide error message banner when session expired (show re-auth UI instead)
         // Show error message banner only if there's an error and it's not a server down error
-        if (!errorMessage.isNullOrEmpty() && !isServerDown) {
+        if (!errorMessage.isNullOrEmpty() && !isServerDown && !sessionExpired) {
             contentBinding.errorMessageBanner.visibility = View.VISIBLE
             contentBinding.tvErrorMessage.text = errorMessage
         } else {
@@ -450,15 +487,23 @@ class MainActivity : BaseNavigationActivity() {
 
     private fun updateConnectionControls() {
         val isServerDown = authManager.isServerDown.value
+        val sessionExpired = authManager.sessionExpired.value
 
-        if (isServerDown) {
+        if (sessionExpired) {
+            // Show re-authentication UI when session expired
+            showReAuthenticationUI()
+            // Also disable toggle switch
+            contentBinding.toggleConnect.isEnabled = false
+        } else if (isServerDown) {
             // Disable toggle and status card when server is down
+            hideReAuthenticationUI()
             contentBinding.toggleConnect.isEnabled = false
             contentBinding.statusCard.isEnabled = false
             contentBinding.statusCard.isClickable = false
             contentBinding.statusCard.alpha = 0.5f
         } else {
             // Re-enable toggle and status card when server is back up
+            hideReAuthenticationUI()
             contentBinding.toggleConnect.isEnabled = true
             contentBinding.statusCard.isEnabled = true
             contentBinding.statusCard.isClickable = true
@@ -466,10 +511,93 @@ class MainActivity : BaseNavigationActivity() {
         }
     }
 
+    private fun showReAuthenticationUI() {
+        // Hide normal connection controls
+        contentBinding.toggleConnect.visibility = View.GONE
+        contentBinding.statusDot.visibility = View.GONE
+        contentBinding.tvStatus.visibility = View.GONE
+        contentBinding.tvError.visibility = View.GONE
+        contentBinding.progressIndicator.visibility = View.GONE
+        
+        // Show re-authentication UI
+        contentBinding.reauthContainer.visibility = View.VISIBLE
+        
+        // Setup re-auth button click handler
+        contentBinding.btnReauth.setOnClickListener {
+            startReAuthentication()
+        }
+        
+        // Disable re-auth button if device auth is in progress
+        val isDeviceAuthInProgress = authManager.isDeviceAuthInProgress.value
+        contentBinding.btnReauth.isEnabled = !isDeviceAuthInProgress
+        
+        // Keep status card enabled but non-clickable (visual container only)
+        contentBinding.statusCard.isEnabled = true
+        contentBinding.statusCard.isClickable = false
+        contentBinding.statusCard.alpha = 1.0f
+        contentBinding.statusCard.setOnClickListener(null)
+        
+        // Hide organization selector and watermark when session expired
+        contentBinding.organizationSection.visibility = View.GONE
+        contentBinding.tvWatermarkMessage.visibility = View.GONE
+    }
+
+    private fun hideReAuthenticationUI() {
+        // Hide re-authentication UI
+        contentBinding.reauthContainer.visibility = View.GONE
+        
+        // Restore normal connection controls
+        contentBinding.toggleConnect.visibility = View.VISIBLE
+        contentBinding.statusDot.visibility = View.VISIBLE
+        contentBinding.tvStatus.visibility = View.VISIBLE
+        
+        // Restore status card click handler
+        contentBinding.statusCard.setOnClickListener {
+            lifecycleScope.launch {
+                // Don't allow interaction if server is down
+                if (authManager.isServerDown.value) {
+                    return@launch
+                }
+                
+                val currentState = tunnelManager.tunnelState.value
+                val currentToggleState = contentBinding.toggleConnect.isChecked
+                
+                // Only allow toggle if the resulting action would be allowed
+                if (!currentToggleState && currentState.canEnable) {
+                    // Currently off, want to turn on, and can enable
+                    contentBinding.toggleConnect.isChecked = true
+                } else if (currentToggleState && currentState.canDisable) {
+                    // Currently on, want to turn off, and can disable
+                    contentBinding.toggleConnect.isChecked = false
+                }
+                // Otherwise, ignore the click (rapid toggle prevention)
+            }
+        }
+    }
+
+    private fun startReAuthentication() {
+        val isDeviceAuthInProgress = authManager.isDeviceAuthInProgress.value
+        
+        // Don't start if already in progress
+        if (isDeviceAuthInProgress) {
+            Log.d("MainActivity", "Device auth already in progress, ignoring re-auth request")
+            return
+        }
+        
+        // Set flag to auto-start device auth
+        authManager.setStartDeviceAuthImmediately(true)
+        
+        // Launch LoginActivity which will then launch SignInCodeActivity
+        val intent = Intent(this, LoginActivity::class.java)
+        startActivity(intent)
+    }
+
     private fun updateWatermarkMessage() {
         val serverInfo = authManager.serverInfo.value
+        val sessionExpired = authManager.sessionExpired.value
 
-        if (serverInfo == null) {
+        // Hide watermark when session expired
+        if (sessionExpired || serverInfo == null) {
             contentBinding.tvWatermarkMessage.visibility = View.GONE
             return
         }
@@ -650,6 +778,13 @@ class MainActivity : BaseNavigationActivity() {
 
     private fun connectTunnel() {
         Log.i("MainActivity", "=== UI: connectTunnel() called ===")
+        
+        // Don't allow connection when session is expired
+        if (authManager.sessionExpired.value) {
+            Log.w("MainActivity", "Cannot connect - session expired")
+            return
+        }
+        
         val activeAccount = accountManager.activeAccount
         Log.i("MainActivity", "Active account before connect: userId=${activeAccount?.userId}, orgId=${activeAccount?.orgId}")
         
@@ -760,8 +895,9 @@ class MainActivity : BaseNavigationActivity() {
                 if (newState.isFullyConnected || newState.isRegistered) View.VISIBLE else View.GONE
 
             // Update toggle switch state
-            // Enable switch only if we can perform an action (enable or disable)
-            contentBinding.toggleConnect.isEnabled = newState.canEnable || newState.canDisable
+            // Enable switch only if we can perform an action (enable or disable) and session is not expired
+            val sessionExpired = authManager.sessionExpired.value
+            contentBinding.toggleConnect.isEnabled = (newState.canEnable || newState.canDisable) && !sessionExpired
             
             // Update toggle state without triggering listener
             contentBinding.toggleConnect.setOnCheckedChangeListener(null)

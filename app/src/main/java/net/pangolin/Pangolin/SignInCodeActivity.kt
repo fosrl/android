@@ -48,6 +48,8 @@ class SignInCodeActivity : AppCompatActivity() {
     private var isPolling = false
     private var currentCode: String? = null
     private var expiresInSeconds: Long = 300
+    private var includeUsernameInDeviceURL = false
+    private var isAutoStartFlow = false
 
     // Chrome Custom Tabs
     private var customTabsClient: CustomTabsClient? = null
@@ -72,6 +74,13 @@ class SignInCodeActivity : AppCompatActivity() {
 
         // Get hostname from intent
         hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: "https://app.pangolin.net"
+        
+        // Check if this is an auto-start flow (re-authentication)
+        isAutoStartFlow = intent.getBooleanExtra("AUTO_START_DEVICE_AUTH", false)
+        if (isAutoStartFlow) {
+            includeUsernameInDeviceURL = true
+            Log.i(tag, "Auto-start flow detected - will include username in device auth URL")
+        }
 
         // Get version name
         val versionName = try {
@@ -179,8 +188,14 @@ class SignInCodeActivity : AppCompatActivity() {
         if (intent?.data?.scheme == "pangolin") {
             handleDeepLinkCallback()
         } else {
-            // Start device auth flow
-            startDeviceAuth()
+            // Check if we should auto-start (from re-authentication flow)
+            if (isAutoStartFlow) {
+                Log.i(tag, "Auto-starting device auth for re-authentication")
+                startDeviceAuth()
+            } else {
+                // Normal flow - start device auth
+                startDeviceAuth()
+            }
         }
     }
 
@@ -402,7 +417,17 @@ class SignInCodeActivity : AppCompatActivity() {
     private fun autoOpenBrowser(code: String) {
         // Remove hyphen from code (e.g., "XXXX-XXXX" -> "XXXXXXXX")
         val codeWithoutHyphen = code.replace("-", "")
-        val autoOpenURL = "$hostname/auth/login/device?code=$codeWithoutHyphen"
+        var autoOpenURL = "$hostname/auth/login/device?code=$codeWithoutHyphen"
+        
+        // Add username parameter if this is a re-authentication flow
+        if (includeUsernameInDeviceURL) {
+            val activeAccount = accountManager.activeAccount
+            if (activeAccount != null && activeAccount.email.isNotEmpty()) {
+                val encodedEmail = java.net.URLEncoder.encode(activeAccount.email, "UTF-8")
+                autoOpenURL += "&username=$encodedEmail"
+                Log.i(tag, "Including username in device auth URL for re-authentication")
+            }
+        }
 
         Log.i(tag, "Opening in-app browser with URL: $autoOpenURL")
 
@@ -468,6 +493,10 @@ class SignInCodeActivity : AppCompatActivity() {
     private fun showSuccess() {
         Toast.makeText(this, "Authentication Successful!", Toast.LENGTH_LONG).show()
 
+        // Reset flags
+        includeUsernameInDeviceURL = false
+        isAutoStartFlow = false
+
         // Start MainActivity and clear the back stack
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -493,6 +522,10 @@ class SignInCodeActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         
+        // Reset flags
+        includeUsernameInDeviceURL = false
+        isAutoStartFlow = false
+        
         // Cancel any ongoing device auth polling in AuthManager
         authManager.cancelDeviceAuth()
         
@@ -510,6 +543,10 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // Reset flags
+        includeUsernameInDeviceURL = false
+        isAutoStartFlow = false
+        
         authManager.cancelDeviceAuth()
         super.onBackPressed()
     }
