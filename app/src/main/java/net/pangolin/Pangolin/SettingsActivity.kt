@@ -63,6 +63,9 @@ class SettingsActivity : BaseNavigationActivity() {
                 infoPreference.order = -1
             }
             
+            // Setup DNS settings dependencies
+            setupDnsSettingsDependencies()
+            
             // Observe tunnel state and disable settings when tunnel is active
             lifecycleScope.launch {
                 val tunnelManager = TunnelManager.getInstance()
@@ -74,6 +77,51 @@ class SettingsActivity : BaseNavigationActivity() {
                     }
                 }
             }
+        }
+        
+        private fun setupDnsSettingsDependencies() {
+            val overrideDns = findPreference<androidx.preference.SwitchPreferenceCompat>("overrideDns")
+            val tunnelDns = findPreference<androidx.preference.SwitchPreferenceCompat>("tunnelDns")
+            val primaryDns = findPreference<EditTextPreference>("primaryDNSServer")
+            val secondaryDns = findPreference<EditTextPreference>("secondaryDNSServer")
+            
+            // Update DNS settings based on current state
+            fun updateDnsSettings() {
+                val isDnsOverrideEnabled = overrideDns?.isChecked ?: true
+                
+                // If DNS override is off, force tunnel DNS off and disable it
+                if (!isDnsOverrideEnabled) {
+                    tunnelDns?.isChecked = false
+                    tunnelDns?.isEnabled = false
+                } else {
+                    // Only re-enable if tunnel is not active
+                    tunnelDns?.isEnabled = !isTunnelActive
+                }
+                
+                // Show/hide DNS input boxes based on DNS override setting
+                primaryDns?.isVisible = isDnsOverrideEnabled
+                secondaryDns?.isVisible = isDnsOverrideEnabled
+            }
+            
+            // Set up listeners
+            overrideDns?.setOnPreferenceChangeListener { _, newValue ->
+                val enabled = newValue as Boolean
+                if (!enabled) {
+                    tunnelDns?.isChecked = false
+                }
+                // Delay update to allow preference change to complete
+                view?.postDelayed({ updateDnsSettings() }, 100)
+                true
+            }
+            
+            tunnelDns?.setOnPreferenceChangeListener { _, _ ->
+                // Delay update to allow preference change to complete
+                view?.postDelayed({ updateDnsSettings() }, 100)
+                true
+            }
+            
+            // Initial update
+            updateDnsSettings()
         }
         
         private fun updateLockInfo() {
@@ -88,6 +136,17 @@ class SettingsActivity : BaseNavigationActivity() {
         private fun updatePreferencesEnabled() {
             preferenceScreen?.let { screen ->
                 setPreferencesEnabledRecursive(screen, !isTunnelActive)
+            }
+            
+            // Re-apply DNS dependencies after updating enabled state
+            val overrideDns = findPreference<androidx.preference.SwitchPreferenceCompat>("overrideDns")
+            val tunnelDns = findPreference<androidx.preference.SwitchPreferenceCompat>("tunnelDns")
+            
+            if (!isTunnelActive) {
+                val isDnsOverrideEnabled = overrideDns?.isChecked ?: true
+                if (!isDnsOverrideEnabled) {
+                    tunnelDns?.isEnabled = false
+                }
             }
         }
         
