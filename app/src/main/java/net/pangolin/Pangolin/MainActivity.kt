@@ -204,13 +204,18 @@ class MainActivity : BaseNavigationActivity() {
         // Setup status card click listener to toggle the switch
         contentBinding.statusCard.setOnClickListener {
             lifecycleScope.launch {
-                // Don't allow interaction if session is expired or server is down
-                if (authManager.sessionExpired.value || authManager.isServerDown.value) {
+                // Don't allow interaction if session is expired
+                if (authManager.sessionExpired.value) {
                     return@launch
                 }
-                
+
                 val currentState = tunnelManager.tunnelState.value
                 val currentToggleState = contentBinding.toggleConnect.isChecked
+
+                // If server is down and VPN is already off, don't allow turning on
+                if (authManager.isServerDown.value && !currentToggleState) {
+                    return@launch
+                }
                 
                 // Only allow toggle if the resulting action would be allowed
                 if (!currentToggleState && currentState.canEnable) {
@@ -495,12 +500,23 @@ class MainActivity : BaseNavigationActivity() {
             // Also disable toggle switch
             contentBinding.toggleConnect.isEnabled = false
         } else if (isServerDown) {
-            // Disable toggle and status card when server is down
+            // When server is down, only disable controls if VPN is already off.
+            // If the VPN is on, keep the toggle enabled so the user can always disconnect.
             hideReAuthenticationUI()
-            contentBinding.toggleConnect.isEnabled = false
-            contentBinding.statusCard.isEnabled = false
-            contentBinding.statusCard.isClickable = false
-            contentBinding.statusCard.alpha = 0.5f
+            val tunnelState = tunnelManager.tunnelState.value
+            if (tunnelState.canDisable) {
+                // VPN is active — keep controls enabled so user can turn it off
+                contentBinding.toggleConnect.isEnabled = true
+                contentBinding.statusCard.isEnabled = true
+                contentBinding.statusCard.isClickable = true
+                contentBinding.statusCard.alpha = 1.0f
+            } else {
+                // VPN is off — gray everything out since connecting is impossible
+                contentBinding.toggleConnect.isEnabled = false
+                contentBinding.statusCard.isEnabled = false
+                contentBinding.statusCard.isClickable = false
+                contentBinding.statusCard.alpha = 0.5f
+            }
         } else {
             // Re-enable toggle and status card when server is back up
             hideReAuthenticationUI()
@@ -895,9 +911,13 @@ class MainActivity : BaseNavigationActivity() {
                 if (newState.isFullyConnected || newState.isRegistered) View.VISIBLE else View.GONE
 
             // Update toggle switch state
-            // Enable switch only if we can perform an action (enable or disable) and session is not expired
+            // Enable switch only if we can perform an action and session is not expired.
+            // Always allow disabling the VPN even if the server is down.
+            // Only allow enabling if the server is also up.
             val sessionExpired = authManager.sessionExpired.value
-            contentBinding.toggleConnect.isEnabled = (newState.canEnable || newState.canDisable) && !sessionExpired
+            val isServerDown = authManager.isServerDown.value
+            contentBinding.toggleConnect.isEnabled = !sessionExpired &&
+                (newState.canDisable || (newState.canEnable && !isServerDown))
             
             // Update toggle state without triggering listener
             contentBinding.toggleConnect.setOnCheckedChangeListener(null)
