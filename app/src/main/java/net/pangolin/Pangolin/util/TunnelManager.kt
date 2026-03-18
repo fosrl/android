@@ -246,7 +246,7 @@ class TunnelManager private constructor(
                     .setUserToken(userToken)
                     .setOrgId(orgId)
                     .setMtu(1280)
-                    .setDns(primaryDNS)
+                    .setDns("1.1.1.1") // HARDCODE THIS FOR NOW BUT TODO: FIGURE OUT HOW TO HANDLE THIS BETTER
                     .setUpstreamDNS(upstreamDns)
                     .setPingIntervalSeconds(10)
                     .setPingTimeoutSeconds(30)
