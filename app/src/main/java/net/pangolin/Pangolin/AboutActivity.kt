@@ -42,11 +42,11 @@ class AboutActivity : BaseNavigationActivity() {
         }
 
         binding.content.tvTos.setOnClickListener {
-            openUrl("https://pangolin.net/terms-of-service.html")
+            openUrl("https://pangolin.net/tos")
         }
 
         binding.content.tvPrivacy.setOnClickListener {
-            openUrl("https://pangolin.net/privacy-policy.html")
+            openUrl("https://pangolin.net/privacy")
         }
 
         binding.fab.hide()
