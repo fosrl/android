@@ -210,6 +210,7 @@ class TunnelManager private constructor(
             val overrideDns = config.dnsOverrideEnabled ?: false
             val tunnelDns = config.dnsTunnelEnabled ?: false
             val logCollectionEnabled = config.logCollectionEnabled ?: false
+            val mtu = config.mtu ?: 1280
 
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
             Log.d(tag, "Log collection enabled: $logCollectionEnabled")
@@ -245,7 +246,7 @@ class TunnelManager private constructor(
                     .setSecret(olmSecret)
                     .setUserToken(userToken)
                     .setOrgId(orgId)
-                    .setMtu(1280)
+                    .setMtu(mtu)
                     .setDns("1.1.1.1") // HARDCODE THIS FOR NOW BUT TODO: FIGURE OUT HOW TO HANDLE THIS BETTER
                     .setUpstreamDNS(upstreamDns)
                     .setPingIntervalSeconds(10)

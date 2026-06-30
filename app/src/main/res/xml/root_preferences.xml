@@ -44,6 +44,13 @@
             android:title="Enable Log Collection"
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
+        <EditTextPreference
+            android:defaultValue="1280"
+            android:key="mtu"
+            android:title="MTU"
+            android:summary="Maximum Transmission Unit size in bytes (576–65535). Default: 1280"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
 
     </PreferenceCategory>
 
