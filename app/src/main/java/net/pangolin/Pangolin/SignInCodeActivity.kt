@@ -424,7 +424,7 @@ class SignInCodeActivity : AppCompatActivity() {
             val activeAccount = accountManager.activeAccount
             if (activeAccount != null && activeAccount.email.isNotEmpty()) {
                 val encodedEmail = java.net.URLEncoder.encode(activeAccount.email, "UTF-8")
-                autoOpenURL += "&username=$encodedEmail"
+                autoOpenURL += "&user=$encodedEmail"
                 Log.i(tag, "Including username in device auth URL for re-authentication")
             }
         }

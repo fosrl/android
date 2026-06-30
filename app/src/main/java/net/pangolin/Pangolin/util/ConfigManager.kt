@@ -17,7 +17,7 @@ class ConfigManager private constructor(context: Context) {
     
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled" -> {
+            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu" -> {
                 Log.d(tag, "Preference changed: $key, reloading config")
                 _config.value = loadConfig()
             }
@@ -35,7 +35,8 @@ class ConfigManager private constructor(context: Context) {
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
                 primaryDNSServer = prefs.getString("primaryDNSServer", "1.1.1.1"),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
-                logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false)
+                logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false),
+                mtu = prefs.getString("mtu", null)?.toIntOrNull()
             )
         } catch (e: Exception) {
             Log.e(tag, "Error loading config: ${e.message}", e)
@@ -51,6 +52,7 @@ class ConfigManager private constructor(context: Context) {
                 putString("primaryDNSServer", config.primaryDNSServer ?: "1.1.1.1")
                 putString("secondaryDNSServer", config.secondaryDNSServer)
                 putBoolean("logCollectionEnabled", config.logCollectionEnabled ?: false)
+                if (config.mtu != null) putString("mtu", config.mtu.toString()) else remove("mtu")
                 apply()
             }
             _config.value = config

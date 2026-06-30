@@ -593,18 +593,25 @@ class MainActivity : BaseNavigationActivity() {
 
     private fun startReAuthentication() {
         val isDeviceAuthInProgress = authManager.isDeviceAuthInProgress.value
-        
+
         // Don't start if already in progress
         if (isDeviceAuthInProgress) {
             Log.d("MainActivity", "Device auth already in progress, ignoring re-auth request")
             return
         }
-        
-        // Set flag to auto-start device auth
-        authManager.setStartDeviceAuthImmediately(true)
-        
-        // Launch LoginActivity which will then launch SignInCodeActivity
-        val intent = Intent(this, LoginActivity::class.java)
+
+        val activeAccount = accountManager.activeAccount
+        if (activeAccount == null) {
+            // No active account — fall back to full login flow
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            return
+        }
+
+        // We already know the hostname, so skip server selection and go straight to sign-in
+        val intent = Intent(this, SignInCodeActivity::class.java)
+        intent.putExtra(SignInCodeActivity.EXTRA_HOSTNAME, activeAccount.hostname)
+        intent.putExtra("AUTO_START_DEVICE_AUTH", true)
         startActivity(intent)
     }
 
