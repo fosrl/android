@@ -76,10 +76,6 @@ class AuthManager(
     private val _isDeviceAuthInProgress = MutableStateFlow(false)
     val isDeviceAuthInProgress: StateFlow<Boolean> = _isDeviceAuthInProgress.asStateFlow()
 
-    // Auto-start device auth flag - set when re-authenticating from session expired state
-    private val _startDeviceAuthImmediately = MutableStateFlow(false)
-    val startDeviceAuthImmediately: StateFlow<Boolean> = _startDeviceAuthImmediately.asStateFlow()
-
     private var deviceAuthJob: Job? = null
 
     init {
@@ -182,13 +178,6 @@ class AuthManager(
     fun markSessionExpired() {
         Log.w(tag, "Marking session as expired")
         _sessionExpired.value = true
-    }
-
-    /**
-     * Set the start device auth immediately flag (for re-authentication)
-     */
-    fun setStartDeviceAuthImmediately(value: Boolean) {
-        _startDeviceAuthImmediately.value = value
     }
 
     suspend fun loginWithDeviceAuth(hostnameOverride: String? = null) {
