@@ -63,6 +63,13 @@ class SettingsActivity : BaseNavigationActivity() {
                 infoPreference.order = -1
             }
             
+            // Show "System DNS" as the summary when a DNS field is left empty
+            val systemDnsSummaryProvider = Preference.SummaryProvider<EditTextPreference> { pref ->
+                if (pref.text.isNullOrEmpty()) "System DNS" else pref.text
+            }
+            findPreference<EditTextPreference>("primaryDNSServer")?.summaryProvider = systemDnsSummaryProvider
+            findPreference<EditTextPreference>("secondaryDNSServer")?.summaryProvider = systemDnsSummaryProvider
+
             // Setup DNS settings dependencies
             setupDnsSettingsDependencies()
             
@@ -204,6 +211,7 @@ class SettingsActivity : BaseNavigationActivity() {
                 val isMtuField = preference.key == "mtu"
                 if (isDnsField) {
                     editText.keyListener = DigitsKeyListener.getInstance("0123456789.:")
+                    textInputLayout.placeholderText = "System DNS"
                 } else if (isMtuField) {
                     editText.keyListener = DigitsKeyListener.getInstance("0123456789")
                     editText.inputType = android.text.InputType.TYPE_CLASS_NUMBER
@@ -211,21 +219,26 @@ class SettingsActivity : BaseNavigationActivity() {
                 
                 textInputLayout.addView(editText)
 
-                val dialog = MaterialAlertDialogBuilder(requireContext())
+                val dialogBuilder = MaterialAlertDialogBuilder(requireContext())
                     .setTitle(preference.title)
                     .setView(textInputLayout)
                     .setPositiveButton("OK", null) // we will override to keep the dialog open on invalid
                     .setNegativeButton("Cancel", null)
-                    .create()
+
+                if (isDnsField) {
+                    // Clears the field and reverts to using the system DNS
+                    dialogBuilder.setNeutralButton("Default", null)
+                }
+
+                val dialog = dialogBuilder.create()
 
                 dialog.setOnShowListener {
                     val okButton = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
                     okButton.setOnClickListener {
                         val newValue = editText.text?.toString()?.trim().orEmpty()
-                        val isSecondary = preference.key == "secondaryDNSServer"
                         val isValid = when {
                             isDnsField -> {
-                                if (isSecondary && newValue.isEmpty()) {
+                                if (newValue.isEmpty()) {
                                     true
                                 } else {
                                     Patterns.IP_ADDRESS.matcher(newValue).matches()
@@ -256,6 +269,19 @@ class SettingsActivity : BaseNavigationActivity() {
                                 preference.text = newValue
                                 dialog.dismiss()
                             }
+                        }
+                    }
+
+                    if (isDnsField) {
+                        val neutralButton = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL)
+                        neutralButton?.setOnClickListener {
+                            editText.setText("")
+                            textInputLayout.error = null
+                            textInputLayout.helperText = null
+                            if (preference.callChangeListener("")) {
+                                preference.text = ""
+                            }
+                            dialog.dismiss()
                         }
                     }
                 }
