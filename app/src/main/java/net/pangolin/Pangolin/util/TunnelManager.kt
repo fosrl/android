@@ -234,6 +234,11 @@ class TunnelManager private constructor(
                 
                 val initConfig = initConfigBuilder.build()
 
+                // Note: when this is left empty (no custom DNS configured), olm's
+                // SystemDnsMonitor (started by GoBackend before the tunnel comes up)
+                // detects and keeps the device's real DNS servers up to date instead.
+                // Passing a detected value here would be indistinguishable from an
+                // explicit user override and would stop it from being auto-updated.
                 val upstreamDns = mutableListOf<String>()
                 if (!primaryDNS.isNullOrBlank()) {
                     upstreamDns.add("$primaryDNS:53")
@@ -249,7 +254,6 @@ class TunnelManager private constructor(
                     .setUserToken(userToken)
                     .setOrgId(orgId)
                     .setMtu(mtu)
-                    // .setDns("1.1.1.1") // this gets pulled dynamically from the host system now
                     .setUpstreamDNS(upstreamDns)
                     .setPingIntervalSeconds(10)
                     .setPingTimeoutSeconds(30)

@@ -266,5 +266,27 @@ func setPowerMode(mode *C.char) *C.char {
 	return C.CString("Power mode set successfully")
 }
 
+// setSystemDNS reports DNS servers observed by the Android app (via
+// ConnectivityManager, since olm cannot read the OS's DNS configuration
+// itself on this platform). serversJSON is a JSON array of "host:port"
+// strings, e.g. ["192.168.1.1:53"].
+//
+//export setSystemDNS
+func setSystemDNS(serversJSON *C.char) *C.char {
+	if olmInstance == nil {
+		appLogger.Error("OLM instance not initialized")
+		return C.CString("Error: OLM instance not initialized")
+	}
+
+	var servers []string
+	if err := json.Unmarshal([]byte(C.GoString(serversJSON)), &servers); err != nil {
+		appLogger.Error("Failed to parse system DNS JSON: %v", err)
+		return C.CString(fmt.Sprintf("Error: Failed to parse system DNS JSON: %v", err))
+	}
+
+	olmInstance.SetSystemDNS(servers)
+	return C.CString("System DNS updated")
+}
+
 // We need an entry point; it's ok for this to be empty
 func main() {}
