@@ -18,6 +18,7 @@ import net.pangolin.Pangolin.PacketTunnel.BackendException.Reason;
 import net.pangolin.Pangolin.PacketTunnel.Tunnel.State;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 import androidx.annotation.Nullable;
 import androidx.collection.ArraySet;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 
 /**
@@ -40,6 +42,7 @@ public final class GoBackend implements Backend {
     @Nullable private Tunnel currentTunnel;
     @Nullable private TunnelConfig currentConfig;
     @Nullable private NetworkSettingsPoller networkSettingsPoller;
+    @Nullable private SystemDnsMonitor systemDnsMonitor;
     @Nullable private ParcelFileDescriptor currentTunFd;
     private boolean tunnelActive = false;
 
@@ -76,6 +79,8 @@ public final class GoBackend implements Backend {
     private static native String getNetworkSettings();
 
     private static native String nativeSetPowerMode(String mode);
+
+    private static native String setSystemDNS(String serversJSON);
 
     /**
      * Set the power mode of the OLM tunnel.
@@ -229,6 +234,59 @@ public final class GoBackend implements Backend {
         if (networkSettingsPoller != null) {
             networkSettingsPoller.resumePolling();
             Log.d(TAG, "Resumed network settings polling (normal power mode)");
+        }
+    }
+
+    /**
+     * Lazily creates (and reuses) the SystemDnsMonitor for this backend instance.
+     */
+    private SystemDnsMonitor getSystemDnsMonitor() {
+        if (systemDnsMonitor == null) {
+            systemDnsMonitor = new SystemDnsMonitor(context);
+        }
+        return systemDnsMonitor;
+    }
+
+    /**
+     * Starts observing the device's real (non-VPN) DNS servers and pushing changes into
+     * olm, since olm cannot read Android's DNS configuration itself.
+     */
+    public void startSystemDnsMonitoring() {
+        SystemDnsMonitor monitor = getSystemDnsMonitor();
+        monitor.setCallback(this::pushSystemDnsServers);
+        monitor.start();
+
+        // Push a synchronous best-effort read immediately (this runs before the VPN
+        // interface exists, so the "active network" is still the real one). This closes
+        // the window between olm starting up and the first live NetworkCallback firing,
+        // during which olm would otherwise fall back to a hardcoded default DNS server.
+        pushSystemDnsServers(monitor.getCurrentDnsServers());
+        Log.d(TAG, "Started system DNS monitoring");
+    }
+
+    private void pushSystemDnsServers(List<String> dnsServers) {
+        if (dnsServers.isEmpty()) {
+            return;
+        }
+        try {
+            JSONArray serversJson = new JSONArray();
+            for (String server : dnsServers) {
+                serversJson.put(server);
+            }
+            String result = setSystemDNS(serversJson.toString());
+            Log.d(TAG, "setSystemDNS result: " + result);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to push system DNS to olm", e);
+        }
+    }
+
+    /**
+     * Stops observing the device's real DNS servers.
+     */
+    public void stopSystemDnsMonitoring() {
+        if (systemDnsMonitor != null) {
+            systemDnsMonitor.stop();
+            Log.d(TAG, "Stopped system DNS monitoring");
         }
     }
 
@@ -424,6 +482,11 @@ public final class GoBackend implements Backend {
                }
            }
 
+           // Start observing the device's real DNS servers as early as possible - before
+           // the VPN interface exists - so olm has a real value to apply instead of its
+           // hardcoded fallback by the time startTunnel() below reaches that check.
+           startSystemDnsMonitoring();
+
            // Create VPN builder
            final VpnService.Builder builder = service.getBuilder();
            builder.setSession(tunnel.getName());
@@ -443,8 +506,10 @@ public final class GoBackend implements Backend {
 
            // Establish the tunnel to get a file descriptor
            currentTunFd = builder.establish();
-           if (currentTunFd == null)
+           if (currentTunFd == null) {
+               stopSystemDnsMonitoring();
                throw new BackendException(Reason.TUN_CREATION_ERROR);
+           }
 
            // Start the tunnel with the Go API
            try {
@@ -458,6 +523,7 @@ public final class GoBackend implements Backend {
                }
            } catch (Exception e) {
                Log.e(TAG, "Failed to start tunnel", e);
+               stopSystemDnsMonitoring();
                if (currentTunFd != null) {
                    try {
                        currentTunFd.close();
@@ -498,6 +564,7 @@ public final class GoBackend implements Backend {
 
            // Stop network settings polling
            stopNetworkSettingsPolling();
+           stopSystemDnsMonitoring();
 
            // Stop the tunnel via Go API if it was active
            if (tunnelActive) {
@@ -594,6 +661,7 @@ public final class GoBackend implements Backend {
             if (owner != null) {
                 // Stop network settings polling
                 owner.stopNetworkSettingsPolling();
+                owner.stopSystemDnsMonitoring();
 
                 final Tunnel tunnel = owner.currentTunnel;
                 if (tunnel != null) {

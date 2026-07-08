@@ -205,7 +205,7 @@ class TunnelManager private constructor(
 
             // Get configuration
             val config = configManager.config.value
-            val primaryDNS = config.primaryDNSServer ?: "1.1.1.1"
+            val primaryDNS = config.primaryDNSServer
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: false
             val tunnelDns = config.dnsTunnelEnabled ?: false
@@ -234,9 +234,16 @@ class TunnelManager private constructor(
                 
                 val initConfig = initConfigBuilder.build()
 
+                // Note: when this is left empty (no custom DNS configured), olm's
+                // SystemDnsMonitor (started by GoBackend before the tunnel comes up)
+                // detects and keeps the device's real DNS servers up to date instead.
+                // Passing a detected value here would be indistinguishable from an
+                // explicit user override and would stop it from being auto-updated.
                 val upstreamDns = mutableListOf<String>()
-                upstreamDns.add("$primaryDNS:53")
-                if (secondaryDNS != null) {
+                if (!primaryDNS.isNullOrBlank()) {
+                    upstreamDns.add("$primaryDNS:53")
+                }
+                if (!secondaryDNS.isNullOrBlank()) {
                     upstreamDns.add("$secondaryDNS:53")
                 }
 
@@ -247,7 +254,6 @@ class TunnelManager private constructor(
                     .setUserToken(userToken)
                     .setOrgId(orgId)
                     .setMtu(mtu)
-                    .setDns("1.1.1.1") // HARDCODE THIS FOR NOW BUT TODO: FIGURE OUT HOW TO HANDLE THIS BETTER
                     .setUpstreamDNS(upstreamDns)
                     .setPingIntervalSeconds(10)
                     .setPingTimeoutSeconds(30)

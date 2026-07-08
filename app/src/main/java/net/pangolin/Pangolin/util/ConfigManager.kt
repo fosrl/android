@@ -33,7 +33,7 @@ class ConfigManager private constructor(context: Context) {
             Config(
                 dnsOverrideEnabled = prefs.getBoolean("overrideDns", false),
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
-                primaryDNSServer = prefs.getString("primaryDNSServer", "1.1.1.1"),
+                primaryDNSServer = prefs.getString("primaryDNSServer", null),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
                 logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false),
                 mtu = prefs.getString("mtu", null)?.toIntOrNull()
@@ -49,7 +49,7 @@ class ConfigManager private constructor(context: Context) {
             prefs.edit().apply {
                 putBoolean("overrideDns", config.dnsOverrideEnabled ?: false)
                 putBoolean("tunnelDns", config.dnsTunnelEnabled ?: false)
-                putString("primaryDNSServer", config.primaryDNSServer ?: "1.1.1.1")
+                putString("primaryDNSServer", config.primaryDNSServer)
                 putString("secondaryDNSServer", config.secondaryDNSServer)
                 putBoolean("logCollectionEnabled", config.logCollectionEnabled ?: false)
                 if (config.mtu != null) putString("mtu", config.mtu.toString()) else remove("mtu")

@@ -14,6 +14,7 @@ extern char *stopTunnel();
 extern long getNetworkSettingsVersion();
 extern char *getNetworkSettings();
 extern char *setPowerMode(char *mode);
+extern char *setSystemDNS(char *serversJSON);
 
 JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_initOlm(JNIEnv *env, jclass c, jstring configJSON)
 {
@@ -79,6 +80,18 @@ JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_nati
 	const char *mode_str = (*env)->GetStringUTFChars(env, mode, 0);
 	char *result = setPowerMode((char *)mode_str);
 	(*env)->ReleaseStringUTFChars(env, mode, mode_str);
+	if (!result)
+		return NULL;
+	jstring ret = (*env)->NewStringUTF(env, result);
+	free(result);
+	return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_net_pangolin_Pangolin_PacketTunnel_GoBackend_setSystemDNS(JNIEnv *env, jclass c, jstring serversJSON)
+{
+	const char *servers_str = (*env)->GetStringUTFChars(env, serversJSON, 0);
+	char *result = setSystemDNS((char *)servers_str);
+	(*env)->ReleaseStringUTFChars(env, serversJSON, servers_str);
 	if (!result)
 		return NULL;
 	jstring ret = (*env)->NewStringUTF(env, result);

@@ -28,15 +28,12 @@
             android:title="DNS Over Tunnel"
             app:iconSpaceReserved="false" />
         <EditTextPreference
-            android:defaultValue="1.1.1.1"
             android:key="primaryDNSServer"
             android:title="Primary Upstream DNS Server"
-            app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
         <EditTextPreference
             android:key="secondaryDNSServer"
             android:title="Secondary Upstream DNS Server"
-            app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:key="logCollectionEnabled"
