@@ -1,6 +1,8 @@
 package net.pangolin.Pangolin.util
 
+import android.content.ComponentName
 import android.content.Context
+import android.service.quicksettings.TileService
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +21,7 @@ import net.pangolin.Pangolin.PacketTunnel.GoBackend
 import net.pangolin.Pangolin.PacketTunnel.InitConfig
 import net.pangolin.Pangolin.PacketTunnel.Tunnel
 import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
+import net.pangolin.Pangolin.tile.PangolinTileService
 import java.io.File
 
 /**
@@ -416,6 +419,8 @@ class TunnelManager private constructor(
      */
     private fun updateState(newState: TunnelState) {
         _tunnelState.value = newState
+
+        notifyTileUpdate(context)
     }
 
     /**
@@ -460,6 +465,13 @@ class TunnelManager private constructor(
     fun cleanup() {
         stopSocketPolling()
         scope.cancel()
+    }
+
+    private fun notifyTileUpdate(context: Context) {
+        TileService.requestListeningState(
+            context,
+            ComponentName(context, PangolinTileService::class.java)
+        )
     }
 
     companion object {
