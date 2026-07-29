@@ -69,7 +69,7 @@ class PangolinTileService : TileService() {
         val tile = qsTile ?: return
 
         tile.contentDescription = "Pangolin VPN"
-        tile.icon = Icon.createWithResource(this, net.pangolin.Pangolin.R.drawable.ic_launcher_foreground)
+        tile.icon = Icon.createWithResource(this, net.pangolin.Pangolin.R.drawable.ic_tile)
 
         tile.state = when {
             !clickable -> Tile.STATE_UNAVAILABLE
