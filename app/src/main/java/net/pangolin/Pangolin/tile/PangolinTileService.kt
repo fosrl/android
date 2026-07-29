@@ -12,10 +12,17 @@ import net.pangolin.Pangolin.util.TunnelManager
 
 class PangolinTileService : TileService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var stateWatchJob: kotlinx.coroutines.Job? = null
 
     override fun onStartListening() {
         super.onStartListening()
-        updateTile()
+        watchState()
+    }
+
+    override fun onStopListening() {
+        super.onStopListening()
+        stateWatchJob?.cancel()
+        stateWatchJob = null
     }
 
     override fun onDestroy() {
@@ -23,50 +30,54 @@ class PangolinTileService : TileService() {
         scope.cancel()
     }
 
+    private fun watchState() {
+        val tunnelManager = TunnelManager.getInstance() ?: run {
+            setTileState(active = false, label = "Disconnected", clickable = true)
+            return
+        }
+
+        stateWatchJob?.cancel()
+        stateWatchJob = scope.launch {
+            tunnelManager.tunnelState.collect { state ->
+                setTileState(
+                    active = state.isServiceRunning,
+                    label = state.statusMessage,
+                    clickable = state.canDisable || state.canEnable
+                )
+            }
+        }
+    }
+
     override fun onClick() {
         super.onClick()
 
         val tunnelManager = TunnelManager.getInstance() ?: return
-
         val state = tunnelManager.tunnelState.value
 
-        if(state.isServiceRunning) {
+        if (state.isServiceRunning || state.isConnecting) {
             scope.launch {
                 tunnelManager.disconnect()
             }
-
-            setTileState(active = true)
         } else {
             scope.launch {
                 tunnelManager.connect()
             }
-
-            setTileState(active = false)
         }
     }
 
-    private fun updateTile() {
-        val tunnelManager = TunnelManager.getInstance() ?: return
-
-        setTileState(tunnelManager.connectionStatus.value?.connected)
-    }
-
-    private fun setTileState(active: Boolean?) {
+    private fun setTileState(active: Boolean, label: String, clickable: Boolean) {
         val tile = qsTile ?: return
 
         tile.contentDescription = "Pangolin VPN"
         tile.icon = Icon.createWithResource(this, net.pangolin.Pangolin.R.drawable.ic_launcher_foreground)
 
-        tile.state = when(active) {
-            true -> Tile.STATE_ACTIVE
+        tile.state = when {
+            !clickable -> Tile.STATE_UNAVAILABLE
+            active -> Tile.STATE_ACTIVE
             else -> Tile.STATE_INACTIVE
         }
 
-        tile.label = when(active) {
-            true -> "Connected"
-            false -> "Disconnected"
-            else -> "Unknown"
-        }
+        tile.label = label
 
         tile.updateTile()
     }
