@@ -32,7 +32,7 @@ class PangolinTileService : TileService() {
 
     private fun watchState() {
         val tunnelManager = TunnelManager.getInstance() ?: run {
-            setTileState(active = false, label = "Disconnected", clickable = true)
+            setTileState(active = false, label = "Unavailable", clickable = false)
             return
         }
 
@@ -53,6 +53,10 @@ class PangolinTileService : TileService() {
 
         val tunnelManager = TunnelManager.getInstance() ?: return
         val state = tunnelManager.tunnelState.value
+
+        if (!state.canDisable && !state.canEnable) {
+            return
+        }
 
         if (state.isServiceRunning || state.isConnecting) {
             scope.launch {
