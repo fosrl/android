@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/fosrl/newt v1.15.0
-	github.com/fosrl/olm v1.8.0
+	github.com/fosrl/olm v1.8.2
 	golang.org/x/sys v0.46.0
 )
 
