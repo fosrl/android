@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "net.pangolin.Pangolin"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "net.pangolin.Pangolin"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 23
         versionName = "0.4.1"
 
