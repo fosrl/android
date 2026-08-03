@@ -1,7 +1,7 @@
 [versions]
-agp = "8.13.2"
+agp = "9.0.1"
 biometricKtxVersion = "1.4.0-alpha02"
-kotlin = "2.0.21"
+kotlin = "2.2.10"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
