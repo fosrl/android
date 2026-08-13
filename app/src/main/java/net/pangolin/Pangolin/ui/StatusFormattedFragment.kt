@@ -16,7 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.MainActivity
 import net.pangolin.Pangolin.R
-import net.pangolin.Pangolin.util.SocketPeer
 import net.pangolin.Pangolin.util.SocketStatusResponse
 
 /**
@@ -149,7 +148,7 @@ class StatusFormattedFragment : Fragment() {
         organizationValue?.text = status.orgId ?: "—"
 
         // Update peers
-        updatePeers(status.peers)
+        updatePeers(status)
     }
 
     /**
@@ -177,29 +176,37 @@ class StatusFormattedFragment : Fragment() {
     }
 
     /**
-     * Update the peers section with peer cards.
+     * Update the peers section with peer cards. The exit node (the client's own
+     * connection to the Pangolin server, used for site resources hosted on the exit
+     * node) is shown first as a "Pangolin Server" card, pinned above the regular peers.
      */
-    private fun updatePeers(peers: Map<String, SocketPeer>?) {
+    private fun updatePeers(status: SocketStatusResponse) {
         peersContainer?.removeAllViews()
 
-        if (peers.isNullOrEmpty()) {
+        val peers = status.peers
+        if (status.exitNode == null && peers.isNullOrEmpty()) {
             noPeersMessage?.visibility = View.VISIBLE
             return
         }
 
         noPeersMessage?.visibility = View.GONE
 
+        status.exitNode?.let { exitNode ->
+            val exitNodeCard = createPeerCard("Pangolin Server", exitNode.endpoint, exitNode.connected ?: false)
+            peersContainer?.addView(exitNodeCard)
+        }
+
         // Create a card for each peer
-        peers.forEach { (peerId, peer) ->
-            val peerCard = createPeerCard(peerId, peer)
+        peers?.forEach { (peerId, peer) ->
+            val peerCard = createPeerCard(peer.name ?: peerId, peer.endpoint, peer.connected ?: false)
             peersContainer?.addView(peerCard)
         }
     }
 
     /**
-     * Create a card view for a single peer.
+     * Create a card view for a single peer (or the synthetic exit node row).
      */
-    private fun createPeerCard(peerId: String, peer: SocketPeer): View {
+    private fun createPeerCard(name: String, endpoint: String?, connected: Boolean): View {
         val inflater = LayoutInflater.from(requireContext())
         val cardView = inflater.inflate(R.layout.item_peer_card, peersContainer, false)
 
@@ -209,10 +216,9 @@ class StatusFormattedFragment : Fragment() {
         val peerEndpoint = cardView.findViewById<TextView>(R.id.peerEndpoint)
 
         // Set peer name
-        peerName.text = peer.name ?: peerId
+        peerName.text = name
 
         // Set status
-        val connected = peer.connected ?: false
         peerStatus.text = if (connected) "Connected" else "Disconnected"
 
         // Set status indicator color
@@ -233,7 +239,7 @@ class StatusFormattedFragment : Fragment() {
         }
 
         // Set endpoint
-        peerEndpoint.text = peer.endpoint ?: "No endpoint"
+        peerEndpoint.text = endpoint ?: "No endpoint"
 
         return cardView
     }
