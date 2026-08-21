@@ -93,7 +93,7 @@ public class SystemDnsMonitor {
 
         NetworkRequest request = new NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .removeTransportType(NetworkCapabilities.TRANSPORT_VPN)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
                 .build();
 
         networkCallback = new ConnectivityManager.NetworkCallback() {
