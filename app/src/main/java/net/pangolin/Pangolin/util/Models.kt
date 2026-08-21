@@ -276,7 +276,8 @@ data class SocketStatusResponse(
     val registered: Boolean? = null,
     val orgId: String? = null,
     val networkSettings: NetworkSettings? = null,
-    val error: OlmError? = null
+    val error: OlmError? = null,
+    val exitNode: ExitNode? = null
 )
 
 @Serializable
@@ -288,6 +289,16 @@ data class SocketPeer(
     val lastSeen: String? = null,
     val endpoint: String? = null,
     val isRelay: Boolean? = null
+)
+
+// ExitNode represents the connectivity status of the client's own exit node
+// connection (used for site resources hosted on the exit node).
+@Serializable
+data class ExitNode(
+    val connected: Boolean? = null,
+    val rtt: Long? = null,  // nanoseconds
+    val lastSeen: String? = null,
+    val endpoint: String? = null
 )
 
 @Serializable

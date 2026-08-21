@@ -11,10 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "net.pangolin.Pangolin"
-        minSdk = 24
+        minSdk = 24 
         targetSdk = 36
-        versionCode = 23
-        versionName = "0.4.1"
+        versionCode = 24
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

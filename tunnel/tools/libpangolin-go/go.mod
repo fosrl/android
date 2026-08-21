@@ -3,8 +3,8 @@ module github.com/fosrl/android
 go 1.25.0
 
 require (
-	github.com/fosrl/newt v1.15.0
-	github.com/fosrl/olm v1.8.2
+	github.com/fosrl/newt v1.16.0
+	github.com/fosrl/olm v1.9.0
 	golang.org/x/sys v0.46.0
 )
 
