@@ -89,18 +89,23 @@ class SignInCodeActivity : AppCompatActivity() {
             "1.0.0"
         }
 
-        // Initialize managers
-        secretManager = SecretManager.getInstance(applicationContext)
-        accountManager = AccountManager.getInstance(applicationContext)
-        configManager = ConfigManager.getInstance(applicationContext)
+        // Keep the sign-in API client isolated for its target hostname, but share the
+        // process-wide persisted managers and Android Always-On tunnel authority.
+        val runtime = (application as PangolinApplication).runtime
+        secretManager = runtime.secretManager
+        accountManager = runtime.accountManager
+        configManager = runtime.configManager
         apiClient = APIClient(hostname, versionName = versionName)
         authManager = AuthManager(
             context = applicationContext,
             apiClient = apiClient,
             configManager = configManager,
             accountManager = accountManager,
-            secretManager = secretManager
-        )
+            secretManager = secretManager,
+            tunnelManager = runtime.tunnelManager,
+        ).also { manager ->
+            manager.requestUserDisconnect = { runtime.disconnectFromUser() }
+        }
 
         // Setup Chrome Custom Tabs connection
         setupCustomTabs()

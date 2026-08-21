@@ -2,6 +2,7 @@
     <string name="app_name">Pangolin</string>
     <string name="permission_label">control Pangolin tunnels</string>
     <string name="permission_description">control Pangolin tunnels, enabling and disabling tunnels at will.</string>
+    <string name="disable_always_on_before_disconnect">Disable Always-On VPN in Android settings before disconnecting.</string>
 
     <!-- Navigation Drawer -->
     <string name="navigation_drawer_open">Open navigation drawer</string>
