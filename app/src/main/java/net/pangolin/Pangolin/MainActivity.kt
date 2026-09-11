@@ -1,5 +1,6 @@
 package net.pangolin.Pangolin
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -25,7 +27,6 @@ import net.pangolin.Pangolin.databinding.ContentMainBinding
 import net.pangolin.Pangolin.util.APIClient
 import net.pangolin.Pangolin.util.AuthManager
 import net.pangolin.Pangolin.util.AccountManager
-import net.pangolin.Pangolin.util.AndroidFingerprintCollector
 import net.pangolin.Pangolin.util.ConfigManager
 import net.pangolin.Pangolin.util.FingerprintManager
 import net.pangolin.Pangolin.util.SecretManager
@@ -38,6 +39,7 @@ import net.pangolin.Pangolin.util.userDisplayName
 class MainActivity : BaseNavigationActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var contentBinding: ContentMainBinding
+    private lateinit var runtime: PangolinRuntime
 
     // Authentication managers
     private lateinit var apiClient: APIClient
@@ -56,11 +58,19 @@ class MainActivity : BaseNavigationActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // VPN permission granted, now check battery optimization
-            checkBatteryOptimizationAndConnect()
+            requestNotificationPermissionAndConnect()
         } else {
             Log.e("MainActivity", "VPN permission denied")
         }
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            Log.w("MainActivity", "Notification permission denied; VPN status may be hidden")
+        }
+        checkBatteryOptimizationAndConnect()
     }
 
     // Battery optimization permission launcher
@@ -89,27 +99,16 @@ class MainActivity : BaseNavigationActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Get version name
-        val versionName = try {
-            packageManager.getPackageInfo(packageName, 0).versionName
-        } catch (e: Exception) {
-            "1.0.0"
-        }
-
-        // Initialize authentication managers first (before navigation setup)
-        secretManager = SecretManager.getInstance(applicationContext)
-        accountManager = AccountManager.getInstance(applicationContext)
-        configManager = ConfigManager.getInstance(applicationContext)
-        apiClient = APIClient("https://app.pangolin.net", versionName = versionName)
-        socketManager = (application as PangolinApplication).socketManager
-        fingerprintManager = FingerprintManager(applicationContext, socketManager, AndroidFingerprintCollector(applicationContext))
-        authManager = AuthManager(
-            context = applicationContext,
-            apiClient = apiClient,
-            configManager = configManager,
-            accountManager = accountManager,
-            secretManager = secretManager
-        )
+        // Reuse the process-wide graph that also handles Android Always-On startup.
+        runtime = (application as PangolinApplication).runtime
+        secretManager = runtime.secretManager
+        accountManager = runtime.accountManager
+        configManager = runtime.configManager
+        apiClient = runtime.apiClient
+        socketManager = runtime.socketManager
+        fingerprintManager = runtime.fingerprintManager
+        authManager = runtime.authManager
+        tunnelManager = runtime.tunnelManager
         // Check if there are any accounts - if not, go to LoginActivity
         val accounts = accountManager.accounts
         // // log the accounts for debugging
@@ -124,19 +123,6 @@ class MainActivity : BaseNavigationActivity() {
         // Setup navigation using base class
         setupNavigation(binding.drawerLayout, binding.navView, binding.toolbar)
 
-        // Initialize TunnelManager singleton
-        tunnelManager = TunnelManager.getInstance(
-            context = applicationContext,
-            authManager = authManager,
-            accountManager = accountManager,
-            secretManager = secretManager,
-            configManager = configManager,
-            socketManager = socketManager,
-            fingerprintManager = fingerprintManager,
-        )
-
-        // Set tunnelManager on authManager so it can disconnect when switching accounts
-        authManager.tunnelManager = tunnelManager
 
         // Bind content layout
         contentBinding = ContentMainBinding.bind(binding.content.root)
@@ -188,7 +174,7 @@ class MainActivity : BaseNavigationActivity() {
                     if (isChecked) {
                         connectTunnel()
                     } else {
-                        tunnelManager.disconnect()
+                        disconnectTunnelFromUi()
                     }
                 }
             }
@@ -725,6 +711,11 @@ class MainActivity : BaseNavigationActivity() {
                         }
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Error during logout", e)
+                        Toast.makeText(
+                            this@MainActivity,
+                            e.message ?: "Logout failed",
+                            Toast.LENGTH_LONG,
+                        ).show()
                     }
                 }
             }
@@ -815,7 +806,17 @@ class MainActivity : BaseNavigationActivity() {
         if (prepareIntent != null) {
             vpnPermissionLauncher.launch(prepareIntent)
         } else {
-            // VPN permission already granted, check battery optimization
+            requestNotificationPermissionAndConnect()
+        }
+    }
+
+    private fun requestNotificationPermissionAndConnect() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
             checkBatteryOptimizationAndConnect()
         }
     }
@@ -877,7 +878,7 @@ class MainActivity : BaseNavigationActivity() {
             val statusText = when {
                 newState.errorMessage != null -> "Error"
                 newState.isFullyConnected -> "Connected"
-                newState.isRegistered -> "Connected"
+                newState.isRegistered -> "Preparing private routes"
                 newState.isSocketConnected && !newState.isRegistered -> "Registering"
                 newState.isServiceRunning && !newState.isSocketConnected -> "Connecting"
                 newState.isConnecting -> "Connecting"
@@ -891,7 +892,7 @@ class MainActivity : BaseNavigationActivity() {
             val dotDrawable = when {
                 newState.errorMessage != null -> R.drawable.status_dot_red
                 newState.isFullyConnected -> R.drawable.status_dot_green
-                newState.isRegistered -> R.drawable.status_dot_green
+                newState.isRegistered -> R.drawable.status_dot_orange
                 newState.isSocketConnected && !newState.isRegistered -> R.drawable.status_dot_orange
                 newState.isServiceRunning && !newState.isSocketConnected -> R.drawable.status_dot_orange
                 newState.isConnecting -> R.drawable.status_dot_orange
@@ -935,7 +936,7 @@ class MainActivity : BaseNavigationActivity() {
                     if (isChecked && currentState.canEnable) {
                         connectTunnel()
                     } else if (!isChecked && currentState.canDisable) {
-                        tunnelManager.disconnect()
+                        disconnectTunnelFromUi()
                     } else {
                         // Revert toggle if action not allowed
                         contentBinding.toggleConnect.setOnCheckedChangeListener(null)
@@ -947,7 +948,7 @@ class MainActivity : BaseNavigationActivity() {
                                 if (checked && state.canEnable) {
                                     connectTunnel()
                                 } else if (!checked && state.canDisable) {
-                                    tunnelManager.disconnect()
+                                    disconnectTunnelFromUi()
                                 }
                             }
                         }
@@ -955,5 +956,15 @@ class MainActivity : BaseNavigationActivity() {
                 }
             }
         }
+    }
+
+    private suspend fun disconnectTunnelFromUi() {
+        if (runtime.disconnectFromUser()) return
+        Toast.makeText(
+            this,
+            R.string.disable_always_on_before_disconnect,
+            Toast.LENGTH_LONG,
+        ).show()
+        updateTunnelState(tunnelManager.tunnelState.value)
     }
 }

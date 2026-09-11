@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin.util
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,12 +15,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import net.pangolin.Pangolin.PacketTunnel.BackendException
 import net.pangolin.Pangolin.PacketTunnel.GoBackend
 import net.pangolin.Pangolin.PacketTunnel.InitConfig
 import net.pangolin.Pangolin.PacketTunnel.Tunnel
 import net.pangolin.Pangolin.PacketTunnel.TunnelConfig
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Manages VPN tunnel state, connection, and lifecycle across the app.
@@ -38,6 +43,7 @@ class TunnelManager private constructor(
 
     // Coroutine scope for tunnel operations
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val operationMutex = Mutex()
 
     // Go backend instance
     private var goBackend: GoBackend? = null
@@ -52,6 +58,7 @@ class TunnelManager private constructor(
     // Tunnel state
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
+    private val readinessEpoch = ReadinessEpoch()
 
     // Connection status from socket
     private val _connectionStatus = MutableStateFlow<SocketStatusResponse?>(null)
@@ -126,27 +133,33 @@ class TunnelManager private constructor(
             return
         }
 
-        val isConnected = status.connected && status.registered == true
-        val isRegistered = status.registered == true
-
-        _tunnelState.value = currentState.copy(
+        val evidenceState = currentState.copy(
             isSocketConnected = status.connected,
-            isRegistered = isRegistered,
-            isConnecting = !isConnected && status.connected,
-            statusMessage = determineStatusMessage(status),
-            errorMessage = if (status.terminated) "Connection terminated" else null
+            isRegistered = status.registered == true,
+            isNetworkSettingsApplied = goBackend?.hasAppliedNetworkSettings() == true,
+            hasConnectedPeer =
+                status.peers.orEmpty().values.any { it.connected == true } ||
+                    status.exitNode?.connected == true,
+            isConnecting = false,
+            errorMessage = if (status.terminated) "Connection terminated" else null,
         )
+        val updatedState = evidenceState.copy(
+            isConnecting = status.connected && !evidenceState.isFullyConnected,
+            statusMessage = determineStatusMessage(status, evidenceState),
+        )
+        updateState(updatedState)
     }
 
     /**
      * Determine human-readable status message from socket response
      */
-    private fun determineStatusMessage(status: SocketStatusResponse): String {
+    private fun determineStatusMessage(status: SocketStatusResponse, state: TunnelState): String {
         return when {
             status.terminated -> "Disconnected"
             !status.connected -> "Connecting..."
             status.registered != true -> "Registering..."
-            status.connected && status.registered == true -> "Connected"
+            state.isFullyConnected -> "Connected"
+            status.connected && status.registered == true -> "Preparing private routes..."
             else -> "Unknown"
         }
     }
@@ -155,6 +168,18 @@ class TunnelManager private constructor(
      * Connect to VPN tunnel
      */
     suspend fun connect() {
+        connectInternal(useStoredCredentials = false)
+    }
+
+    suspend fun connectFromStoredAccount(): TunnelStartResult =
+        connectInternal(useStoredCredentials = true)
+
+    private suspend fun connectInternal(useStoredCredentials: Boolean): TunnelStartResult = operationMutex.withLock {
+        if (_tunnelState.value.isServiceRunning || _tunnelState.value.isConnecting) {
+            Log.d(tag, "Tunnel startup is already in progress, ignoring duplicate request")
+            return@withLock TunnelStartResult.STARTED
+        }
+
         Log.i(tag, "Starting tunnel connection")
 
         updateState(_tunnelState.value.copy(
@@ -162,6 +187,8 @@ class TunnelManager private constructor(
             isServiceRunning = false,
             isSocketConnected = false,
             isRegistered = false,
+            isNetworkSettingsApplied = false,
+            hasConnectedPeer = false,
             statusMessage = "Starting VPN service...",
             errorMessage = null
         ))
@@ -170,7 +197,7 @@ class TunnelManager private constructor(
             // Get current user and credentials
             val activeAccount = accountManager.activeAccount
             if (activeAccount == null) {
-                throw Exception("No active account")
+                throw PermanentStartupException("No active account")
             }
 
             val userId = activeAccount.userId
@@ -179,25 +206,28 @@ class TunnelManager private constructor(
             Log.i(tag, "=== CONNECT: Starting connection for user=$userId, org=$orgId ===")
             Log.i(tag, "Active account details: userId=${activeAccount.userId}, orgId=${activeAccount.orgId}")
 
-            if (orgId.isEmpty()) {
-                throw Exception("No organization selected")
+            if (orgId.isEmpty() || activeAccount.hostname.isBlank()) {
+                throw PermanentStartupException("No organization or server selected")
             }
 
             // Get user session token
             val userToken = secretManager.getSessionToken(userId)
             if (userToken == null) {
-                throw Exception("No session token found")
+                throw PermanentStartupException("No session token found")
             }
 
-            // Ensure OLM credentials exist
-            authManager.ensureOlmCredentials(userId)
+            // A system-started Always-On service cannot launch an interactive credential flow.
+            // It may only reuse the encrypted account state created by the normal UI flow.
+            if (!useStoredCredentials) {
+                authManager.ensureOlmCredentials(userId)
+            }
 
             // Get OLM credentials
             val olmId = secretManager.getOlmId(userId)
             val olmSecret = secretManager.getOlmSecret(userId)
 
             if (olmId == null || olmSecret == null) {
-                throw Exception("Failed to retrieve OLM credentials")
+                throw PermanentStartupException("Failed to retrieve OLM credentials")
             }
 
             Log.i(tag, "Using OLM credentials for user $userId, org $orgId, olmId=$olmId")
@@ -283,6 +313,7 @@ class TunnelManager private constructor(
             startSocketPolling()
 
             fingerprintManager.start()
+            return@withLock TunnelStartResult.STARTED
         } catch (e: Exception) {
             Log.e(tag, "Failed to start tunnel", e)
             updateState(_tunnelState.value.copy(
@@ -290,16 +321,27 @@ class TunnelManager private constructor(
                 isConnecting = false,
                 isSocketConnected = false,
                 isRegistered = false,
+                isNetworkSettingsApplied = false,
+                hasConnectedPeer = false,
                 statusMessage = "Connection failed",
                 errorMessage = e.message ?: "Unknown error"
             ))
+            return@withLock if (
+                useStoredCredentials &&
+                (e is PermanentStartupException ||
+                    (e is BackendException && StoredTunnelFailurePolicy.isTerminal(e.reason)))
+            ) {
+                TunnelStartResult.TERMINAL_FAILURE
+            } else {
+                TunnelStartResult.RETRYABLE_FAILURE
+            }
         }
     }
 
     /**
      * Disconnect from VPN tunnel
      */
-    suspend fun disconnect() {
+    suspend fun disconnect() = operationMutex.withLock {
         Log.i(tag, "Stopping tunnel connection")
 
         updateState(_tunnelState.value.copy(
@@ -415,7 +457,27 @@ class TunnelManager private constructor(
      * Update tunnel state
      */
     private fun updateState(newState: TunnelState) {
+        val previousReady = _tunnelState.value.isFullyConnected
+        val readinessChanged = newState.isFullyConnected != previousReady
+        readinessEpoch.recordTransition(previousReady, newState.isFullyConnected)
         _tunnelState.value = newState
+        if (newState.isServiceRunning && readinessChanged) {
+            goBackend?.updateForegroundNotification(newState.isFullyConnected)
+        }
+    }
+
+    fun readinessEpochSnapshot(): Long = readinessEpoch.snapshot()
+
+    fun runIfReadinessStable(expectedEpoch: Long, action: () -> Unit): Boolean =
+        readinessEpoch.runIfUnchanged(
+            expectedEpoch = expectedEpoch,
+            isReady = { _tunnelState.value.isFullyConnected },
+            action = action,
+        )
+
+    fun platformAlwaysOnState(): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return runCatching { goBackend?.isAlwaysOn }.getOrNull()
     }
 
     /**
@@ -435,6 +497,8 @@ class TunnelManager private constructor(
                         isConnecting = false,
                         isSocketConnected = false,
                         isRegistered = false,
+                        isNetworkSettingsApplied = false,
+                        hasConnectedPeer = false,
                         statusMessage = "Disconnected"
                     ))
                     stopSocketPolling()
@@ -494,6 +558,50 @@ class TunnelManager private constructor(
     }
 }
 
+enum class TunnelStartResult {
+    STARTED,
+    RETRYABLE_FAILURE,
+    TERMINAL_FAILURE,
+}
+
+private class PermanentStartupException(message: String) : Exception(message)
+
+internal object StoredTunnelFailurePolicy {
+    fun isTerminal(reason: BackendException.Reason): Boolean = when (reason) {
+        BackendException.Reason.TUNNEL_MISSING_CONFIG,
+        BackendException.Reason.VPN_NOT_AUTHORIZED -> true
+        BackendException.Reason.UNKNOWN_KERNEL_MODULE_NAME,
+        BackendException.Reason.WG_QUICK_CONFIG_ERROR_CODE,
+        BackendException.Reason.UNABLE_TO_START_VPN,
+        BackendException.Reason.TUN_CREATION_ERROR,
+        BackendException.Reason.GO_ACTIVATION_ERROR_CODE,
+        BackendException.Reason.DNS_RESOLUTION_FAILURE -> false
+    }
+}
+
+internal class ReadinessEpoch {
+    private val value = AtomicLong(0)
+
+    @Synchronized
+    fun recordTransition(previousReady: Boolean, nextReady: Boolean) {
+        if (previousReady != nextReady) value.incrementAndGet()
+    }
+
+    @Synchronized
+    fun snapshot(): Long = value.get()
+
+    @Synchronized
+    fun runIfUnchanged(
+        expectedEpoch: Long,
+        isReady: () -> Boolean,
+        action: () -> Unit,
+    ): Boolean {
+        if (value.get() != expectedEpoch || !isReady()) return false
+        action()
+        return true
+    }
+}
+
 /**
  * Represents the current state of the VPN tunnel
  */
@@ -502,11 +610,18 @@ data class TunnelState(
     val isConnecting: Boolean = false,
     val isSocketConnected: Boolean = false,
     val isRegistered: Boolean = false,
+    val isNetworkSettingsApplied: Boolean = false,
+    val hasConnectedPeer: Boolean = false,
     val statusMessage: String = "Disconnected",
     val errorMessage: String? = null
 ) {
     val isFullyConnected: Boolean
-        get() = isServiceRunning && isSocketConnected && isRegistered && !isConnecting
+        get() = isServiceRunning &&
+            isSocketConnected &&
+            isRegistered &&
+            isNetworkSettingsApplied &&
+            hasConnectedPeer &&
+            !isConnecting
     
     /**
      * Can enable the tunnel only if fully disconnected and ready to connect
