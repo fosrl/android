@@ -145,6 +145,17 @@ class MainActivity : BaseNavigationActivity() {
         contentBinding.loadingOverlay.visibility = android.view.View.VISIBLE
         contentBinding.mainContent.visibility = android.view.View.GONE
 
+        if (intent?.getBooleanExtra("auto_connect", false) == true) {
+            val currentState = tunnelManager.tunnelState.value
+            if (!currentState.isServiceRunning && !currentState.isConnecting) {
+                lifecycleScope.launch {
+                    tunnelManager.connect()
+                }
+            }
+
+            intent.removeExtra("auto_connect")
+        }
+
         // Setup toggle switch listener with helper function
         fun setupToggleListener() {
             contentBinding.toggleConnect.setOnCheckedChangeListener { _, isChecked ->
