@@ -147,7 +147,7 @@ class TunnelManager private constructor(
     private fun determineStatusMessage(status: SocketStatusResponse): String {
         return when {
             status.terminated -> "Disconnected"
-            !status.connected -> "Connecting..."
+            !status.connected -> "Registering..."
             status.registered != true -> "Registering..."
             status.connected && status.registered == true -> "Connected"
             else -> "Unknown"

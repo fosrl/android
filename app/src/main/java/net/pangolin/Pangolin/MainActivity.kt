@@ -890,8 +890,8 @@ class MainActivity : BaseNavigationActivity() {
                 newState.isFullyConnected -> "Connected"
                 newState.isRegistered -> "Connected"
                 newState.isSocketConnected && !newState.isRegistered -> "Registering"
-                newState.isServiceRunning && !newState.isSocketConnected -> "Connecting"
-                newState.isConnecting -> "Connecting"
+                newState.isServiceRunning && !newState.isSocketConnected -> "Registering"
+                newState.isConnecting -> "Registering"
                 else -> "Disconnected"
             }
             
