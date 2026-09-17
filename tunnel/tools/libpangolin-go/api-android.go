@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"syscall"
 
 	olmpkg "github.com/fosrl/olm/olm"
 )
@@ -169,6 +170,13 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 
 //export addDevice
 func addDevice(fd C.int) *C.char {
+	fdOwnedByOlm := false
+	defer func() {
+		if !fdOwnedByOlm {
+			_ = syscall.Close(int(fd))
+		}
+	}()
+
 	if olmInstance == nil {
 		appLogger.Error("OLM instance not initialized")
 		return C.CString("Error: OLM instance not initialized")
@@ -179,6 +187,7 @@ func addDevice(fd C.int) *C.char {
 		appLogger.Error("Failed to add device: %v", err)
 		return C.CString(fmt.Sprintf("Error: Failed to add device: %v", err))
 	}
+	fdOwnedByOlm = true
 	return C.CString("Device added successfully")
 }
 

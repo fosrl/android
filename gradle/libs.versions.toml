@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.1"
+agp = "9.4.0"
 biometricKtxVersion = "1.4.0-alpha02"
 kotlin = "2.2.10"
 coreKtx = "1.10.1"
