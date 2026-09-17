@@ -1,11 +1,11 @@
 module github.com/fosrl/android
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/fosrl/newt v1.17.0
 	github.com/fosrl/olm v1.9.1
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
@@ -16,10 +16,10 @@ require (
 	github.com/miekg/dns v1.1.70 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
 	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
