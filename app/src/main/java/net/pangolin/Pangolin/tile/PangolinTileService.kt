@@ -7,12 +7,15 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.MainActivity
+import net.pangolin.Pangolin.PangolinApplication
+import net.pangolin.Pangolin.R
 import net.pangolin.Pangolin.util.TunnelManager
 
 class PangolinTileService : TileService() {
@@ -85,7 +88,14 @@ class PangolinTileService : TileService() {
 
         if (state.isServiceRunning || state.isConnecting) {
             scope.launch {
-                tunnelManager.disconnect()
+                val runtime = (application as PangolinApplication).runtime
+                if (!runtime.disconnectFromUser()) {
+                    Toast.makeText(
+                        this@PangolinTileService,
+                        R.string.disable_always_on_before_disconnect,
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
         } else {
             scope.launch {

@@ -1,6 +1,17 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
+        android:key="notificationSettings"
+        app:layout="@layout/preference_category_material_card">
+        <SwitchPreferenceCompat
+            android:key="persistentVpnNotification"
+            android:title="@string/persistent_vpn_notification_title"
+            android:summary="@string/persistent_vpn_notification_summary"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:layout="@layout/preference_category_material_card">
         <Preference
             android:title="See docs for more info on these settings"

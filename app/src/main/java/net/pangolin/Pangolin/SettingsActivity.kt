@@ -1,7 +1,13 @@
 
 package net.pangolin.Pangolin
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.view.ViewGroup
 import android.text.method.DigitsKeyListener
 import android.util.Patterns
@@ -44,9 +50,27 @@ class SettingsActivity : BaseNavigationActivity() {
 
     class SettingsFragment : PreferenceFragmentCompat() {
         private var isTunnelActive = false
+        private val notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (!granted) {
+                Toast.makeText(requireContext(), R.string.vpn_notification_permission_denied, Toast.LENGTH_LONG).show()
+            }
+        }
         
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
+
+            findPreference<androidx.preference.SwitchPreferenceCompat>("persistentVpnNotification")
+                ?.setOnPreferenceChangeListener { _, value ->
+                    if (value == true && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) !=
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    true
+                }
             
             // Add info preference at the top to show lock status
             val infoPreference = Preference(requireContext()).apply {
@@ -136,7 +160,7 @@ class SettingsActivity : BaseNavigationActivity() {
             infoPreference?.apply {
                 isVisible = isTunnelActive
                 title = "Tunnel active"
-                summary = "Settings cannot be changed while the tunnel is active. Please disconnect first."
+                summary = "Connection settings cannot be changed while the tunnel is active. Please disconnect first."
             }
         }
         
@@ -160,6 +184,9 @@ class SettingsActivity : BaseNavigationActivity() {
         private fun setPreferencesEnabledRecursive(preferenceGroup: androidx.preference.PreferenceGroup, enabled: Boolean) {
             for (i in 0 until preferenceGroup.preferenceCount) {
                 val preference = preferenceGroup.getPreference(i)
+
+                // Presentation only: keep the category and switch usable while connected.
+                if (preference.key == "notificationSettings") continue
                 
                 // Skip the info/link preference at the top
                 if (preference.key == null && preference.title?.toString()?.contains("docs") == true) {
