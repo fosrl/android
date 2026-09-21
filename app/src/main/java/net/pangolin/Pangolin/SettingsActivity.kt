@@ -185,8 +185,8 @@ class SettingsActivity : BaseNavigationActivity() {
             for (i in 0 until preferenceGroup.preferenceCount) {
                 val preference = preferenceGroup.getPreference(i)
 
-                // Presentation only: keep the category and switch usable while connected.
-                if (preference.key == "notificationSettings") continue
+                // Presentation only: keep this switch usable while connected.
+                if (preference.key == "persistentVpnNotification") continue
                 
                 // Skip the info/link preference at the top
                 if (preference.key == null && preference.title?.toString()?.contains("docs") == true) {
