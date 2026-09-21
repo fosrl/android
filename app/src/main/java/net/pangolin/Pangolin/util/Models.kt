@@ -12,7 +12,8 @@ data class Config(
     val primaryDNSServer: String? = null,
     val secondaryDNSServer: String? = null,
     val logCollectionEnabled: Boolean? = null,
-    val mtu: Int? = null
+    val mtu: Int? = null,
+    val persistentVpnNotification: Boolean = false
 )
 
 // MARK: - Account Types

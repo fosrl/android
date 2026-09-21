@@ -5,11 +5,17 @@
 
 package net.pangolin.Pangolin.PacketTunnel;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.util.Log;
@@ -24,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import androidx.annotation.Nullable;
 import androidx.collection.ArraySet;
@@ -38,13 +45,15 @@ public final class GoBackend implements Backend {
     private static final String TAG = "WireGuard/GoBackend";
     @Nullable private static AlwaysOnCallback alwaysOnCallback;
     private static CompletableFuture<VpnService> vpnService = new CompletableFuture<>();
+    private static volatile boolean persistentNotificationEnabled = false;
     private final Context context;
     @Nullable private Tunnel currentTunnel;
     @Nullable private TunnelConfig currentConfig;
     @Nullable private NetworkSettingsPoller networkSettingsPoller;
     @Nullable private SystemDnsMonitor systemDnsMonitor;
     @Nullable private ParcelFileDescriptor currentTunFd;
-    private boolean tunnelActive = false;
+    private final AtomicBoolean networkSettingsApplied = new AtomicBoolean(false);
+    private volatile boolean tunnelActive = false;
 
     /**
      * Public constructor for GoBackend.
@@ -64,6 +73,20 @@ public final class GoBackend implements Backend {
      */
     public static void setAlwaysOnCallback(final AlwaysOnCallback cb) {
         alwaysOnCallback = cb;
+    }
+
+    /** Keep the foreground notification aligned with data-path readiness. */
+    public void updateForegroundNotification(final boolean connected) {
+        final VpnService service = vpnService.getNow(null);
+        if (service != null)
+            service.updateForegroundNotification(connected);
+    }
+
+    public static void setPersistentNotificationEnabled(final boolean enabled) {
+        persistentNotificationEnabled = enabled;
+        final VpnService service = vpnService.getNow(null);
+        if (service != null)
+            service.refreshForegroundNotification();
     }
 
     private static native String initOlm(String configJSON);
@@ -180,6 +203,7 @@ public final class GoBackend implements Backend {
      * @param tunnelName The name of the tunnel for the VPN session
      */
     public void startNetworkSettingsPolling(final String tunnelName) {
+        networkSettingsApplied.set(false);
         if (networkSettingsPoller == null) {
             networkSettingsPoller = new NetworkSettingsPoller(this);
         }
@@ -212,6 +236,7 @@ public final class GoBackend implements Backend {
      * Stop polling for network settings changes.
      */
     public void stopNetworkSettingsPolling() {
+        networkSettingsApplied.set(false);
         if (networkSettingsPoller != null) {
             networkSettingsPoller.stopPolling();
             Log.d(TAG, "Stopped network settings polling");
@@ -301,6 +326,7 @@ public final class GoBackend implements Backend {
      */
     public boolean applyNetworkSettings(VpnService service, NetworkSettings settings, String tunnelName) {
         Log.d(TAG, "applyNetworkSettings called for tunnel: " + tunnelName);
+        networkSettingsApplied.set(false);
         try {
             final VpnService.Builder builder = service.getBuilder();
             Log.d(TAG, "Got VpnService.Builder");
@@ -334,6 +360,7 @@ public final class GoBackend implements Backend {
                     return false;
                 }
                 Log.d(TAG, "Successfully hot-swapped tunnel interface to Go backend: " + result);
+                networkSettingsApplied.set(true);
 
                 // Update the current tunnel fd reference
                 // Note: Since we detached the fd, we create a new ParcelFileDescriptor if needed
@@ -357,6 +384,11 @@ public final class GoBackend implements Backend {
             Log.e(TAG, "Failed to apply network settings", e);
             return false;
         }
+    }
+
+    /** Returns whether Android established and Go accepted the current session's settings. */
+    public boolean hasAppliedNetworkSettings() {
+        return networkSettingsApplied.get();
     }
 
     /**
@@ -384,7 +416,7 @@ public final class GoBackend implements Backend {
      */
     @Override
     public boolean isAlwaysOn() throws ExecutionException, InterruptedException, TimeoutException {
-        return vpnService.get(0, TimeUnit.NANOSECONDS).isAlwaysOn();
+        return vpnService.get(0, TimeUnit.NANOSECONDS).isAlwaysOnOwned();
     }
 
     /**
@@ -393,7 +425,8 @@ public final class GoBackend implements Backend {
      */
     @Override
     public boolean isLockdownEnabled() throws ExecutionException, InterruptedException, TimeoutException {
-        return vpnService.get(0, TimeUnit.NANOSECONDS).isLockdownEnabled();
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                vpnService.get(0, TimeUnit.NANOSECONDS).isLockdownEnabled();
     }
 
 
@@ -448,7 +481,12 @@ public final class GoBackend implements Backend {
            final VpnService service;
            if (!vpnService.isDone()) {
                Log.d(TAG, "Requesting to start VpnService");
-               context.startService(new Intent(context, VpnService.class));
+               final Intent serviceIntent = new Intent(context, VpnService.class)
+                       .setAction(VpnServiceRestartPolicy.ACTION_MANUAL_START);
+               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                   context.startForegroundService(serviceIntent);
+               else
+                   context.startService(serviceIntent);
            }
 
            try {
@@ -532,8 +570,12 @@ public final class GoBackend implements Backend {
                // Stop the VPN service since tunnel start failed
                try {
                    final VpnService svc = vpnService.get(2, TimeUnit.SECONDS);
-                   Log.i(TAG, "Stopping VPN service due to tunnel start failure");
-                   svc.stopSelf();
+                   if (svc.isAlwaysOnOwned()) {
+                       Log.i(TAG, "Keeping Always-On VPN service alive after tunnel start failure");
+                   } else {
+                       Log.i(TAG, "Stopping VPN service due to tunnel start failure");
+                       svc.stopSelf();
+                   }
                } catch (final TimeoutException te) {
                    Log.w(TAG, "VPN service not available when trying to stop after failure");
                    try {
@@ -555,6 +597,13 @@ public final class GoBackend implements Backend {
            startNetworkSettingsPolling(tunnel.getName());
 
        } else {
+           // Reconcile ownership while the interface still exists. A subsequent false
+           // isAlwaysOn() result after teardown cannot distinguish disable from recovery.
+           final VpnService previousService = vpnService.getNow(null);
+           final boolean retainAlwaysOnService = previousService != null && previousService.isAlwaysOnOwned();
+           if (retainAlwaysOnService)
+               previousService.updateForegroundNotification(false);
+
            // Always attempt to stop, even if tunnelActive is false
            // This ensures VPN service cleanup if tunnel didn't fully start
            if (!tunnelActive) {
@@ -585,8 +634,13 @@ public final class GoBackend implements Backend {
            // Stop the VPN service - give it time to start if it hasn't yet
            try {
                final VpnService service = vpnService.get(2, TimeUnit.SECONDS);
-               Log.i(TAG, "Stopping VPN service");
-               service.stopSelf();
+               if (service == previousService && retainAlwaysOnService && service.isAlwaysOnOwned()) {
+                   Log.i(TAG, "Keeping Always-On VPN service alive while rebuilding tunnel");
+                   service.updateForegroundNotification(false);
+               } else {
+                   Log.i(TAG, "Stopping VPN service");
+                   service.stopSelf();
+               }
            } catch (final TimeoutException e) {
                Log.w(TAG, "VPN service not available when trying to stop, may not have started yet");
                // Try to stop the service directly via context if it exists
@@ -609,6 +663,7 @@ public final class GoBackend implements Backend {
      */
     public interface AlwaysOnCallback {
         void alwaysOnTriggered();
+        void alwaysOnStopped();
     }
 
     /**
@@ -616,11 +671,18 @@ public final class GoBackend implements Backend {
      */
     public static class VpnService extends android.net.VpnService {
         private static final String TAG = "VpnService/PowerState";
-        @Nullable private GoBackend owner;
+        private static final String NOTIFICATION_CHANNEL_ID = "pangolin_vpn";
+        private static final int NOTIFICATION_ID = 1001;
+        @Nullable private volatile GoBackend owner;
         @Nullable private PowerManager powerManager;
         private boolean isReceiverRegistered = false;
         private boolean isInDozeMode = false;
         private boolean isInPowerSaveMode = false;
+        private volatile boolean alwaysOnOwned = false;
+        private volatile boolean ownershipRevoked = false;
+        private boolean notificationConnected = false;
+        private boolean systemBound = false;
+        private boolean notificationStopped = false;
 
         private final BroadcastReceiver powerStateReceiver = new BroadcastReceiver() {
             @Override
@@ -644,8 +706,9 @@ public final class GoBackend implements Backend {
 
         @Override
         public void onCreate() {
-            vpnService.complete(this);
             super.onCreate();
+            vpnService.complete(this);
+            updateForegroundNotification(false);
 
             // Initialize power manager and start monitoring
             powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -654,6 +717,11 @@ public final class GoBackend implements Backend {
 
         @Override
         public void onDestroy() {
+            synchronized (this) {
+                notificationStopped = true;
+            }
+            final boolean retainAlwaysOn = isAlwaysOnOwned();
+
             // Stop power state monitoring
             stopPowerStateMonitoring();
 
@@ -671,19 +739,140 @@ public final class GoBackend implements Backend {
                     tunnel.onStateChange(State.DOWN);
                 }
             }
-            vpnService = vpnService.newIncompleteFuture();
+            vpnService = new CompletableFuture<>();
+            stopForeground(STOP_FOREGROUND_REMOVE);
             super.onDestroy();
+
+            if (alwaysOnCallback != null) {
+                if (retainAlwaysOn)
+                    alwaysOnCallback.alwaysOnTriggered();
+                else
+                    alwaysOnCallback.alwaysOnStopped();
+            }
         }
 
         @Override
         public int onStartCommand(@Nullable final Intent intent, final int flags, final int startId) {
             vpnService.complete(this);
-            if (intent == null || intent.getComponent() == null || !intent.getComponent().getPackageName().equals(getPackageName())) {
+            ownershipRevoked = false;
+            final boolean platformAlwaysOn = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isAlwaysOn();
+            alwaysOnOwned = VpnServiceRestartPolicy.resolveStartOwnership(
+                    alwaysOnOwned,
+                    intent == null ? null : intent.getAction(),
+                    platformAlwaysOn || canQueryEstablishedOwnership(),
+                    platformAlwaysOn);
+
+            if (alwaysOnOwned) {
                 Log.d(TAG, "Service started by Always-on VPN feature");
                 if (alwaysOnCallback != null)
                     alwaysOnCallback.alwaysOnTriggered();
+            } else if (alwaysOnCallback != null) {
+                alwaysOnCallback.alwaysOnStopped();
             }
-            return super.onStartCommand(intent, flags, startId);
+            return VpnServiceRestartPolicy.shouldRestartAfterProcessDeath(alwaysOnOwned) ?
+                    START_STICKY : START_NOT_STICKY;
+        }
+
+        @Override
+        public void onRevoke() {
+            synchronized (this) {
+                notificationStopped = true;
+            }
+            ownershipRevoked = true;
+            alwaysOnOwned = false;
+            if (alwaysOnCallback != null)
+                alwaysOnCallback.alwaysOnStopped();
+            stopSelf();
+            super.onRevoke();
+        }
+
+        @Override
+        public synchronized IBinder onBind(final Intent intent) {
+            final IBinder binder = super.onBind(intent);
+            if (binder != null) {
+                systemBound = true;
+                refreshForegroundNotification();
+            }
+            return binder;
+        }
+
+        @Override
+        public synchronized boolean onUnbind(final Intent intent) {
+            systemBound = false;
+            notificationConnected = false;
+            refreshForegroundNotification();
+            return super.onUnbind(intent);
+        }
+
+        private synchronized void updateForegroundNotification(final boolean connected) {
+            notificationConnected = connected;
+            refreshForegroundNotification();
+        }
+
+        private synchronized void refreshForegroundNotification() {
+            if (notificationStopped) return;
+            if (!VpnNotificationPolicy.needsForegroundNotification(
+                    persistentNotificationEnabled, notificationConnected, systemBound)) {
+                // establish() binds VpnService from Android with BIND_AUTO_CREATE |
+                // BIND_FOREGROUND_SERVICE. Keep that VPN/binding intact; remove only
+                // our optional persistent notification and explicit foreground state.
+                stopForeground(STOP_FOREGROUND_REMOVE);
+                return;
+            }
+            final NotificationManager manager = getSystemService(NotificationManager.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager != null) {
+                manager.createNotificationChannel(new NotificationChannel(
+                        NOTIFICATION_CHANNEL_ID,
+                        getString(R.string.vpn_notification_channel),
+                        NotificationManager.IMPORTANCE_LOW));
+            }
+
+            final Intent launchIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            final PendingIntent pendingIntent = launchIntent == null ? null : PendingIntent.getActivity(
+                    this,
+                    0,
+                    launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            final Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+                    new Notification.Builder(this, NOTIFICATION_CHANNEL_ID) :
+                    new Notification.Builder(this);
+            builder.setSmallIcon(R.drawable.ic_vpn_lock)
+                    .setContentTitle(getString(R.string.vpn_notification_title))
+                    .setContentText(getString(notificationConnected ?
+                            R.string.vpn_notification_connected :
+                            R.string.vpn_notification_connecting))
+                    .setCategory(Notification.CATEGORY_SERVICE)
+                    .setOngoing(true)
+                    .setOnlyAlertOnce(true);
+            if (pendingIntent != null)
+                builder.setContentIntent(pendingIntent);
+            final Notification notification = builder.build();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        }
+
+        boolean isAlwaysOnOwned() {
+            final boolean platformAlwaysOn = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isAlwaysOn();
+            alwaysOnOwned = VpnServiceRestartPolicy.resolveOwnership(
+                    alwaysOnOwned,
+                    platformAlwaysOn || canQueryEstablishedOwnership(),
+                    platformAlwaysOn,
+                    ownershipRevoked);
+            return alwaysOnOwned;
+        }
+
+        private boolean canQueryEstablishedOwnership() {
+            // Android's isAlwaysOn() checks the owner of an *established* VPN.
+            // Before establish(), false means "not established", not "Always-On disabled".
+            // Preserve the system-start latch during bootstrap and tunnel reconstruction;
+            // once up, the platform can authoritatively report enable/disable changes.
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && owner != null && owner.tunnelActive;
         }
 
         public void setOwner(final GoBackend owner) {
