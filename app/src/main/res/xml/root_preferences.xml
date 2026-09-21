@@ -17,6 +17,12 @@
         app:layout="@layout/preference_category_material_card">
 
         <SwitchPreferenceCompat
+            android:key="persistentVpnNotification"
+            android:title="@string/persistent_vpn_notification_title"
+            android:summary="@string/persistent_vpn_notification_summary"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
             android:key="overrideDns"
             android:summary="When enabled, the client uses custom DNS servers to resolve internal resources and aliases. This overrides your system's default DNS settings. Queries that cannot be resolved as a Pangolin resource will be forwarded to your configured Upstream DNS Server."
             android:title="Enable Aliases (DNS Override)"

@@ -12,6 +12,7 @@ sealed class AuthError : Exception() {
     object NoOrganizationSelected : AuthError()
     object DeviceAuthTimeout : AuthError()
     object DeviceAuthCancelled : AuthError()
+    object AlwaysOnActive : AuthError()
     data class NetworkError(val originalError: Throwable) : AuthError()
     data class APIError(val originalError: Throwable) : AuthError()
 
@@ -21,6 +22,7 @@ sealed class AuthError : Exception() {
             is NoOrganizationSelected -> "No organization selected"
             is DeviceAuthTimeout -> "Device authentication timed out"
             is DeviceAuthCancelled -> "Device authentication was cancelled"
+            is AlwaysOnActive -> "Disable Always-On VPN in Android settings before changing accounts or organizations."
             is NetworkError -> "Network error: ${originalError.message}"
             is APIError -> "API error: ${originalError.message}"
         }
@@ -77,6 +79,15 @@ class AuthManager(
     val isDeviceAuthInProgress: StateFlow<Boolean> = _isDeviceAuthInProgress.asStateFlow()
 
     private var deviceAuthJob: Job? = null
+    internal var requestUserDisconnect: (suspend () -> Boolean)? = null
+
+    private suspend fun disconnectForUserMutation() {
+        val state = tunnelManager?.tunnelState?.value ?: return
+        val tunnelActive = state.isServiceRunning || state.isConnecting || state.isSocketConnected
+        UserDisconnectGate.requireDisconnectIfNeeded(tunnelActive) {
+            requestUserDisconnect?.invoke() ?: false
+        }
+    }
 
     init {
         // Set up API client unauthorized callback
@@ -333,6 +344,9 @@ class AuthManager(
      * Handle successful authentication from external source (used by DeviceAuthService)
      */
     suspend fun handleSuccessfulAuth(user: User, hostname: String, token: String) {
+        // Authentication completion changes persisted credentials and the active account.
+        disconnectForUserMutation()
+
         _currentUser.value = user
 
         secretManager.saveSecret("session-token-${user.userId}", token)
@@ -472,20 +486,14 @@ class AuthManager(
                 return
             }
 
+            // Gate every account mutation before token cleanup or active-account changes.
+            disconnectForUserMutation()
+
             val token = secretManager.getSecret("session-token-$userId")
             if (token == null) {
                 Log.e(tag, "No session token for user $userId")
                 accountManager.removeAccount(userId)
                 return
-            }
-
-            // Step 0: Disconnect tunnel if running
-            tunnelManager?.let { tm ->
-                val currentState = tm.tunnelState.value
-                if (currentState.isServiceRunning || currentState.isConnecting) {
-                    Log.i(tag, "Disconnecting tunnel before switching accounts")
-                    tm.disconnect()
-                }
             }
 
             // Step 1: Switch account locally first
@@ -601,14 +609,8 @@ class AuthManager(
 
             Log.i(tag, "=== ORG SWITCH: Switching user ${user.userId} to org ${organization.orgId} (${organization.name}) ===")
             
-            // Disconnect tunnel if running before switching orgs
-            tunnelManager?.let { tm ->
-                val currentState = tm.tunnelState.value
-                if (currentState.isServiceRunning || currentState.isConnecting) {
-                    Log.i(tag, "Disconnecting tunnel before switching organizations")
-                    tm.disconnect()
-                }
-            }
+            // Disconnect only after the Android Always-On ownership gate approves it.
+            disconnectForUserMutation()
             
             accountManager.setUserOrganization(user.userId, organization.orgId)
             _currentOrg.value = organization
@@ -721,6 +723,9 @@ class AuthManager(
     }
 
     suspend fun logout(): Boolean {
+        // Do not mutate server or local account state while Android still owns the tunnel.
+        disconnectForUserMutation()
+
         // Use activeAccount from AccountManager instead of _currentUser
         // because _currentUser can be null when server is down
         val activeAccount = accountManager.activeAccount
@@ -778,5 +783,14 @@ class AuthManager(
             Log.i(tag, "=== LOGOUT COMPLETE - No more accounts available ===")
             return false
         }
+    }
+}
+
+internal object UserDisconnectGate {
+    suspend fun requireDisconnectIfNeeded(
+        tunnelActive: Boolean,
+        requestDisconnect: suspend () -> Boolean,
+    ) {
+        if (tunnelActive && !requestDisconnect()) throw AuthError.AlwaysOnActive
     }
 }
