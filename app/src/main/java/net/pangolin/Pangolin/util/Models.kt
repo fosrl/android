@@ -290,6 +290,7 @@ data class SocketPeer(
     val lastSeen: String? = null,
     val endpoint: String? = null,
     val isRelay: Boolean? = null
+    val isLocal: Boolean? = null
 )
 
 // ExitNode represents the connectivity status of the client's own exit node
