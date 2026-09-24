@@ -5,6 +5,7 @@
 
 package net.pangolin.Pangolin.PacketTunnel;
 
+import android.net.IpPrefix;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Handler;
@@ -363,6 +364,34 @@ public class NetworkSettingsPoller {
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to add IPv4 route", e);
+                }
+            }
+        }
+
+        // Add IPv4 excluded routes (e.g. a site's live endpoint kept out of a
+        // broader included route such as a full-tunnel/gateway default route
+        // - see network.AddBypassRouteForDestination on the Go side).
+        // VpnService.Builder.excludeRoute(IpPrefix) is API 33+ only; below
+        // that, this is a known limitation - the destination can't be
+        // protected from an overlapping included route at the OS level.
+        List<IPv4Route> ipv4ExcludedRoutes = settings.getIpv4ExcludedRoutes();
+        if (ipv4ExcludedRoutes != null) {
+            for (IPv4Route route : ipv4ExcludedRoutes) {
+                String destinationAddress = route.getDestinationAddress();
+                if (destinationAddress == null) {
+                    continue;
+                }
+                int prefixLength = route.getPrefixLength();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    try {
+                        builder.excludeRoute(new IpPrefix(InetAddress.getByName(destinationAddress), prefixLength));
+                        Log.d(TAG, "Excluded IPv4 route: " + destinationAddress + "/" + prefixLength);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Failed to exclude route " + destinationAddress + "/" + prefixLength, e);
+                    }
+                } else {
+                    Log.w(TAG, "Cannot exclude route " + destinationAddress
+                        + " on Android < 13 (API 33); gateway site connectivity may be affected");
                 }
             }
         }
