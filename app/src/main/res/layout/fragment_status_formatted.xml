@@ -194,7 +194,7 @@
                     android:layout_height="1dp"
                     android:background="?android:attr/dividerHorizontal" />
 
-                <!-- Gateway (Exit Node) Row -->
+                <!-- Exit Node (gateway) Row -->
                 <LinearLayout
                     android:id="@+id/gatewayRow"
                     android:layout_width="match_parent"
@@ -206,7 +206,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Gateway"
+                        android:text="Exit Node"
                         android:textSize="16sp"
                         android:textColor="?android:attr/textColorPrimary" />
 

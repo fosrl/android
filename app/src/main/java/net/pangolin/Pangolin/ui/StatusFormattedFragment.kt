@@ -334,7 +334,7 @@ class StatusFormattedFragment : Fragment() {
         addDetailRow(content, "Last Seen", relativeTime(details.lastSeen))
         addDetailRow(
             content,
-            "Gateway",
+            "Exit Node",
             when (details.gateway) {
                 true -> "Yes"
                 false -> "No"
