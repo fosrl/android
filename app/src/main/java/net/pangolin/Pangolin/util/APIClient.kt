@@ -266,6 +266,35 @@ class APIClient(
         return parseResponse(response)
     }
 
+    /**
+     * Every gateway-mode site resource (exit node) in the org that can be selected, fetching all
+     * pages. Disabled resources and ones with no sites are dropped since they can't carry traffic.
+     */
+    suspend fun listGatewayResources(orgId: String): List<SiteResource> {
+        val pageSize = 100
+        val gateways = mutableListOf<SiteResource>()
+        var page = 1
+        while (true) {
+            val response = makeRequest(
+                "GET",
+                "/org/$orgId/site-resources?mode=gateway&page=$page&pageSize=$pageSize"
+            )
+            val result: ListSiteResourcesResponse = parseResponse(response)
+
+            // Servers that predate gateway mode ignore the unknown filter value and return
+            // every resource, so filter again here.
+            gateways.addAll(
+                result.siteResources.filter {
+                    it.mode == "gateway" && it.enabled && it.siteIds.isNotEmpty()
+                }
+            )
+
+            if (result.siteResources.size < pageSize) break
+            page++
+        }
+        return gateways
+    }
+
     suspend fun createOlm(userId: String, name: String): CreateOlmResponse {
         val requestBody = json.encodeToString(CreateOlmRequest(name))
         val response = makeRequest("PUT", "/user/$userId/olm", requestBody)

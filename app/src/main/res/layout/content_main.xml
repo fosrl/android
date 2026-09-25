@@ -403,6 +403,63 @@
 
                 </LinearLayout>
 
+                <!-- Exit Node Section (only shown when the org has exit nodes) -->
+                <LinearLayout
+                    android:id="@+id/exit_node_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Exit Node"
+                        android:textSize="12sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                         />
+
+                    <LinearLayout
+                        android:id="@+id/exit_node_button_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_public"
+                            android:tint="@color/pangolin_primary"
+                            android:contentDescription="Exit node icon" />
+
+                        <TextView
+                            android:id="@+id/tv_exit_node_name"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:text="None"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_arrow_forward"
+                            android:tint="?attr/colorOnSurfaceVariant"
+                            android:contentDescription="Navigate" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
                 <!-- Watermark Message -->
                 <TextView
                     android:id="@+id/tv_watermark_message"

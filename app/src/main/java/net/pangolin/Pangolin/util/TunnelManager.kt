@@ -13,8 +13,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -66,6 +69,44 @@ class TunnelManager private constructor(
     // Connection status from socket
     private val _connectionStatus = MutableStateFlow<SocketStatusResponse?>(null)
     val connectionStatus: StateFlow<SocketStatusResponse?> = _connectionStatus.asStateFlow()
+
+    // Exit nodes (gateway-mode site resources). The fetched list belongs to a single org, so it
+    // is tagged with that org and only shown while it is still the current one.
+    private data class ExitNodeList(val orgId: String?, val nodes: List<SiteResource>)
+
+    private val _exitNodeList = MutableStateFlow(ExitNodeList(null, emptyList()))
+
+    // The exit node saved in the config (org, niceId), applied on the next connect
+    private val _savedExitNode = MutableStateFlow(configManager.getExitNode())
+
+    /**
+     * The exit nodes available in the current org (empty when there are none) and the selected
+     * one's site resource ID, or null for none. While connected the selection is what olm
+     * reports (so it follows the server disabling a gateway); otherwise it is the saved choice.
+     */
+    val exitNodeState: StateFlow<ExitNodeUiState> = combine(
+        _exitNodeList,
+        _savedExitNode,
+        authManager.currentOrg,
+        _connectionStatus,
+        _tunnelState
+    ) { list, saved, org, status, state ->
+        val orgId = org?.orgId
+        val nodes = if (orgId != null && list.orgId == orgId) list.nodes else emptyList()
+        val live = state.isServiceRunning && state.isSocketConnected && state.isRegistered
+        val activeId = if (live) {
+            if (status?.gatewayActive == true) status.gatewaySiteResourceId else null
+        } else {
+            saved?.let { (savedOrgId, savedNiceId) ->
+                if (savedOrgId == null || savedOrgId == orgId) {
+                    nodes.firstOrNull { it.niceId == savedNiceId }?.siteResourceId
+                } else {
+                    null
+                }
+            }
+        }
+        ExitNodeUiState(nodes, activeId)
+    }.stateIn(scope, SharingStarted.Eagerly, ExitNodeUiState(emptyList(), null))
 
     // OLM error flow - exposes errors from status polling that need user attention
     val olmErrorFlow: SharedFlow<OlmError>?
@@ -252,6 +293,9 @@ class TunnelManager private constructor(
             val initialFingerprint = fpCollector.gatherFingerprintInfo()
             val initialPostures = fpCollector.gatherPostureChecks()
 
+            // Re-apply the saved exit node, if any, as the tunnel comes up
+            val savedGateway = resolveSavedExitNode(orgId)
+
             // Start tunnel
             withContext(Dispatchers.IO) {
                 val initConfigBuilder = InitConfig.Builder()
@@ -295,6 +339,7 @@ class TunnelManager private constructor(
                     .setTunnelDNS(tunnelDns)
                     .setFingerprint(initialFingerprint.toMap())
                     .setPostures(initialPostures.toMap())
+                    .setGateway(savedGateway?.siteResourceId ?: 0, savedGateway?.siteIds ?: emptyList())
                     .build()
 
                 Log.d(tag, "=== TUNNEL CONFIG: Starting tunnel with OLM ID: $olmId, Org ID: $orgId ===")
@@ -380,6 +425,93 @@ class TunnelManager private constructor(
                 statusMessage = "Disconnection failed",
                 errorMessage = e.message ?: "Unknown error"
             ))
+        }
+    }
+
+    // MARK: - Exit Nodes
+
+    /** Reloads the current org's exit nodes from the server. */
+    suspend fun refreshExitNodes() {
+        val org = authManager.currentOrg.value ?: return
+        if (!authManager.isAuthenticated.value || authManager.sessionExpired.value) return
+
+        try {
+            val gateways = authManager.apiClient.listGatewayResources(org.orgId)
+            _exitNodeList.value = ExitNodeList(org.orgId, gateways)
+        } catch (e: Exception) {
+            // Keep whatever we had; the server may just be unreachable.
+            Log.e(tag, "Failed to list exit nodes", e)
+        }
+    }
+
+    private fun isTunnelLive(): Boolean {
+        val state = _tunnelState.value
+        return state.isServiceRunning && state.isSocketConnected && state.isRegistered
+    }
+
+    /**
+     * Routes all traffic through the given exit node. With the tunnel up it takes effect
+     * immediately; otherwise the choice is saved and applied on the next connect.
+     * Returns an error message to show the user, or null on success.
+     */
+    suspend fun selectExitNode(node: SiteResource): String? {
+        val orgId = authManager.currentOrg.value?.orgId ?: return "No organization selected"
+
+        if (isTunnelLive()) {
+            try {
+                socketManager.selectGateway(node.siteResourceId, node.siteIds)
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to select exit node", e)
+                return "Failed to route traffic through ${node.name}: ${e.message}"
+            }
+        }
+
+        configManager.setExitNode(orgId, node.niceId)
+        _savedExitNode.value = configManager.getExitNode()
+        return null
+    }
+
+    /**
+     * Stops routing traffic through an exit node and forgets the saved choice.
+     * Returns an error message to show the user, or null on success.
+     */
+    suspend fun disableExitNode(): String? {
+        if (isTunnelLive()) {
+            try {
+                socketManager.disableGateway()
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to disable exit node", e)
+                return "Failed to disable the exit node: ${e.message}"
+            }
+        }
+
+        configManager.setExitNode(null, null)
+        _savedExitNode.value = configManager.getExitNode()
+        return null
+    }
+
+    /**
+     * Turns the saved exit node into the resource and site IDs to establish when connecting, or
+     * null to connect without one. Only the niceId is saved, so a deleted, disabled or site-less
+     * resource is skipped.
+     */
+    private suspend fun resolveSavedExitNode(orgId: String): SiteResource? {
+        val (savedOrgId, savedNiceId) = configManager.getExitNode() ?: return null
+        if (savedOrgId != null && savedOrgId != orgId) {
+            Log.i(tag, "Saved exit node belongs to a different organization; not using it")
+            return null
+        }
+
+        return try {
+            val gateway = authManager.apiClient.listGatewayResources(orgId)
+                .firstOrNull { it.niceId == savedNiceId }
+            if (gateway == null) {
+                Log.w(tag, "Saved exit node no longer exists or is disabled; not using it")
+            }
+            gateway
+        } catch (e: Exception) {
+            Log.w(tag, "Could not look up saved exit node (${e.message}); connecting without it")
+            null
         }
     }
 
@@ -618,6 +750,12 @@ internal class ReadinessEpoch {
 /**
  * Represents the current state of the VPN tunnel
  */
+/** The exit nodes available in the current org and the selected one's site resource ID, if any. */
+data class ExitNodeUiState(
+    val nodes: List<SiteResource>,
+    val activeId: Int?
+)
+
 data class TunnelState(
     val isServiceRunning: Boolean = false,
     val isConnecting: Boolean = false,

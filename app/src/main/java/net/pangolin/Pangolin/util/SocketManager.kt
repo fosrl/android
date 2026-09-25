@@ -54,6 +54,19 @@ class SocketManager(
         return performRequest("POST", "/switch-org", body)
     }
 
+    /**
+     * Routes all tunnel traffic through the given sites (the exit node). [siteResourceId] is the
+     * gateway site resource they belong to; olm uses it to apply later server-pushed changes to
+     * that resource only. Every site must already be a connected peer.
+     */
+    suspend fun selectGateway(siteResourceId: Int, siteIds: List<Int>): SocketGatewayResponse {
+        val body = json.encodeToString(SocketSelectGatewayRequest(siteResourceId, siteIds))
+        return performRequest("POST", "/gateway/select", body)
+    }
+
+    /** Stops routing all tunnel traffic through an exit node. */
+    suspend fun disableGateway(): SocketGatewayResponse = performRequest("POST", "/gateway/disable")
+
     suspend fun updateMetadata(fingerprint: Fingerprint, postures: Postures): UpdateMetadataResponse {
         val body = json.encodeToString(UpdateMetadataRequest(fingerprint, postures))
         return performRequest("PUT", "/metadata", body)
@@ -90,7 +103,8 @@ class SocketManager(
         val responseData = connectAndSend(fullRequest)
         val (statusCode, responseBody) = parseHTTPResponse(responseData)
 
-        if (statusCode != 200) {
+        // select-gateway answers 202 Accepted
+        if (statusCode !in 200..299) {
             throw SocketError.HttpError(statusCode, responseBody)
         }
 

@@ -20,6 +20,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 import net.pangolin.Pangolin.databinding.ActivityMainBinding
@@ -239,6 +241,13 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
 
+        // Setup exit node card click listener
+        contentBinding.exitNodeButtonLayout.setOnClickListener {
+            if (!authManager.sessionExpired.value) {
+                showExitNodePickerDialog()
+            }
+        }
+
         // Setup links card click listeners
         contentBinding.linkDashboard.setOnClickListener {
             val activeAccount = accountManager.activeAccount
@@ -315,6 +324,31 @@ class MainActivity : BaseNavigationActivity() {
         lifecycleScope.launch {
             authManager.currentOrg.collect {
                 updateAccountOrgCard()
+            }
+        }
+
+        // Observe the available exit nodes and the selected one
+        lifecycleScope.launch {
+            tunnelManager.exitNodeState.collect {
+                updateExitNodeSection()
+            }
+        }
+
+        // Reload the exit nodes when the org changes, sign-in completes, or the tunnel connects
+        // (connecting applies the saved exit node)
+        lifecycleScope.launch {
+            authManager.currentOrg.collect {
+                tunnelManager.refreshExitNodes()
+            }
+        }
+        lifecycleScope.launch {
+            authManager.isAuthenticated.collect { authenticated ->
+                if (authenticated) tunnelManager.refreshExitNodes()
+            }
+        }
+        lifecycleScope.launch {
+            tunnelManager.tunnelState.map { it.isFullyConnected }.distinctUntilChanged().collect { connected ->
+                if (connected) tunnelManager.refreshExitNodes()
             }
         }
 
@@ -466,10 +500,24 @@ class MainActivity : BaseNavigationActivity() {
                 contentBinding.organizationButtonLayout.isEnabled = false
                 contentBinding.organizationButtonLayout.alpha = 0.5f
             }
+            updateExitNodeSection()
         } else {
             // Hide the card only if there's no account at all
             contentBinding.accountOrgCard.visibility = View.GONE
         }
+    }
+
+    /**
+     * Shows the exit node section under the organization when the org has exit nodes, with the
+     * selected one's name (or "None"). Hidden when there are none or the session expired.
+     */
+    private fun updateExitNodeSection() {
+        val state = tunnelManager.exitNodeState.value
+        val hasOrg = authManager.currentOrg.value != null
+        val show = hasOrg && !authManager.sessionExpired.value && state.nodes.isNotEmpty()
+        contentBinding.exitNodeSection.visibility = if (show) View.VISIBLE else View.GONE
+        contentBinding.tvExitNodeName.text =
+            state.nodes.firstOrNull { it.siteResourceId == state.activeId }?.name ?: "None"
     }
 
     private fun updateErrorMessage() {
@@ -550,8 +598,9 @@ class MainActivity : BaseNavigationActivity() {
         contentBinding.statusCard.alpha = 1.0f
         contentBinding.statusCard.setOnClickListener(null)
         
-        // Hide organization selector and watermark when session expired
+        // Hide organization selector, exit node selector and watermark when session expired
         contentBinding.organizationSection.visibility = View.GONE
+        contentBinding.exitNodeSection.visibility = View.GONE
         contentBinding.tvWatermarkMessage.visibility = View.GONE
     }
 
@@ -786,6 +835,56 @@ class MainActivity : BaseNavigationActivity() {
                     }
                 } else {
                     Log.i("MainActivity", "=== UI: User selected same org, no change needed ===")
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showExitNodePickerDialog() {
+        val state = tunnelManager.exitNodeState.value
+        val nodes = state.nodes
+        if (nodes.isEmpty()) return
+
+        // Switching mid-connect would miss the tunnel that is still coming up
+        val tunnelState = tunnelManager.tunnelState.value
+        if (tunnelState.isServiceRunning && !(tunnelState.isSocketConnected && tunnelState.isRegistered)) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Please Wait")
+                .setMessage("Wait for the connection to finish before changing the exit node.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        // "None" first, then each exit node
+        val names = (listOf("None") + nodes.map { it.name }).toTypedArray()
+        val activeIndex = nodes.indexOfFirst { it.siteResourceId == state.activeId }
+        val checkedItem = if (activeIndex >= 0) activeIndex + 1 else 0
+
+        val icon = ContextCompat.getDrawable(this, R.drawable.ic_public)
+        icon?.setTint(ContextCompat.getColor(this, R.color.pangolin_primary))
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Select Exit Node")
+            .setIcon(icon)
+            .setSingleChoiceItems(names, checkedItem) { dialog, which ->
+                if (which != checkedItem) {
+                    lifecycleScope.launch {
+                        val error = if (which == 0) {
+                            tunnelManager.disableExitNode()
+                        } else {
+                            tunnelManager.selectExitNode(nodes[which - 1])
+                        }
+                        if (error != null) {
+                            MaterialAlertDialogBuilder(this@MainActivity)
+                                .setTitle("Exit Node Failed")
+                                .setMessage(error)
+                                .setPositiveButton("OK", null)
+                                .show()
+                        }
+                    }
                 }
                 dialog.dismiss()
             }

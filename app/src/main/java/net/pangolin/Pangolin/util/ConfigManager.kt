@@ -65,6 +65,31 @@ class ConfigManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * The org and niceId of the selected exit node (a gateway site resource), or null if none is
+     * selected. Only the niceId is stored so the resource's current ID and sites are always
+     * looked up from the server on connect rather than going stale.
+     */
+    fun getExitNode(): Pair<String?, String>? {
+        val niceId = prefs.getString(KEY_EXIT_NODE_NICE_ID, null)
+        if (niceId.isNullOrEmpty()) return null
+        return Pair(prefs.getString(KEY_EXIT_NODE_ORG_ID, null), niceId)
+    }
+
+    /** Records the selected exit node; a null niceId clears the selection. */
+    fun setExitNode(orgId: String?, niceId: String?) {
+        prefs.edit().apply {
+            if (niceId.isNullOrEmpty()) {
+                remove(KEY_EXIT_NODE_NICE_ID)
+                remove(KEY_EXIT_NODE_ORG_ID)
+            } else {
+                putString(KEY_EXIT_NODE_NICE_ID, niceId)
+                if (orgId != null) putString(KEY_EXIT_NODE_ORG_ID, orgId) else remove(KEY_EXIT_NODE_ORG_ID)
+            }
+            apply()
+        }
+    }
+
     fun updateConfig(block: (Config) -> Config) {
         val newConfig = block(_config.value)
         save(newConfig)
@@ -75,6 +100,9 @@ class ConfigManager private constructor(context: Context) {
     }
 
     companion object {
+        private const val KEY_EXIT_NODE_NICE_ID = "exitNodeNiceId"
+        private const val KEY_EXIT_NODE_ORG_ID = "exitNodeOrgId"
+
         @Volatile
         private var instance: ConfigManager? = null
 

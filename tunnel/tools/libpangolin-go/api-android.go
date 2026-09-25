@@ -43,6 +43,12 @@ type StartTunnelConfig struct {
 	TunnelDNS           bool           `json:"tunnelDNS"`
 	Fingerprint         map[string]any `json:"fingerprint"`
 	Postures            map[string]any `json:"postures"`
+
+	// GatewaySiteResourceID/GatewaySiteIDs, when set, establish the exit node (gateway) as the
+	// tunnel comes up. The resource ID is what olm uses to apply later server-pushed changes
+	// to that resource only.
+	GatewaySiteResourceID int   `json:"gatewaySiteResourceId"`
+	GatewaySiteIDs        []int `json:"gatewaySiteIds"`
 }
 
 var (
@@ -141,6 +147,9 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 		OrgID:                config.OrgID,
 		InitialFingerprint:   config.Fingerprint,
 		InitialPostures:      config.Postures,
+
+		GatewaySiteResourceId: config.GatewaySiteResourceID,
+		GatewaySiteIds:        config.GatewaySiteIDs,
 	}
 
 	// print the config for debugging

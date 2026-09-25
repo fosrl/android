@@ -36,6 +36,9 @@ public class TunnelConfig {
     private final boolean tunnelDNS;
     private final Map<String, Object> fingerprint;
     private final Map<String, Object> postures;
+    // The exit node (gateway site resource) to establish as the tunnel comes up; 0 / empty for none.
+    private final int gatewaySiteResourceId;
+    private final List<Integer> gatewaySiteIds;
 
     private TunnelConfig(Builder builder) {
         this.endpoint = builder.endpoint;
@@ -53,6 +56,8 @@ public class TunnelConfig {
         this.tunnelDNS = builder.tunnelDNS;
         this.fingerprint = builder.fingerprint;
         this.postures = builder.postures;
+        this.gatewaySiteResourceId = builder.gatewaySiteResourceId;
+        this.gatewaySiteIds = builder.gatewaySiteIds;
     }
 
     /**
@@ -91,6 +96,15 @@ public class TunnelConfig {
 
         json.put("fingerprint", new JSONObject(fingerprint));
         json.put("postures", new JSONObject(postures));
+
+        if (gatewaySiteResourceId > 0 && !gatewaySiteIds.isEmpty()) {
+            json.put("gatewaySiteResourceId", gatewaySiteResourceId);
+            JSONArray gatewaySiteIdsArray = new JSONArray();
+            for (Integer siteId : gatewaySiteIds) {
+                gatewaySiteIdsArray.put(siteId.intValue());
+            }
+            json.put("gatewaySiteIds", gatewaySiteIdsArray);
+        }
         
         return json.toString();
     }
@@ -149,6 +163,14 @@ public class TunnelConfig {
         return tunnelDNS;
     }
 
+    public int getGatewaySiteResourceId() {
+        return gatewaySiteResourceId;
+    }
+
+    public List<Integer> getGatewaySiteIds() {
+        return gatewaySiteIds;
+    }
+
     @Override
     public String toString() {
         return "TunnelConfig{" +
@@ -167,6 +189,8 @@ public class TunnelConfig {
                 ", tunnelDNS=" + tunnelDNS +
                 ", fingerprint=" + fingerprint +
                 ", postures=" + postures +
+                ", gatewaySiteResourceId=" + gatewaySiteResourceId +
+                ", gatewaySiteIds=" + gatewaySiteIds +
                 '}';
     }
 
@@ -189,6 +213,8 @@ public class TunnelConfig {
         private boolean tunnelDNS = false;
         private Map<String, Object> fingerprint = new HashMap<>();
         private Map<String, Object> postures = new HashMap<>();
+        private int gatewaySiteResourceId = 0;
+        private List<Integer> gatewaySiteIds = new ArrayList<>();
 
         public Builder setEndpoint(String endpoint) {
             this.endpoint = endpoint;
@@ -267,6 +293,16 @@ public class TunnelConfig {
 
         public Builder setPostures(Map<String, Object> postures) {
             this.postures = postures;
+            return this;
+        }
+
+        /**
+         * Establish the given exit node (gateway site resource) as the tunnel comes up.
+         * The resource ID is what olm uses to apply later server-pushed changes to it.
+         */
+        public Builder setGateway(int siteResourceId, List<Integer> siteIds) {
+            this.gatewaySiteResourceId = siteResourceId;
+            this.gatewaySiteIds = siteIds != null ? siteIds : new ArrayList<>();
             return this;
         }
 
