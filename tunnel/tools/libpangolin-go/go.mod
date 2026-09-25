@@ -12,7 +12,11 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/nftables v0.3.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
+	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/miekg/dns v1.1.70 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
@@ -32,5 +36,6 @@ require (
 )
 
 // To be used ONLY for local development
-// replace github.com/fosrl/olm => /home/owen/fossorial/olm
-// replace github.com/fosrl/newt => /home/owen/fossorial/newt
+replace github.com/fosrl/olm => /home/owen/fossorial/olm
+
+replace github.com/fosrl/newt => /home/owen/fossorial/newt

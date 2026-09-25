@@ -13,58 +13,77 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingVertical="20dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="12dp">
 
-        <!-- Peer Header (Name and Status) -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/peerName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Peer Name"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="?android:attr/textColorPrimary" />
-
+            <!-- Peer Header (Name and Status) -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <View
-                    android:id="@+id/peerStatusIndicator"
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/status_indicator" />
-
                 <TextView
-                    android:id="@+id/peerStatus"
+                    android:id="@+id/peerName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Peer Name"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:attr/textColorPrimary" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Connected"
-                    android:textSize="16sp"
-                    android:textColor="?android:attr/textColorSecondary" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <View
+                        android:id="@+id/peerStatusIndicator"
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/status_indicator" />
+
+                    <TextView
+                        android:id="@+id/peerStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Connected"
+                        android:textSize="16sp"
+                        android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
             </LinearLayout>
+
+            <!-- Peer Endpoint -->
+            <TextView
+                android:id="@+id/peerEndpoint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="192.168.1.1:51820"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:fontFamily="monospace" />
         </LinearLayout>
 
-        <!-- Peer Endpoint -->
-        <TextView
-            android:id="@+id/peerEndpoint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="192.168.1.1:51820"
-            android:textSize="14sp"
-            android:textColor="?android:attr/textColorSecondary"
-            android:fontFamily="monospace" />
+        <!-- Chevron: shows the peer can be tapped for details -->
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="?android:attr/textColorSecondary"
+            android:importantForAccessibility="no" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
