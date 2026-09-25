@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0
  *
  * Copyright © 2017-2021 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright © 2025-2026 Fossorial, Inc. <support@pangolin.net>. All Rights Reserved.
  */
 
 #include <jni.h>
