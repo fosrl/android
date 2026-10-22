@@ -59,6 +59,13 @@ var (
 	olmInstance   *olmpkg.Olm
 )
 
+// olmVersionOverride is the version of the github.com/fosrl/olm module this
+// library was built against (with any "v" prefix stripped), set via -ldflags
+// from go.mod (see Makefile). It's passed to olm as OlmConfig.OlmVersion so
+// the server sees the olm version separately from the app's Version. If it
+// wasn't set, olm falls back to reading its module version from build info.
+var olmVersionOverride string
+
 //export initOlm
 func initOlm(configJSON *C.char) *C.char {
 	// Initialize OLM logger with current log level
@@ -92,6 +99,7 @@ func initOlm(configJSON *C.char) *C.char {
 		SocketPath: config.SocketPath,
 		Version:    config.Version,
 		Agent:      config.Agent,
+		OlmVersion: olmVersionOverride,
 	}
 
 	// Initialize OLM with context and config
