@@ -27,13 +27,21 @@ data class Account(
     var orgId: String,
     var username: String? = null,
     var name: String? = null,
-    // The exit node (a gateway-mode site resource) selected for this account, re-applied on
-    // the next connect. It can differ per account, so it's stored here rather than in
-    // ConfigManager, and it belongs to the account's currently selected org (orgId above). Only
-    // the resource ID is stored (not the niceId, which can be renamed); its sites are looked up
-    // from the server on every connect so they can't go stale.
-    var exitNodeResourceId: Int? = null
-)
+    // Per-org settings keyed by org ID. Org IDs are only unique within the account's server, so
+    // the map lives on the account.
+    val orgSettings: Map<String, OrgSettings>? = null
+) {
+    @Serializable
+    data class OrgSettings(
+        // The exit node (a gateway-mode site resource) selected for this org, re-applied on the
+        // next connect. Only the resource ID is stored (not the niceId, which can be renamed);
+        // its sites are looked up from the server on every connect so they can't go stale.
+        val exitNodeResourceId: Int? = null
+    ) {
+        val isEmpty: Boolean
+            get() = exitNodeResourceId == null
+    }
+}
 
 @Serializable
 data class AccountStore(
