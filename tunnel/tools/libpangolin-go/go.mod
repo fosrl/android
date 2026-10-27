@@ -3,14 +3,14 @@ module github.com/fosrl/android
 go 1.26.0
 
 require (
-	github.com/fosrl/newt v1.18.1
-	github.com/fosrl/olm v1.10.1
-	golang.org/x/sys v0.48.0
+	github.com/fosrl/newt v1.19.1
+	github.com/fosrl/olm v1.10.2
+	golang.org/x/sys v0.49.0
 )
 
 require (
-	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/godbus/dbus/v5 v5.2.2 // indirect
+	github.com/Microsoft/go-winio v0.6.4 // indirect
+	github.com/godbus/dbus/v5 v5.2.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/nftables v0.3.0 // indirect
@@ -20,17 +20,17 @@ require (
 	github.com/miekg/dns v1.1.73 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
-	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10 // indirect
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20250503011706-39ed1f5ac29c // indirect
-	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.4 // indirect
 )
 
 // To be used ONLY for local development
