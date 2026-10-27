@@ -84,9 +84,13 @@ func initOlm(configJSON *C.char) *C.char {
 	// print out the config we got
 	appLogger.Debug("Init config: %+v", config)
 
-	// Initialize file logging if path provided
+	// Initialize file logging if path provided. initOlm runs on every connect in
+	// the same process, so a file left open by an earlier connect must be closed
+	// when log collection has since been turned off.
 	if config.LogFilePath != "" {
 		InitFileLogger(cstring(config.LogFilePath))
+	} else {
+		CloseFileLogger()
 	}
 
 	// Create context for OLM
