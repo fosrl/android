@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"time"
 	"runtime/debug"
+	"sync"
+	"time"
 	
 	"unsafe"
 
@@ -17,9 +18,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Global file logger
+// Global file logger. logFileMutex guards logFile and logFilePath, which are
+// swapped on every initOlm while goroutines from a previous tunnel may still log.
 var logFile *os.File
 var logFilePath string
+var logFileMutex sync.Mutex
 
 // Log rotation settings
 const (
@@ -114,6 +117,7 @@ func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}
 	C.__android_log_write(androidLogLevel, l.tag, cstring(message))
 	
 	// Log to file
+	logFileMutex.Lock()
 	if logFile != nil {
 		timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 		logLine := fmt.Sprintf("%s [%s] %s: %s\n", timestamp, levelStr, l.prefix, message)
@@ -122,6 +126,7 @@ func (l *Logger) logToAndroid(level LogLevel, format string, args ...interface{}
 		// Check if we need to rotate the log
 		checkAndRotateLog()
 	}
+	logFileMutex.Unlock()
 }
 
 // Debug logs a debug message
@@ -211,11 +216,15 @@ func init() {
 	
 }
 
-// InitFileLogger initializes file logging - call this from Java/Kotlin with the app's file directory
+// InitFileLogger initializes file logging - call this from Java/Kotlin with the app's file directory.
+// Any previously opened log file is closed first, so calling this again does not leak descriptors.
 //
 //export InitFileLogger
 func InitFileLogger(filePath *C.char) {
 	goPath := C.GoString(filePath)
+
+	logFileMutex.Lock()
+	closeFileLoggerLocked()
 	logFilePath = goPath
 	
 	// Clean up old backup logs on initialization
@@ -223,6 +232,13 @@ func InitFileLogger(filePath *C.char) {
 	
 	var err error
 	logFile, err = os.OpenFile(goPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		logFile = nil
+		logFilePath = ""
+	}
+	logFileMutex.Unlock()
+
+	// Log outside the lock: the logger writes to the file under logFileMutex
 	if err != nil {
 		appLogger.Error("Failed to open log file: %v", err)
 		return
@@ -234,13 +250,22 @@ func InitFileLogger(filePath *C.char) {
 //
 //export CloseFileLogger
 func CloseFileLogger() {
+	logFileMutex.Lock()
+	defer logFileMutex.Unlock()
+	closeFileLoggerLocked()
+}
+
+// closeFileLoggerLocked closes the log file; the caller must hold logFileMutex
+func closeFileLoggerLocked() {
 	if logFile != nil {
 		logFile.Close()
 		logFile = nil
 	}
+	logFilePath = ""
 }
 
-// checkAndRotateLog checks if the log file exceeds the maximum size and rotates it if needed
+// checkAndRotateLog checks if the log file exceeds the maximum size and rotates it if needed.
+// The caller must hold logFileMutex.
 func checkAndRotateLog() {
 	if logFile == nil || logFilePath == "" {
 		return

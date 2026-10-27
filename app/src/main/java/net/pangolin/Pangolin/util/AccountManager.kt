@@ -72,7 +72,13 @@ class AccountManager private constructor(private val context: Context) {
     fun addAccount(account: Account, makeActive: Boolean = false) {
         val currentStore = _store.value
         val updatedAccounts = currentStore.accounts.toMutableMap()
-        updatedAccounts[account.userId] = account
+        // Re-login replaces the Account; keep any previously saved per-org settings.
+        val existingSettings = currentStore.accounts[account.userId]?.orgSettings
+        updatedAccounts[account.userId] = if (!existingSettings.isNullOrEmpty()) {
+            account.copy(orgSettings = existingSettings)
+        } else {
+            account
+        }
 
         val updatedActiveUserId = if (makeActive) {
             account.userId
@@ -132,26 +138,51 @@ class AccountManager private constructor(private val context: Context) {
     }
 
     /**
-     * The resource ID of userId's selected exit node, or null if none is selected or the
+     * Settings for an org under the given account, or empty defaults if none are stored or the
      * account doesn't exist.
      */
-    fun getExitNode(userId: String): Int? {
-        return _store.value.accounts[userId]?.exitNodeResourceId
+    fun getOrgSettings(userId: String, orgId: String): Account.OrgSettings {
+        return _store.value.accounts[userId]?.orgSettings?.get(orgId) ?: Account.OrgSettings()
     }
 
-    /** Records the selected exit node (a gateway resource) for userId; a null resourceId clears it. */
-    fun setExitNode(userId: String, resourceId: Int?) {
+    /**
+     * Updates settings for an org under the given account. Empty settings remove that org's
+     * entry.
+     */
+    fun updateOrgSettings(
+        userId: String,
+        orgId: String,
+        transform: (Account.OrgSettings) -> Account.OrgSettings
+    ) {
         val currentStore = _store.value
-        val account = currentStore.accounts[userId]
+        val account = currentStore.accounts[userId] ?: return
 
-        if (account != null) {
-            val updatedAccount = account.copy(exitNodeResourceId = resourceId)
-            val updatedAccounts = currentStore.accounts.toMutableMap()
-            updatedAccounts[userId] = updatedAccount
-
-            _store.value = currentStore.copy(accounts = updatedAccounts)
-            save()
+        val settings = account.orgSettings.orEmpty().toMutableMap()
+        val updated = transform(settings[orgId] ?: Account.OrgSettings())
+        if (updated.isEmpty) {
+            settings.remove(orgId)
+        } else {
+            settings[orgId] = updated
         }
+
+        val updatedAccounts = currentStore.accounts.toMutableMap()
+        updatedAccounts[userId] = account.copy(orgSettings = settings.ifEmpty { null })
+
+        _store.value = currentStore.copy(accounts = updatedAccounts)
+        save()
+    }
+
+    /**
+     * The resource ID of the exit node selected for orgId under userId, or null if none is
+     * selected or the account doesn't exist.
+     */
+    fun getExitNode(userId: String, orgId: String): Int? {
+        return getOrgSettings(userId, orgId).exitNodeResourceId
+    }
+
+    /** Records the selected exit node (a gateway resource) for orgId under userId; null clears it. */
+    fun setExitNode(userId: String, orgId: String, resourceId: Int?) {
+        updateOrgSettings(userId, orgId) { it.copy(exitNodeResourceId = resourceId) }
     }
 
     fun updateAccountUserInfo(userId: String, username: String?, name: String?) {
