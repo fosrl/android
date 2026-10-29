@@ -668,14 +668,20 @@ class AuthManager(
                         return
                     } else {
                         Log.e(tag, "OLM mismatch - returned olmId: ${olm.olmId}, userId: ${olm.userId}, stored olmId: $olmIdString")
-                        // Clear invalid credentials
                         secretManager.deleteOlmCredentials(userId)
                     }
+                } catch (e: APIError.HttpError) {
+                    if (e.status == 404) {
+                        Log.w(tag, "Stored OLM no longer exists on server, discarding")
+                        secretManager.deleteOlmCredentials(userId)
+                    } else {
+                        // Deleting here would turn a transient failure into a new device on the next connect.
+                        Log.w(tag, "Could not verify OLM credentials, keeping stored credentials: ${e.message}")
+                        return
+                    }
                 } catch (e: Exception) {
-                    // If getting OLM fails, the OLM might not exist
-                    Log.e(tag, "Failed to verify OLM credentials: ${e.message}", e)
-                    // Clear invalid credentials so we can try to create new ones
-                    secretManager.deleteOlmCredentials(userId)
+                    Log.w(tag, "Could not verify OLM credentials, keeping stored credentials: ${e.message}", e)
+                    return
                 }
             } else {
                 // No olmId found, clear credentials
@@ -695,8 +701,15 @@ class AuthManager(
             Log.i(tag, "Recovered OLM credentials using platform fingerprint")
             secretManager.saveOlmCredentials(userId, recoveredOlm.olmId, recoveredOlm.secret)
             return
-        } catch (_: Exception) {
-            Log.i(tag, "ensureOlmCredentials: credentials not recovered, creating new ones")
+        } catch (e: APIError.HttpError) {
+            if (e.status != 404) {
+                Log.e(tag, "Failed to recover OLM from fingerprint: ${e.message}")
+                return
+            }
+            Log.i(tag, "No OLM matches this device fingerprint, creating a new one")
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to recover OLM from fingerprint: ${e.message}", e)
+            return
         }
 
         // If credentials don't exist or were cleared, create new ones
