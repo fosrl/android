@@ -17,7 +17,7 @@ class ConfigManager private constructor(context: Context) {
     
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence" -> {
+            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence", "excludeAndroidAuto" -> {
                 Log.d(tag, "Preference changed: $key, reloading config")
                 _config.value = loadConfig()
             }
@@ -38,7 +38,8 @@ class ConfigManager private constructor(context: Context) {
                 logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false),
                 mtu = prefs.getString("mtu", null)?.toIntOrNull(),
                 persistentVpnNotification = prefs.getBoolean("persistentVpnNotification", false),
-                exitNodeTakesPrecedence = prefs.getBoolean("exitNodeTakesPrecedence", false)
+                exitNodeTakesPrecedence = prefs.getBoolean("exitNodeTakesPrecedence", false),
+                excludeAndroidAuto = prefs.getBoolean("excludeAndroidAuto", false)
             )
         } catch (e: Exception) {
             Log.e(tag, "Error loading config: ${e.message}", e)
@@ -56,6 +57,7 @@ class ConfigManager private constructor(context: Context) {
                 putBoolean("logCollectionEnabled", config.logCollectionEnabled ?: false)
                 putBoolean("persistentVpnNotification", config.persistentVpnNotification)
                 putBoolean("exitNodeTakesPrecedence", config.exitNodeTakesPrecedence ?: false)
+                putBoolean("excludeAndroidAuto", config.excludeAndroidAuto)
                 if (config.mtu != null) putString("mtu", config.mtu.toString()) else remove("mtu")
                 apply()
             }

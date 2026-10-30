@@ -28,6 +28,11 @@
         android:label="@string/permission_label"
         android:protectionLevel="dangerous" />
 
+    <!-- Needed so VpnService.Builder.addDisallowedApplication() can see Android Auto on API 30+ -->
+    <queries>
+        <package android:name="com.google.android.projection.gearhead" />
+    </queries>
+
     <application
         android:name=".PangolinApplication"
         android:allowBackup="true"
