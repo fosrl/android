@@ -289,6 +289,7 @@ class TunnelManager private constructor(
             val logCollectionEnabled = config.logCollectionEnabled ?: false
             val mtu = config.mtu ?: 1280
             val exitNodeTakesPrecedence = config.exitNodeTakesPrecedence ?: false
+            val excludedApplications = if (config.bypassAndroidAuto) listOf(ANDROID_AUTO_PACKAGE) else emptyList()
 
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
             Log.d(tag, "Log collection enabled: $logCollectionEnabled")
@@ -345,6 +346,7 @@ class TunnelManager private constructor(
                     .setFingerprint(initialFingerprint.toMap())
                     .setPostures(initialPostures.toMap())
                     .setGateway(savedGateway?.siteResourceId ?: 0, savedGateway?.siteIds ?: emptyList())
+                    .setExcludedApplications(excludedApplications)
                     .build()
 
                 Log.d(tag, "=== TUNNEL CONFIG: Starting tunnel with OLM ID: $olmId, Org ID: $orgId ===")
@@ -675,6 +677,9 @@ class TunnelManager private constructor(
     }
 
     companion object {
+        // Android Auto's projection app; must also be listed in the manifest's <queries>.
+        private const val ANDROID_AUTO_PACKAGE = "com.google.android.projection.gearhead"
+
         @Volatile
         private var instance: TunnelManager? = null
 

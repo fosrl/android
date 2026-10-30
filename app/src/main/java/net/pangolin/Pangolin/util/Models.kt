@@ -14,7 +14,8 @@ data class Config(
     val logCollectionEnabled: Boolean? = null,
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
-    val exitNodeTakesPrecedence: Boolean? = null
+    val exitNodeTakesPrecedence: Boolean? = null,
+    val bypassAndroidAuto: Boolean = false
 )
 
 // MARK: - Account Types

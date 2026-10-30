@@ -13,6 +13,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
@@ -332,6 +333,9 @@ public final class GoBackend implements Backend {
             Log.d(TAG, "Got VpnService.Builder");
 
             NetworkSettingsPoller.applySettingsToBuilder(builder, settings, tunnelName);
+            final TunnelConfig config = currentConfig;
+            if (config != null)
+                applyExcludedApplications(builder, config.getExcludedApplications());
             Log.d(TAG, "Applied settings to builder");
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -383,6 +387,22 @@ public final class GoBackend implements Backend {
         } catch (Exception e) {
             Log.e(TAG, "Failed to apply network settings", e);
             return false;
+        }
+    }
+
+    /**
+     * Excludes the given apps from the VPN so their traffic (including DNS) uses the
+     * underlying network directly. Must be applied to every builder before establish(),
+     * since each re-established interface starts with no exclusions.
+     */
+    private static void applyExcludedApplications(VpnService.Builder builder, List<String> packageNames) {
+        for (String packageName : packageNames) {
+            try {
+                builder.addDisallowedApplication(packageName);
+                Log.d(TAG, "Excluded application from VPN: " + packageName);
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.d(TAG, "Application not installed, not excluding: " + packageName);
+            }
         }
     }
 
@@ -540,6 +560,8 @@ public final class GoBackend implements Backend {
 
            // add a dummy address so we can get the interface up. We will change it later...
            builder.addAddress("169.254.169.254", 32);
+
+           applyExcludedApplications(builder, config.getExcludedApplications());
 
            // Establish the tunnel to get a file descriptor
            currentTunFd = builder.establish();
