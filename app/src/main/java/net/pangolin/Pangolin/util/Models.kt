@@ -15,7 +15,7 @@ data class Config(
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
     val exitNodeTakesPrecedence: Boolean? = null,
-    val bypassAndroidAuto: Boolean = false
+    val excludeAndroidAuto: Boolean = false
 )
 
 // MARK: - Account Types

@@ -48,7 +48,7 @@
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
-            android:key="bypassAndroidAuto"
+            android:key="excludeAndroidAuto"
             android:summary="When enabled, Android Auto is excluded from the VPN so it can connect to your car while the tunnel is up. Takes effect on the next connect."
             android:title="Exclude Android Auto from VPN"
             android:defaultValue="false"
