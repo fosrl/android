@@ -82,7 +82,8 @@ class TunnelManager private constructor(
         val account = store.accounts[store.activeUserId]
         val orgId = org?.orgId ?: account?.orgId
         if (account != null && orgId != null) {
-            account.orgSettings?.get(orgId)?.exitNodeResourceId
+            val settings = account.orgSettings?.get(orgId)
+            effectiveExitNode(settings?.serverSettings, settings?.exitNodeResourceId, configManager.orgConfig(orgId))
         } else {
             null
         }
@@ -108,7 +109,8 @@ class TunnelManager private constructor(
         } else {
             saved?.let { savedResourceId -> nodes.firstOrNull { it.siteResourceId == savedResourceId }?.siteResourceId }
         }
-        ExitNodeUiState(nodes, activeId)
+        val locked = orgId != null && isExitNodeLocked(orgId)
+        ExitNodeUiState(nodes, activeId, locked)
     }.stateIn(scope, SharingStarted.Eagerly, ExitNodeUiState(emptyList(), null))
 
     // OLM error flow - exposes errors from status polling that need user attention
@@ -280,8 +282,8 @@ class TunnelManager private constructor(
             Log.i(tag, "Using OLM credentials for user $userId, org $orgId, olmId=$olmId")
             Log.i(tag, "About to build TunnelConfig with orgId=$orgId")
 
-            // Get configuration
-            val config = configManager.config.value
+            // Get configuration: the server's settings are fetched on every connect
+            val config = configManager.effectiveConfig(orgId, refreshClientSettings(orgId))
             val primaryDNS = config.primaryDNSServer
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: false
@@ -436,6 +438,38 @@ class TunnelManager private constructor(
     // MARK: - Exit Nodes
 
     /** Reloads the current org's exit nodes from the server. */
+    /**
+     * Fetches the settings the org's server manages and applies them, returning them. Runs on
+     * every connect and when Settings opens. If the server can't be reached the last fetched
+     * settings keep applying.
+     */
+    suspend fun refreshClientSettings(
+        orgId: String? = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
+    ): ClientSettings? {
+        val userId = accountManager.activeUserId
+        if (orgId.isNullOrEmpty() || userId.isEmpty()) {
+            configManager.setActiveOrg(null)
+            return null
+        }
+
+        try {
+            val settings = authManager.apiClient.getMyClientSettings(orgId)
+            accountManager.setServerSettings(userId, orgId, settings)
+        } catch (e: Exception) {
+            Log.w(tag, "Could not fetch client settings (${e.message}); using the last known settings")
+        }
+
+        val server = accountManager.getServerSettings(userId, orgId)
+        val name = authManager.currentOrg.value?.takeIf { it.orgId == orgId }?.name ?: orgId
+        configManager.setActiveOrg(ActiveOrg(orgId, name, server))
+        return server
+    }
+
+    /** Whether the org's server forces the exit node, so the user can't change it. */
+    private fun isExitNodeLocked(orgId: String): Boolean {
+        return accountManager.getServerSettings(accountManager.activeUserId, orgId)?.lockedExitNode != null
+    }
+
     suspend fun refreshExitNodes() {
         val org = authManager.currentOrg.value ?: return
         if (!authManager.isAuthenticated.value || authManager.sessionExpired.value) return
@@ -462,6 +496,7 @@ class TunnelManager private constructor(
     suspend fun selectExitNode(node: SiteResource): String? {
         val orgId = authManager.currentOrg.value?.orgId ?: return "No organization selected"
         val userId = accountManager.activeUserId
+        if (isExitNodeLocked(orgId)) return "The exit node is locked by your organization"
 
         if (isTunnelLive()) {
             try {
@@ -481,6 +516,11 @@ class TunnelManager private constructor(
      * Returns an error message to show the user, or null on success.
      */
     suspend fun disableExitNode(): String? {
+        val currentOrgId = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
+        if (currentOrgId != null && isExitNodeLocked(currentOrgId)) {
+            return "The exit node is locked by your organization"
+        }
+
         if (isTunnelLive()) {
             try {
                 socketManager.disableGateway()
@@ -503,7 +543,12 @@ class TunnelManager private constructor(
      * so a deleted, disabled or site-less resource is skipped.
      */
     private suspend fun resolveSavedExitNode(orgId: String): SiteResource? {
-        val savedResourceId = accountManager.getExitNode(accountManager.activeUserId, orgId) ?: return null
+        val userId = accountManager.activeUserId
+        val savedResourceId = effectiveExitNode(
+            accountManager.getServerSettings(userId, orgId),
+            accountManager.getExitNode(userId, orgId),
+            configManager.orgConfig(orgId)
+        ) ?: return null
 
         return try {
             val gateway = authManager.apiClient.listGatewayResources(orgId)
@@ -533,6 +578,7 @@ class TunnelManager private constructor(
             if (activeAccount != null) {
                 accountManager.setUserOrganization(activeAccount.userId, orgId)
             }
+            refreshClientSettings(orgId)
 
         } catch (e: Exception) {
             Log.e(tag, "Failed to switch organization", e)
@@ -756,7 +802,8 @@ internal class ReadinessEpoch {
 /** The exit nodes available in the current org and the selected one's site resource ID, if any. */
 data class ExitNodeUiState(
     val nodes: List<SiteResource>,
-    val activeId: Int?
+    val activeId: Int?,
+    val locked: Boolean = false
 )
 
 data class TunnelState(

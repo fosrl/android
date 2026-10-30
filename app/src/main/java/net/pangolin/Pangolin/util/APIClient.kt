@@ -267,6 +267,19 @@ class APIClient(
     }
 
     /**
+     * The settings the org manages for the current user, or null if it manages none. Servers
+     * that predate client settings answer 404, which means the same thing.
+     */
+    suspend fun getMyClientSettings(orgId: String): ClientSettings? {
+        return try {
+            val response = makeRequest("GET", "/org/$orgId/my-client-settings")
+            parseResponse<MyClientSettingsResponse>(response).settings
+        } catch (e: APIError.HttpError) {
+            if (e.status == 404) null else throw e
+        }
+    }
+
+    /**
      * Every gateway-mode site resource (exit node) in the org that can be selected, fetching all
      * pages. Disabled resources and ones with no sites are dropped since they can't carry traffic.
      */

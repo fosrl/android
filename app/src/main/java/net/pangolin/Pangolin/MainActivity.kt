@@ -852,6 +852,15 @@ class MainActivity : BaseNavigationActivity() {
         val nodes = state.nodes
         if (nodes.isEmpty()) return
 
+        if (state.locked) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Exit Node Locked")
+                .setMessage("The exit node is set by your organization and can't be changed.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
         // Switching mid-connect would miss the tunnel that is still coming up
         val tunnelState = tunnelManager.tunnelState.value
         if (tunnelState.isServiceRunning && !(tunnelState.isSocketConnected && tunnelState.isRegistered)) {

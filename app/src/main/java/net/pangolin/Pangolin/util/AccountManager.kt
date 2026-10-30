@@ -172,6 +172,16 @@ class AccountManager private constructor(private val context: Context) {
         save()
     }
 
+    /** The settings last fetched from the server for orgId, or null if it manages none. */
+    fun getServerSettings(userId: String, orgId: String): ClientSettings? {
+        return getOrgSettings(userId, orgId).serverSettings
+    }
+
+    /** Records the settings fetched from the server for orgId under userId. */
+    fun setServerSettings(userId: String, orgId: String, settings: ClientSettings?) {
+        updateOrgSettings(userId, orgId) { it.copy(serverSettings = settings) }
+    }
+
     /**
      * The resource ID of the exit node selected for orgId under userId, or null if none is
      * selected or the account doesn't exist.

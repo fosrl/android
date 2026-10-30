@@ -17,6 +17,93 @@ data class Config(
     val exitNodeTakesPrecedence: Boolean? = null
 )
 
+/**
+ * The `orgs` section of pangolin.json: the settings of [Config] that can be set per org, plus
+ * [exitNodeResourceId]. An exit node only means something within one org, so it has no global
+ * equivalent.
+ */
+@Serializable
+data class OrgConfig(
+    val dnsOverrideEnabled: Boolean? = null,
+    val dnsTunnelEnabled: Boolean? = null,
+    val primaryDNSServer: String? = null,
+    val secondaryDNSServer: String? = null,
+    val mtu: Int? = null,
+    val exitNodeTakesPrecedence: Boolean? = null,
+    val exitNodeResourceId: Int? = null
+) {
+    val isEmpty: Boolean
+        get() = this == OrgConfig()
+}
+
+/** Global settings live in SharedPreferences, so pangolin.json only holds the org section. */
+@Serializable
+data class PangolinFile(
+    val orgs: Map<String, OrgConfig> = emptyMap()
+)
+
+/** The server's GET /org/:orgId/my-client-settings response. A null field isn't managed by it. */
+@Serializable
+data class ClientSettings(
+    val overrideDns: Boolean? = null,
+    val mtu: Int? = null,
+    val tunnelDns: Boolean? = null,
+    val primaryDns: String? = null,
+    val secondaryDns: String? = null,
+    val exitNodeTakesPrecedence: Boolean? = null,
+    val exitNodeSiteResourceId: Int? = null,
+    val exitNodeLocked: Boolean? = null,
+    val matchDomains: List<String>? = null,
+    val preferLocalRoutes: Boolean? = null
+) {
+    /** The exit node the server forces, or null if it forces none. */
+    val lockedExitNode: Int?
+        get() = if (exitNodeLocked == true) exitNodeSiteResourceId else null
+
+    /** The upstream DNS servers are managed together, since they form one list. */
+    val managesUpstreamDns: Boolean
+        get() = primaryDns != null || secondaryDns != null
+}
+
+@Serializable
+data class MyClientSettingsResponse(
+    val settings: ClientSettings? = null
+)
+
+/** Where a change to a setting that can differ per org is saved. */
+enum class SettingsScope { GLOBAL, ORG }
+
+/** The org the settings screen and tunnel resolve for, and what its server manages. */
+data class ActiveOrg(
+    val id: String,
+    val name: String,
+    val serverSettings: ClientSettings?
+)
+
+/**
+ * Resolves the settings for an org. Precedence: what the server manages, then the org's section
+ * of pangolin.json, then the global settings.
+ */
+fun effectiveConfig(global: Config, org: OrgConfig?, server: ClientSettings?): Config {
+    val managesDns = server?.managesUpstreamDns == true
+    return global.copy(
+        dnsOverrideEnabled = server?.overrideDns ?: org?.dnsOverrideEnabled ?: global.dnsOverrideEnabled,
+        dnsTunnelEnabled = server?.tunnelDns ?: org?.dnsTunnelEnabled ?: global.dnsTunnelEnabled,
+        primaryDNSServer = if (managesDns) server?.primaryDns else org?.primaryDNSServer ?: global.primaryDNSServer,
+        secondaryDNSServer = if (managesDns) server?.secondaryDns else org?.secondaryDNSServer ?: global.secondaryDNSServer,
+        mtu = server?.mtu ?: org?.mtu ?: global.mtu,
+        exitNodeTakesPrecedence = server?.exitNodeTakesPrecedence ?: org?.exitNodeTakesPrecedence ?: global.exitNodeTakesPrecedence
+    )
+}
+
+/**
+ * Picks the exit node for an org: one the server locks always wins; next the user's own
+ * selection, then the org's section of pangolin.json, and last the server's default.
+ */
+fun effectiveExitNode(server: ClientSettings?, saved: Int?, org: OrgConfig?): Int? {
+    return server?.lockedExitNode ?: saved ?: org?.exitNodeResourceId ?: server?.exitNodeSiteResourceId
+}
+
 // MARK: - Account Types
 
 @Serializable
@@ -36,10 +123,14 @@ data class Account(
         // The exit node (a gateway-mode site resource) selected for this org, re-applied on the
         // next connect. Only the resource ID is stored (not the niceId, which can be renamed);
         // its sites are looked up from the server on every connect so they can't go stale.
-        val exitNodeResourceId: Int? = null
+        val exitNodeResourceId: Int? = null,
+        // The settings the org's server manages for this user, as last fetched from it. Refreshed
+        // on every connect and when Settings opens; only kept here so they still apply if the
+        // server can't be reached.
+        val serverSettings: ClientSettings? = null
     ) {
         val isEmpty: Boolean
-            get() = exitNodeResourceId == null
+            get() = exitNodeResourceId == null && serverSettings == null
     }
 }
 
