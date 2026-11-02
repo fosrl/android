@@ -31,15 +31,13 @@
     <!--
         Package visibility (API 30+) for the VPN app exclusion picker, and so that
         VpnService.Builder.addDisallowedApplication() can resolve the chosen packages.
-        Launchable apps cover what users pick; Android Auto has no launcher icon on
-        current phones, so it's listed explicitly.
+        Launchable apps cover what users pick;
     -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <package android:name="com.google.android.projection.gearhead" />
     </queries>
 
     <application
