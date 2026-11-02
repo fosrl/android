@@ -16,6 +16,8 @@
     </plurals>
     <string name="excluded_apps_search">Search apps</string>
     <string name="excluded_apps_empty">No matching apps</string>
+    <string name="excluded_apps_empty_system_hidden">No matching apps. System apps are hidden; show them from the menu.</string>
+    <string name="excluded_apps_show_system">Show system apps</string>
     <string name="excluded_apps_clear">Clear all</string>
 
     <!-- Navigation Drawer -->

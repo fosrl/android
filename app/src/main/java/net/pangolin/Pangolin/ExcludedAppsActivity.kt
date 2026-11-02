@@ -3,6 +3,7 @@ package net.pangolin.Pangolin
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
@@ -41,6 +42,7 @@ class ExcludedAppsActivity : AppCompatActivity() {
     private var allApps: List<InstalledApp> = emptyList()
     private val icons = HashMap<String, Drawable>()
     private var loaded = false
+    private var showSystem = false
     private val adapter = AppAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +55,7 @@ class ExcludedAppsActivity : AppCompatActivity() {
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         excluded += prefs.getStringSet(ExcludedApplications.PREF_KEY, null).orEmpty()
+        showSystem = prefs.getBoolean(SHOW_SYSTEM_PREF_KEY, false)
 
         binding.list.layoutManager = LinearLayoutManager(this)
         binding.list.adapter = adapter
@@ -70,17 +73,27 @@ class ExcludedAppsActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.excluded_apps, menu)
+        menu.findItem(R.id.action_show_system).isChecked = showSystem
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_clear) {
-            excluded.clear()
-            persist()
-            adapter.notifyItemRangeChanged(0, adapter.itemCount)
-            return true
+        when (item.itemId) {
+            R.id.action_show_system -> {
+                showSystem = !showSystem
+                item.isChecked = showSystem
+                prefs.edit { putBoolean(SHOW_SYSTEM_PREF_KEY, showSystem) }
+                applyFilter()
+            }
+            R.id.action_clear -> {
+                excluded.clear()
+                persist()
+                // Re-filter: system apps that were only shown because they were excluded disappear
+                applyFilter()
+            }
+            else -> return super.onOptionsItemSelected(item)
         }
-        return super.onOptionsItemSelected(item)
+        return true
     }
 
     /** Apps the user could meaningfully exclude: visible to us and able to use the network. */
@@ -98,15 +111,25 @@ class ExcludedAppsActivity : AppCompatActivity() {
             if (info.packageName == packageName) return@mapNotNull null
             if (info.requestedPermissions?.contains(Manifest.permission.INTERNET) != true) return@mapNotNull null
             synchronized(icons) { icons[info.packageName] = appInfo.loadIcon(pm) }
-            InstalledApp(info.packageName, appInfo.loadLabel(pm).toString())
+            InstalledApp(
+                packageName = info.packageName,
+                label = appInfo.loadLabel(pm).toString(),
+                // Also set for preinstalled apps updated through the store
+                isSystem = appInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
+            )
         }
     }
 
     private fun applyFilter() {
         if (!loaded) return
-        val shown = ExcludedApplications.filter(allApps, binding.search.text?.toString().orEmpty())
+        val shown = ExcludedApplications.filter(
+            allApps, binding.search.text?.toString().orEmpty(), showSystem, excluded
+        )
         adapter.submit(shown)
         binding.empty.isVisible = shown.isEmpty()
+        binding.empty.setText(
+            if (showSystem) R.string.excluded_apps_empty else R.string.excluded_apps_empty_system_hidden
+        )
     }
 
     private fun toggle(packageName: String) {
@@ -151,4 +174,9 @@ class ExcludedAppsActivity : AppCompatActivity() {
     }
 
     private class AppViewHolder(val binding: ItemExcludedAppBinding) : RecyclerView.ViewHolder(binding.root)
+
+    private companion object {
+        // Picker display preference only; not part of the tunnel config
+        const val SHOW_SYSTEM_PREF_KEY = "excludedAppsShowSystem"
+    }
 }
