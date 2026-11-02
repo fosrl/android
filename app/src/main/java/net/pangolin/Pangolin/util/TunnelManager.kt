@@ -444,8 +444,10 @@ class TunnelManager private constructor(
             val gateways = authManager.apiClient.listGatewayResources(org.orgId)
             _exitNodeList.value = ExitNodeList(org.orgId, gateways)
         } catch (e: Exception) {
-            // Keep whatever we had; the server may just be unreachable.
-            Log.e(tag, "Failed to list exit nodes", e)
+            if (e is APIError.HttpError && e.status == 403) {
+                _exitNodeList.value = ExitNodeList(org.orgId, emptyList())
+            }
+            Log.d(tag, "Failed to list exit nodes: ${e.message}")
         }
     }
 

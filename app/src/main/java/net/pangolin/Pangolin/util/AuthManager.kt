@@ -92,7 +92,7 @@ class AuthManager(
     init {
         // Set up API client unauthorized callback
         apiClient.onUnauthorized = {
-            Log.w(tag, "API client received 401/403 - marking session as expired")
+            Log.w(tag, "API client received 401 - marking session as expired")
             markSessionExpired()
         }
     }
