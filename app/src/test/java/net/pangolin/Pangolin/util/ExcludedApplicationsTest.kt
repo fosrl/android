@@ -59,4 +59,37 @@ class ExcludedApplicationsTest {
         assertEquals(apps, ExcludedApplications.filter(apps, ""))
         assertTrue(ExcludedApplications.filter(apps, "nothing").isEmpty())
     }
+
+    private val systemAndUserApps = listOf(
+        InstalledApp("com.google.android.projection.gearhead", "Android Auto", isSystem = true),
+        InstalledApp("com.android.settings", "Settings", isSystem = true),
+        InstalledApp("com.spotify.music", "Spotify"),
+    )
+
+    @Test
+    fun hidingSystemAppsKeepsUserApps() {
+        assertEquals(
+            listOf("Spotify"),
+            ExcludedApplications.filter(systemAndUserApps, "", showSystem = false).map { it.label }
+        )
+        assertEquals(systemAndUserApps, ExcludedApplications.filter(systemAndUserApps, "", showSystem = true))
+    }
+
+    @Test
+    fun excludedSystemAppsStayVisibleWhenSystemAppsAreHidden() {
+        val shown = ExcludedApplications.filter(
+            systemAndUserApps, "", showSystem = false,
+            excluded = setOf("com.google.android.projection.gearhead")
+        )
+        assertEquals(listOf("Android Auto", "Spotify"), shown.map { it.label })
+    }
+
+    @Test
+    fun searchDoesNotRevealHiddenSystemApps() {
+        assertTrue(ExcludedApplications.filter(systemAndUserApps, "settings", showSystem = false).isEmpty())
+        assertEquals(
+            listOf("Settings"),
+            ExcludedApplications.filter(systemAndUserApps, "settings", showSystem = true).map { it.label }
+        )
+    }
 }
