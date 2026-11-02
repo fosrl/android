@@ -2,6 +2,7 @@
 package net.pangolin.Pangolin
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -27,6 +28,7 @@ import net.pangolin.Pangolin.util.ConfigManager
 import net.pangolin.Pangolin.util.DnsServerAddress
 import net.pangolin.Pangolin.util.ScopedPreferenceDataStore
 import net.pangolin.Pangolin.util.SettingsScope
+import net.pangolin.Pangolin.util.ExcludedApplications
 import net.pangolin.Pangolin.util.TunnelManager
 
 class SettingsActivity : BaseNavigationActivity() {
@@ -111,7 +113,9 @@ class SettingsActivity : BaseNavigationActivity() {
 
             // Setup DNS settings dependencies
             setupDnsSettingsDependencies()
-            
+
+            setupExcludedApps()
+
             // Observe tunnel state and disable settings when tunnel is active
             lifecycleScope.launch {
                 val tunnelManager = TunnelManager.getInstance()
@@ -289,7 +293,7 @@ class SettingsActivity : BaseNavigationActivity() {
                 if (allowed) applied()
                 allowed
             }
-            
+
             tunnelDns?.setOnPreferenceChangeListener { preference, newValue ->
                 val applied = {
                     // Delay update to allow preference change to complete
@@ -300,7 +304,7 @@ class SettingsActivity : BaseNavigationActivity() {
                 if (allowed) applied()
                 allowed
             }
-            
+
             // Initial update
             updateDnsSettings()
         }
@@ -329,6 +333,28 @@ class SettingsActivity : BaseNavigationActivity() {
             secondaryDns?.isVisible = isDnsOverrideEnabled
         }
         
+        override fun onResume() {
+            super.onResume()
+            // The in-app list may have changed in ExcludedAppsActivity
+            refreshExcludedAppsEntries()
+        }
+
+        private fun setupExcludedApps() {
+            findPreference<Preference>(EXCLUDED_APPS_ENTRY)?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), ExcludedAppsActivity::class.java))
+                true
+            }
+            refreshExcludedAppsEntries()
+        }
+
+        private fun refreshExcludedAppsEntries() {
+            val count = preferenceManager.sharedPreferences
+                ?.getStringSet(ExcludedApplications.PREF_KEY, null)?.size ?: 0
+            findPreference<Preference>(EXCLUDED_APPS_ENTRY)?.summary =
+                if (count == 0) getString(R.string.excluded_apps_none)
+                else resources.getQuantityString(R.plurals.excluded_apps_count, count, count)
+        }
+
         private fun updateLockInfo() {
             val infoPreference = findPreference<Preference>("tunnel_lock_info")
             val isManaged = scopedStore.managedKeys().isNotEmpty()
@@ -501,6 +527,10 @@ class SettingsActivity : BaseNavigationActivity() {
             } else {
                 super.onDisplayPreferenceDialog(preference)
             }
+        }
+
+        private companion object {
+            const val EXCLUDED_APPS_ENTRY = "excludedAppsEntry"
         }
     }
 }

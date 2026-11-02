@@ -19,6 +19,8 @@ data class Config(
     // matches everything. No Settings screen sets it: it comes from the server or the org's
     // section of pangolin.json, as on the other clients.
     val matchDomains: List<String>? = null
+    // Package names of apps whose traffic bypasses the VPN (in-app exclusion list)
+    val excludedApplications: Set<String> = emptySet()
 )
 
 /**
