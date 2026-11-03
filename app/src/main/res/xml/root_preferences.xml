@@ -47,6 +47,11 @@
             android:title="Exit Node Takes Precedence Over Resources"
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
+        <Preference
+            android:key="excludedAppsEntry"
+            android:title="@string/excluded_apps_title"
+            android:persistent="false"
+            app:iconSpaceReserved="false" />
 
     </PreferenceCategory>
 

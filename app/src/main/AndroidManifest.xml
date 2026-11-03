@@ -28,6 +28,18 @@
         android:label="@string/permission_label"
         android:protectionLevel="dangerous" />
 
+    <!--
+        Package visibility (API 30+) for the VPN app exclusion picker, and so that
+        VpnService.Builder.addDisallowedApplication() can resolve the chosen packages.
+        Launchable apps cover what users pick;
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".PangolinApplication"
         android:allowBackup="true"
@@ -55,6 +67,11 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="Settings" />
+        <activity
+            android:name=".ExcludedAppsActivity"
+            android:exported="false"
+            android:label="@string/excluded_apps_title"
+            android:parentActivityName=".SettingsActivity" />
         <activity
             android:name=".SignInCodeActivity"
             android:exported="true"
