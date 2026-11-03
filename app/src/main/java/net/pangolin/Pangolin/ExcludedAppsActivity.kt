@@ -103,7 +103,6 @@ class ExcludedAppsActivity : AppCompatActivity() {
         val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
         } else {
-            @Suppress("DEPRECATION")
             pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)
         }
         return packages.mapNotNull { info ->

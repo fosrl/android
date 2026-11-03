@@ -15,7 +15,6 @@ data class Config(
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
     val exitNodeTakesPrecedence: Boolean? = null,
-    // Package names of apps whose traffic bypasses the VPN (in-app exclusion list)
     val excludedApplications: Set<String> = emptySet()
 )
 
