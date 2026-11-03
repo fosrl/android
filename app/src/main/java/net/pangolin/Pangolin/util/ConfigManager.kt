@@ -55,7 +55,7 @@ class ConfigManager private constructor(private val context: Context) {
                 mtu = prefs.getString("mtu", null)?.toIntOrNull(),
                 persistentVpnNotification = prefs.getBoolean("persistentVpnNotification", false),
                 exitNodeTakesPrecedence = prefs.getBoolean("exitNodeTakesPrecedence", false),
-                // Copy: the set returned by getStringSet must not be retained or modified
+                // getStringSet returns SharedPreferences' internal cached instance; copy it so Config never shares (or mutates) it
                 excludedApplications = prefs.getStringSet(ExcludedApplications.PREF_KEY, null)?.toSet() ?: emptySet()
             )
         } catch (e: Exception) {

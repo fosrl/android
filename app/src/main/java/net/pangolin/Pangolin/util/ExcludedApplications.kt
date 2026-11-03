@@ -6,8 +6,8 @@ internal object ExcludedApplications {
     const val PREF_KEY = "excludedApplications"
 
     /**
-     * Packages to pass to VpnService.Builder.addDisallowedApplication(). Our own package is never
-     * excluded, so the app's API traffic keeps following the tunnel like it always has.
+     * Packages to pass to VpnService.Builder.addDisallowedApplication(). Pangolin is never
+     * excluded, so the app's API traffic keeps following the tunnel.
      */
     fun forConfig(config: Config, ownPackage: String): List<String> =
         config.excludedApplications.filter { it.isNotBlank() && it != ownPackage }.sorted()

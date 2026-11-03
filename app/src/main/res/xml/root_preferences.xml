@@ -52,7 +52,6 @@
             android:title="Exit Node Takes Precedence Over Resources"
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
-        <!-- Opens ExcludedAppsActivity; the summary is set in SettingsActivity -->
         <Preference
             android:key="excludedAppsEntry"
             android:title="@string/excluded_apps_title"
