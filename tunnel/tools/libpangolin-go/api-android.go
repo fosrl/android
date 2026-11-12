@@ -54,9 +54,14 @@ type StartTunnelConfig struct {
 
 var (
 	tunnelRunning bool
-	tunnelMutex   sync.Mutex
-	olmContext    context.Context
-	olmInstance   *olmpkg.Olm
+	// tunnelGeneration identifies the current startTunnel call, so a previous
+	// tunnel's goroutine finishing late can't mark a newer tunnel as stopped.
+	// While tunnelRunning is wrongly false, getNetworkSettings returns "{}" and
+	// Android never receives the tunnel's addresses, routes or DNS servers.
+	tunnelGeneration uint64
+	tunnelMutex      sync.Mutex
+	olmContext       context.Context
+	olmInstance      *olmpkg.Olm
 )
 
 // olmVersionOverride is the version of the github.com/fosrl/olm module this
@@ -132,6 +137,8 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 	}
 
 	tunnelRunning = true
+	tunnelGeneration++
+	generation := tunnelGeneration
 
 	// Parse JSON configuration
 	configStr := C.GoString(configJSON)
@@ -181,9 +188,12 @@ func startTunnel(fd C.int, configJSON *C.char) *C.char {
 		olmInstance.StartTunnel(olmConfig)
 		appLogger.Info("OLM tunnel stopped")
 
-		// Update tunnel state when OLM stops
+		// Update tunnel state when OLM stops, unless a newer tunnel has
+		// already been started in the meantime.
 		tunnelMutex.Lock()
-		tunnelRunning = false
+		if tunnelGeneration == generation {
+			tunnelRunning = false
+		}
 		tunnelMutex.Unlock()
 	}()
 

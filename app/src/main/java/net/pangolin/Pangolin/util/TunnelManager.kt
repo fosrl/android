@@ -189,6 +189,7 @@ class TunnelManager private constructor(
                     status.exitNode?.connected == true,
             isConnecting = false,
             errorMessage = if (status.terminated) "Connection terminated" else null,
+            strictPrivateDnsServer = goBackend?.strictPrivateDnsServerName,
         )
         val updatedState = evidenceState.copy(
             isConnecting = status.connected && !evidenceState.isFullyConnected,
@@ -280,11 +281,12 @@ class TunnelManager private constructor(
             Log.i(tag, "Using OLM credentials for user $userId, org $orgId, olmId=$olmId")
             Log.i(tag, "About to build TunnelConfig with orgId=$orgId")
 
-            // Get configuration
-            val config = configManager.config.value
+            // Get configuration. Re-read it from storage so the tunnel always starts with
+            // what the Settings screen saved, even if a change notification was missed.
+            val config = configManager.reload()
             val primaryDNS = config.primaryDNSServer
             val secondaryDNS = config.secondaryDNSServer
-            val overrideDns = config.dnsOverrideEnabled ?: false
+            val overrideDns = config.dnsOverrideEnabled ?: true
             val tunnelDns = config.dnsTunnelEnabled ?: false
             val logCollectionEnabled = config.logCollectionEnabled ?: false
             val mtu = config.mtu ?: 1280
@@ -769,7 +771,9 @@ data class TunnelState(
     val isNetworkSettingsApplied: Boolean = false,
     val hasConnectedPeer: Boolean = false,
     val statusMessage: String = "Disconnected",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** Android Private DNS hostname when it is in strict mode, which bypasses tunnel DNS. */
+    val strictPrivateDnsServer: String? = null
 ) {
     val isFullyConnected: Boolean
         get() = isServiceRunning &&
