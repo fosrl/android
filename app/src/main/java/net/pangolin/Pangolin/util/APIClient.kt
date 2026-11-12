@@ -53,6 +53,9 @@ class APIClient(
 
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
+        // Race IPv6 and IPv4 (Happy Eyeballs, RFC 8305) so a broken AAAA record
+        // doesn't stall every request for the full connect timeout.
+        .fastFallback(true)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
