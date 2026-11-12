@@ -31,7 +31,9 @@ class ConfigManager private constructor(context: Context) {
     private fun loadConfig(): Config {
         return try {
             Config(
-                dnsOverrideEnabled = prefs.getBoolean("overrideDns", false),
+                // Must match android:defaultValue in root_preferences.xml (and olm's default):
+                // the Settings screen shows aliases as enabled until the user changes it.
+                dnsOverrideEnabled = prefs.getBoolean("overrideDns", true),
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
                 primaryDNSServer = prefs.getString("primaryDNSServer", null),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
@@ -49,7 +51,7 @@ class ConfigManager private constructor(context: Context) {
     fun save(config: Config): Boolean {
         return try {
             prefs.edit().apply {
-                putBoolean("overrideDns", config.dnsOverrideEnabled ?: false)
+                putBoolean("overrideDns", config.dnsOverrideEnabled ?: true)
                 putBoolean("tunnelDns", config.dnsTunnelEnabled ?: false)
                 putString("primaryDNSServer", config.primaryDNSServer)
                 putString("secondaryDNSServer", config.secondaryDNSServer)
@@ -65,6 +67,17 @@ class ConfigManager private constructor(context: Context) {
             Log.e(tag, "Error saving config: ${e.message}", e)
             false
         }
+    }
+
+    /**
+     * Re-reads the configuration from storage and publishes it. Callers that act on the
+     * configuration (starting the tunnel, showing log status) use this instead of the
+     * cached value so they never act on a stale copy.
+     */
+    fun reload(): Config {
+        val config = loadConfig()
+        _config.value = config
+        return config
     }
 
     fun updateConfig(block: (Config) -> Config) {

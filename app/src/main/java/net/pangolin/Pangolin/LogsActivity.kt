@@ -81,7 +81,7 @@ class LogsActivity : BaseNavigationActivity() {
     }
 
     private fun updateLogStatus() {
-        val config = configManager.config.value
+        val config = configManager.reload()
         val logCollectionEnabled = config.logCollectionEnabled ?: false
         val logFile = File(filesDir, "pangolin.log")
 

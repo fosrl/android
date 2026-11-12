@@ -352,6 +352,25 @@ class MainActivity : BaseNavigationActivity() {
             }
         }
 
+        // Strict Private DNS sends every lookup to the provider over TLS, bypassing the
+        // tunnel's DNS server, so aliases and private resources can't resolve. Warn once
+        // per connection instead of looking connected while names silently fail.
+        lifecycleScope.launch {
+            tunnelManager.tunnelState
+                .map { if (it.isFullyConnected) it.strictPrivateDnsServer else null }
+                .distinctUntilChanged()
+                .collect { server ->
+                    if (server == null) {
+                        strictPrivateDnsWarned = false
+                    } else if (!strictPrivateDnsWarned &&
+                        configManager.config.value.dnsOverrideEnabled != false
+                    ) {
+                        strictPrivateDnsWarned = true
+                        showStrictPrivateDnsDialog(server)
+                    }
+                }
+        }
+
         // Observe server info changes
         lifecycleScope.launch {
             authManager.serverInfo.collect {
@@ -401,6 +420,32 @@ class MainActivity : BaseNavigationActivity() {
                 }
             }
         }
+    }
+
+    private companion object {
+        // Process-wide so recreating this activity doesn't repeat the warning for the
+        // same connection; cleared when the tunnel disconnects or the mode changes.
+        var strictPrivateDnsWarned = false
+    }
+
+    private fun showStrictPrivateDnsDialog(server: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Private DNS is bypassing Pangolin")
+            .setMessage(
+                "Android's Private DNS is set to \"$server\". In this mode Android sends all " +
+                    "DNS lookups directly to that provider, so Pangolin aliases and private " +
+                    "resources will not resolve.\n\nTo use them, set Settings → Network & " +
+                    "internet → Private DNS to \"Automatic\" or \"Off\"."
+            )
+            .setPositiveButton("Open settings") { _, _ ->
+                try {
+                    startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Unable to open network settings", e)
+                }
+            }
+            .setNegativeButton("Dismiss", null)
+            .show()
     }
 
     private fun showOlmErrorDialog(code: String, message: String) {
