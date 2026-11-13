@@ -363,7 +363,7 @@ class MainActivity : BaseNavigationActivity() {
                     if (server == null) {
                         strictPrivateDnsWarned = false
                     } else if (!strictPrivateDnsWarned &&
-                        configManager.config.value.dnsOverrideEnabled != false
+                        configManager.effectiveConfig(configManager.config.value).dnsOverrideEnabled != false
                     ) {
                         strictPrivateDnsWarned = true
                         showStrictPrivateDnsDialog(server)

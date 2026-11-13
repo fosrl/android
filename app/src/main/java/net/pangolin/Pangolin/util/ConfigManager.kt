@@ -15,6 +15,24 @@ class ConfigManager private constructor(context: Context) {
     private val _config = MutableStateFlow(loadConfig())
     val config: StateFlow<Config> = _config.asStateFlow()
     
+    // What the current org's server manages. Set by TunnelManager.refreshClientSettings; null
+    // when it manages nothing. Never written to preferences, so the user's own settings come
+    // back as soon as the server stops managing them.
+    private val _serverSettings = MutableStateFlow<ClientSettings?>(null)
+    val serverSettings: StateFlow<ClientSettings?> = _serverSettings.asStateFlow()
+
+    fun setServerSettings(settings: ClientSettings?) {
+        _serverSettings.value = settings
+    }
+
+    /**
+     * The configuration to act on: the user's own settings with the ones the server manages
+     * laid over them. [reload] and [config] stay the user's own, so saving them never copies
+     * server values into preferences.
+     */
+    fun effectiveConfig(config: Config = reload()): Config =
+        _serverSettings.value?.applyTo(config) ?: config
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence" -> {

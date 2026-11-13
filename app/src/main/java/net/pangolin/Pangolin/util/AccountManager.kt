@@ -172,6 +172,17 @@ class AccountManager private constructor(private val context: Context) {
         save()
     }
 
+    /** What orgId's server last said it manages for userId, or null if it manages nothing. */
+    fun getServerSettings(userId: String, orgId: String): ClientSettings? {
+        return getOrgSettings(userId, orgId).serverSettings
+    }
+
+    /** Records what orgId's server manages for userId. Skips the disk write when unchanged. */
+    fun setServerSettings(userId: String, orgId: String, settings: ClientSettings?) {
+        if (getServerSettings(userId, orgId) == settings) return
+        updateOrgSettings(userId, orgId) { it.copy(serverSettings = settings) }
+    }
+
     /**
      * The resource ID of the exit node selected for orgId under userId, or null if none is
      * selected or the account doesn't exist.

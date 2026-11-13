@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import net.pangolin.Pangolin.PacketTunnel.BackendException
 import net.pangolin.Pangolin.PacketTunnel.GoBackend
 import net.pangolin.Pangolin.PacketTunnel.InitConfig
@@ -283,7 +284,12 @@ class TunnelManager private constructor(
 
             // Get configuration. Re-read it from storage so the tunnel always starts with
             // what the Settings screen saved, even if a change notification was missed.
-            val config = configManager.reload()
+            // The org's server can manage some settings, so fetch them first. If it can't be
+            // reached the last fetched ones keep applying.
+            withTimeoutOrNull(CLIENT_SETTINGS_CONNECT_TIMEOUT_MS) {
+                refreshClientSettings(userId, orgId)
+            } ?: applyCachedClientSettings(userId, orgId)
+            val config = configManager.effectiveConfig()
             val primaryDNS = config.primaryDNSServer
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: true
@@ -435,6 +441,42 @@ class TunnelManager private constructor(
         }
     }
 
+    // MARK: - Client Settings
+
+    /**
+     * Fetches the settings the current org's server manages and applies them. Runs on every
+     * connect, on an org switch, and while the Settings screen is open. If the server can't be
+     * reached the last fetched settings keep applying. Nothing is saved when they haven't
+     * changed, so polling doesn't rewrite the account file.
+     */
+    suspend fun refreshClientSettings() {
+        val userId = accountManager.activeUserId
+        val orgId = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
+        if (userId.isEmpty() || orgId.isNullOrEmpty()) {
+            configManager.setServerSettings(null)
+            return
+        }
+        if (!authManager.isAuthenticated.value || authManager.sessionExpired.value) {
+            applyCachedClientSettings(userId, orgId)
+            return
+        }
+        refreshClientSettings(userId, orgId)
+    }
+
+    private suspend fun refreshClientSettings(userId: String, orgId: String) {
+        try {
+            val settings = authManager.apiClient.getMyClientSettings(orgId)
+            accountManager.setServerSettings(userId, orgId, settings)
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to fetch client settings: ${e.message}")
+        }
+        applyCachedClientSettings(userId, orgId)
+    }
+
+    private fun applyCachedClientSettings(userId: String, orgId: String) {
+        configManager.setServerSettings(accountManager.getServerSettings(userId, orgId))
+    }
+
     // MARK: - Exit Nodes
 
     /** Reloads the current org's exit nodes from the server. */
@@ -536,6 +578,8 @@ class TunnelManager private constructor(
             val activeAccount = accountManager.activeAccount
             if (activeAccount != null) {
                 accountManager.setUserOrganization(activeAccount.userId, orgId)
+                // currentOrg may not have caught up yet, so name the org explicitly.
+                refreshClientSettings(activeAccount.userId, orgId)
             }
 
         } catch (e: Exception) {
@@ -679,6 +723,9 @@ class TunnelManager private constructor(
     }
 
     companion object {
+        // A slow server must not hold up connecting; the cached settings apply instead.
+        private const val CLIENT_SETTINGS_CONNECT_TIMEOUT_MS = 5_000L
+
         @Volatile
         private var instance: TunnelManager? = null
 

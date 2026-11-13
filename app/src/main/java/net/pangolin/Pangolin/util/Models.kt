@@ -17,6 +17,54 @@ data class Config(
     val exitNodeTakesPrecedence: Boolean? = null
 )
 
+/**
+ * The server's GET /org/:orgId/my-client-settings response. A null field isn't managed by the
+ * server, so the user's own setting applies.
+ */
+@Serializable
+data class ClientSettings(
+    val overrideDns: Boolean? = null,
+    val mtu: Int? = null,
+    val tunnelDns: Boolean? = null,
+    val primaryDns: String? = null,
+    val secondaryDns: String? = null,
+    val exitNodeTakesPrecedence: Boolean? = null,
+    val exitNodeSiteResourceId: Int? = null,
+    val exitNodeLocked: Boolean? = null,
+    val matchDomains: List<String>? = null,
+    val preferLocalRoutes: Boolean? = null
+) {
+    /** The upstream DNS servers are managed together, since they form one list. */
+    val managesUpstreamDns: Boolean
+        get() = primaryDns != null || secondaryDns != null
+
+    /** The Settings screen's preference keys that this server setting locks. */
+    val managedKeys: Set<String>
+        get() = buildSet {
+            if (overrideDns != null) add("overrideDns")
+            if (tunnelDns != null) add("tunnelDns")
+            if (managesUpstreamDns) {
+                add("primaryDNSServer")
+                add("secondaryDNSServer")
+            }
+            if (mtu != null) add("mtu")
+            if (exitNodeTakesPrecedence != null) add("exitNodeTakesPrecedence")
+        }
+
+    /** [config] with the settings this server manages replacing the user's own. */
+    fun applyTo(config: Config): Config = config.copy(
+        dnsOverrideEnabled = overrideDns ?: config.dnsOverrideEnabled,
+        dnsTunnelEnabled = tunnelDns ?: config.dnsTunnelEnabled,
+        primaryDNSServer = if (managesUpstreamDns) primaryDns.orEmpty() else config.primaryDNSServer,
+        secondaryDNSServer = if (managesUpstreamDns) secondaryDns.orEmpty() else config.secondaryDNSServer,
+        mtu = mtu ?: config.mtu,
+        exitNodeTakesPrecedence = exitNodeTakesPrecedence ?: config.exitNodeTakesPrecedence
+    )
+}
+
+@Serializable
+data class MyClientSettingsResponse(val settings: ClientSettings? = null)
+
 // MARK: - Account Types
 
 @Serializable
@@ -36,10 +84,13 @@ data class Account(
         // The exit node (a gateway-mode site resource) selected for this org, re-applied on the
         // next connect. Only the resource ID is stored (not the niceId, which can be renamed);
         // its sites are looked up from the server on every connect so they can't go stale.
-        val exitNodeResourceId: Int? = null
+        val exitNodeResourceId: Int? = null,
+        // What the org's server last said it manages for this user. Kept so the settings keep
+        // applying when the server can't be reached. Never edited locally.
+        val serverSettings: ClientSettings? = null
     ) {
         val isEmpty: Boolean
-            get() = exitNodeResourceId == null
+            get() = exitNodeResourceId == null && serverSettings == null
     }
 }
 
