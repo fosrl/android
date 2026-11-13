@@ -14,13 +14,40 @@ data class Config(
     val logCollectionEnabled: Boolean? = null,
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
-    val exitNodeTakesPrecedence: Boolean? = null
+    val exitNodeTakesPrecedence: Boolean? = null,
+    // FQDN wildcard patterns the DNS proxy resolves; other names go to the system's DNS. Empty
+    // matches everything. No Settings screen sets it: it comes from the server or the org's
+    // section of pangolin.json, as on the other clients.
+    val matchDomains: List<String>? = null
 )
 
 /**
- * The server's GET /org/:orgId/my-client-settings response. A null field isn't managed by the
- * server, so the user's own setting applies.
+ * The `orgs` section of pangolin.json: the settings of [Config] that can be set per org, plus
+ * [exitNodeResourceId]. An exit node only means something within one org, so it has no global
+ * equivalent.
  */
+@Serializable
+data class OrgConfig(
+    val dnsOverrideEnabled: Boolean? = null,
+    val dnsTunnelEnabled: Boolean? = null,
+    val primaryDNSServer: String? = null,
+    val secondaryDNSServer: String? = null,
+    val mtu: Int? = null,
+    val exitNodeTakesPrecedence: Boolean? = null,
+    val exitNodeResourceId: Int? = null,
+    val matchDomains: List<String>? = null
+) {
+    val isEmpty: Boolean
+        get() = this == OrgConfig()
+}
+
+/** Global settings live in SharedPreferences, so pangolin.json only holds the org section. */
+@Serializable
+data class PangolinFile(
+    val orgs: Map<String, OrgConfig> = emptyMap()
+)
+
+/** The server's GET /org/:orgId/my-client-settings response. A null field isn't managed by it. */
 @Serializable
 data class ClientSettings(
     val overrideDns: Boolean? = null,
@@ -34,36 +61,54 @@ data class ClientSettings(
     val matchDomains: List<String>? = null,
     val preferLocalRoutes: Boolean? = null
 ) {
+    /** The exit node the server forces, or null if it forces none. */
+    val lockedExitNode: Int?
+        get() = if (exitNodeLocked == true) exitNodeSiteResourceId else null
+
     /** The upstream DNS servers are managed together, since they form one list. */
     val managesUpstreamDns: Boolean
         get() = primaryDns != null || secondaryDns != null
-
-    /** The Settings screen's preference keys that this server setting locks. */
-    val managedKeys: Set<String>
-        get() = buildSet {
-            if (overrideDns != null) add("overrideDns")
-            if (tunnelDns != null) add("tunnelDns")
-            if (managesUpstreamDns) {
-                add("primaryDNSServer")
-                add("secondaryDNSServer")
-            }
-            if (mtu != null) add("mtu")
-            if (exitNodeTakesPrecedence != null) add("exitNodeTakesPrecedence")
-        }
-
-    /** [config] with the settings this server manages replacing the user's own. */
-    fun applyTo(config: Config): Config = config.copy(
-        dnsOverrideEnabled = overrideDns ?: config.dnsOverrideEnabled,
-        dnsTunnelEnabled = tunnelDns ?: config.dnsTunnelEnabled,
-        primaryDNSServer = if (managesUpstreamDns) primaryDns.orEmpty() else config.primaryDNSServer,
-        secondaryDNSServer = if (managesUpstreamDns) secondaryDns.orEmpty() else config.secondaryDNSServer,
-        mtu = mtu ?: config.mtu,
-        exitNodeTakesPrecedence = exitNodeTakesPrecedence ?: config.exitNodeTakesPrecedence
-    )
 }
 
 @Serializable
-data class MyClientSettingsResponse(val settings: ClientSettings? = null)
+data class MyClientSettingsResponse(
+    val settings: ClientSettings? = null
+)
+
+/** Where a change to a setting that can differ per org is saved. */
+enum class SettingsScope { GLOBAL, ORG }
+
+/** The org the settings screen and tunnel resolve for, and what its server manages. */
+data class ActiveOrg(
+    val id: String,
+    val name: String,
+    val serverSettings: ClientSettings?
+)
+
+/**
+ * Resolves the settings for an org. Precedence: what the server manages, then the org's section
+ * of pangolin.json, then the global settings.
+ */
+fun effectiveConfig(global: Config, org: OrgConfig?, server: ClientSettings?): Config {
+    val managesDns = server?.managesUpstreamDns == true
+    return global.copy(
+        dnsOverrideEnabled = server?.overrideDns ?: org?.dnsOverrideEnabled ?: global.dnsOverrideEnabled,
+        dnsTunnelEnabled = server?.tunnelDns ?: org?.dnsTunnelEnabled ?: global.dnsTunnelEnabled,
+        primaryDNSServer = if (managesDns) server?.primaryDns.orEmpty() else org?.primaryDNSServer ?: global.primaryDNSServer,
+        secondaryDNSServer = if (managesDns) server?.secondaryDns.orEmpty() else org?.secondaryDNSServer ?: global.secondaryDNSServer,
+        mtu = server?.mtu ?: org?.mtu ?: global.mtu,
+        exitNodeTakesPrecedence = server?.exitNodeTakesPrecedence ?: org?.exitNodeTakesPrecedence ?: global.exitNodeTakesPrecedence,
+        matchDomains = server?.matchDomains ?: org?.matchDomains ?: global.matchDomains
+    )
+}
+
+/**
+ * Picks the exit node for an org: one the server locks always wins; next the user's own
+ * selection, then the org's section of pangolin.json, and last the server's default.
+ */
+fun effectiveExitNode(server: ClientSettings?, saved: Int?, org: OrgConfig?): Int? {
+    return server?.lockedExitNode ?: saved ?: org?.exitNodeResourceId ?: server?.exitNodeSiteResourceId
+}
 
 // MARK: - Account Types
 
@@ -85,8 +130,9 @@ data class Account(
         // next connect. Only the resource ID is stored (not the niceId, which can be renamed);
         // its sites are looked up from the server on every connect so they can't go stale.
         val exitNodeResourceId: Int? = null,
-        // What the org's server last said it manages for this user. Kept so the settings keep
-        // applying when the server can't be reached. Never edited locally.
+        // The settings the org's server manages for this user, as last fetched from it. Refreshed
+        // on every connect and when Settings opens; only kept here so they still apply if the
+        // server can't be reached.
         val serverSettings: ClientSettings? = null
     ) {
         val isEmpty: Boolean

@@ -363,7 +363,7 @@ class MainActivity : BaseNavigationActivity() {
                     if (server == null) {
                         strictPrivateDnsWarned = false
                     } else if (!strictPrivateDnsWarned &&
-                        configManager.effectiveConfig(configManager.config.value).dnsOverrideEnabled != false
+                        configManager.activeEffectiveConfig().dnsOverrideEnabled != false
                     ) {
                         strictPrivateDnsWarned = true
                         showStrictPrivateDnsDialog(server)
@@ -896,6 +896,15 @@ class MainActivity : BaseNavigationActivity() {
         val state = tunnelManager.exitNodeState.value
         val nodes = state.nodes
         if (nodes.isEmpty()) return
+
+        if (state.locked) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Exit Node Locked")
+                .setMessage("The exit node is set by your organization and can't be changed.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
 
         // Switching mid-connect would miss the tunnel that is still coming up
         val tunnelState = tunnelManager.tunnelState.value

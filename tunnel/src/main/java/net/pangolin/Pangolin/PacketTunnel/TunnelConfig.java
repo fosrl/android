@@ -39,6 +39,9 @@ public class TunnelConfig {
     // the exit node instead of directly to resources. Exit node (gateway)
     // routes are unaffected. Matches olm's TunnelConfig.DisableRoutesAndAliasesOnExitNode.
     private final boolean exitNodeTakesPrecedence;
+    // FQDN wildcard patterns (* and ?) the DNS proxy resolves itself; other names go to the
+    // system's DNS. Empty matches every name. Matches olm's TunnelConfig.MatchDomains.
+    private final List<String> matchDomains;
     private final Map<String, Object> fingerprint;
     private final Map<String, Object> postures;
     // The exit node (gateway site resource) to establish as the tunnel comes up; 0 / empty for none.
@@ -60,6 +63,7 @@ public class TunnelConfig {
         this.overrideDNS = builder.overrideDNS;
         this.tunnelDNS = builder.tunnelDNS;
         this.exitNodeTakesPrecedence = builder.exitNodeTakesPrecedence;
+        this.matchDomains = builder.matchDomains;
         this.fingerprint = builder.fingerprint;
         this.postures = builder.postures;
         this.gatewaySiteResourceId = builder.gatewaySiteResourceId;
@@ -100,6 +104,12 @@ public class TunnelConfig {
         json.put("overrideDNS", overrideDNS);
         json.put("tunnelDNS", tunnelDNS);
         json.put("exitNodeTakesPrecedence", exitNodeTakesPrecedence);
+
+        JSONArray matchDomainsArray = new JSONArray();
+        for (String pattern : matchDomains) {
+            matchDomainsArray.put(pattern);
+        }
+        json.put("matchDomains", matchDomainsArray);
 
         json.put("fingerprint", new JSONObject(fingerprint));
         json.put("postures", new JSONObject(postures));
@@ -174,6 +184,10 @@ public class TunnelConfig {
         return exitNodeTakesPrecedence;
     }
 
+    public List<String> getMatchDomains() {
+        return matchDomains;
+    }
+
     public int getGatewaySiteResourceId() {
         return gatewaySiteResourceId;
     }
@@ -224,6 +238,7 @@ public class TunnelConfig {
         private boolean overrideDNS = false;
         private boolean tunnelDNS = false;
         private boolean exitNodeTakesPrecedence = false;
+        private List<String> matchDomains = new ArrayList<>();
         private Map<String, Object> fingerprint = new HashMap<>();
         private Map<String, Object> postures = new HashMap<>();
         private int gatewaySiteResourceId = 0;
@@ -301,6 +316,11 @@ public class TunnelConfig {
 
         public Builder setExitNodeTakesPrecedence(boolean exitNodeTakesPrecedence) {
             this.exitNodeTakesPrecedence = exitNodeTakesPrecedence;
+            return this;
+        }
+
+        public Builder setMatchDomains(List<String> matchDomains) {
+            this.matchDomains = matchDomains != null ? matchDomains : new ArrayList<>();
             return this;
         }
 

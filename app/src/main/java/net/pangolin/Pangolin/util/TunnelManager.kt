@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -83,7 +84,8 @@ class TunnelManager private constructor(
         val account = store.accounts[store.activeUserId]
         val orgId = org?.orgId ?: account?.orgId
         if (account != null && orgId != null) {
-            account.orgSettings?.get(orgId)?.exitNodeResourceId
+            val settings = account.orgSettings?.get(orgId)
+            effectiveExitNode(settings?.serverSettings, settings?.exitNodeResourceId, configManager.orgConfig(orgId))
         } else {
             null
         }
@@ -109,7 +111,8 @@ class TunnelManager private constructor(
         } else {
             saved?.let { savedResourceId -> nodes.firstOrNull { it.siteResourceId == savedResourceId }?.siteResourceId }
         }
-        ExitNodeUiState(nodes, activeId)
+        val locked = orgId != null && isExitNodeLocked(orgId)
+        ExitNodeUiState(nodes, activeId, locked)
     }.stateIn(scope, SharingStarted.Eagerly, ExitNodeUiState(emptyList(), null))
 
     // OLM error flow - exposes errors from status polling that need user attention
@@ -282,14 +285,15 @@ class TunnelManager private constructor(
             Log.i(tag, "Using OLM credentials for user $userId, org $orgId, olmId=$olmId")
             Log.i(tag, "About to build TunnelConfig with orgId=$orgId")
 
-            // Get configuration. Re-read it from storage so the tunnel always starts with
-            // what the Settings screen saved, even if a change notification was missed.
-            // The org's server can manage some settings, so fetch them first. If it can't be
-            // reached the last fetched ones keep applying.
-            withTimeoutOrNull(CLIENT_SETTINGS_CONNECT_TIMEOUT_MS) {
-                refreshClientSettings(userId, orgId)
+            // Get configuration: the server's settings are fetched on every connect, so a change
+            // made on the server applies to the next connection. A slow server must not hold up
+            // connecting, so after a short wait the last fetched settings apply instead. The
+            // global settings are re-read from storage so the tunnel always starts with what the
+            // Settings screen saved, even if a change notification was missed.
+            val serverSettings = withTimeoutOrNull(CLIENT_SETTINGS_CONNECT_TIMEOUT_MS) {
+                refreshClientSettings(orgId)
             } ?: applyCachedClientSettings(userId, orgId)
-            val config = configManager.effectiveConfig()
+            val config = configManager.effectiveConfig(orgId, serverSettings)
             val primaryDNS = config.primaryDNSServer
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: true
@@ -350,6 +354,7 @@ class TunnelManager private constructor(
                     .setOverrideDNS(overrideDns)
                     .setTunnelDNS(tunnelDns)
                     .setExitNodeTakesPrecedence(exitNodeTakesPrecedence)
+                    .setMatchDomains(config.matchDomains.orEmpty())
                     .setFingerprint(initialFingerprint.toMap())
                     .setPostures(initialPostures.toMap())
                     .setGateway(savedGateway?.siteResourceId ?: 0, savedGateway?.siteIds ?: emptyList())
@@ -444,37 +449,45 @@ class TunnelManager private constructor(
     // MARK: - Client Settings
 
     /**
-     * Fetches the settings the current org's server manages and applies them. Runs on every
-     * connect, on an org switch, and while the Settings screen is open. If the server can't be
-     * reached the last fetched settings keep applying. Nothing is saved when they haven't
-     * changed, so polling doesn't rewrite the account file.
+     * Fetches the settings the org's server manages and applies them, returning them. Runs on
+     * every connect, on an org switch, when Settings opens, and every few seconds while the
+     * Settings screen is visible. If the server can't be reached the last fetched settings keep
+     * applying. Nothing is saved when they haven't changed, so polling doesn't rewrite the
+     * account file.
      */
-    suspend fun refreshClientSettings() {
+    suspend fun refreshClientSettings(
+        orgId: String? = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
+    ): ClientSettings? {
         val userId = accountManager.activeUserId
-        val orgId = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
-        if (userId.isEmpty() || orgId.isNullOrEmpty()) {
-            configManager.setServerSettings(null)
-            return
+        if (orgId.isNullOrEmpty() || userId.isEmpty()) {
+            configManager.setActiveOrg(null)
+            return null
         }
-        if (!authManager.isAuthenticated.value || authManager.sessionExpired.value) {
-            applyCachedClientSettings(userId, orgId)
-            return
+
+        if (authManager.isAuthenticated.value && !authManager.sessionExpired.value) {
+            try {
+                val settings = authManager.apiClient.getMyClientSettings(orgId)
+                accountManager.setServerSettings(userId, orgId, settings)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(tag, "Could not fetch client settings (${e.message}); using the last known settings")
+            }
         }
-        refreshClientSettings(userId, orgId)
+        return applyCachedClientSettings(userId, orgId)
     }
 
-    private suspend fun refreshClientSettings(userId: String, orgId: String) {
-        try {
-            val settings = authManager.apiClient.getMyClientSettings(orgId)
-            accountManager.setServerSettings(userId, orgId, settings)
-        } catch (e: Exception) {
-            Log.w(tag, "Failed to fetch client settings: ${e.message}")
-        }
-        applyCachedClientSettings(userId, orgId)
+    /** Publishes the last fetched settings of orgId as the active org's, and returns them. */
+    private fun applyCachedClientSettings(userId: String, orgId: String): ClientSettings? {
+        val server = accountManager.getServerSettings(userId, orgId)
+        val name = authManager.currentOrg.value?.takeIf { it.orgId == orgId }?.name ?: orgId
+        configManager.setActiveOrg(ActiveOrg(orgId, name, server))
+        return server
     }
 
-    private fun applyCachedClientSettings(userId: String, orgId: String) {
-        configManager.setServerSettings(accountManager.getServerSettings(userId, orgId))
+    /** Whether the org's server forces the exit node, so the user can't change it. */
+    private fun isExitNodeLocked(orgId: String): Boolean {
+        return accountManager.getServerSettings(accountManager.activeUserId, orgId)?.lockedExitNode != null
     }
 
     // MARK: - Exit Nodes
@@ -508,6 +521,7 @@ class TunnelManager private constructor(
     suspend fun selectExitNode(node: SiteResource): String? {
         val orgId = authManager.currentOrg.value?.orgId ?: return "No organization selected"
         val userId = accountManager.activeUserId
+        if (isExitNodeLocked(orgId)) return "The exit node is locked by your organization"
 
         if (isTunnelLive()) {
             try {
@@ -527,6 +541,11 @@ class TunnelManager private constructor(
      * Returns an error message to show the user, or null on success.
      */
     suspend fun disableExitNode(): String? {
+        val currentOrgId = authManager.currentOrg.value?.orgId ?: accountManager.activeAccount?.orgId
+        if (currentOrgId != null && isExitNodeLocked(currentOrgId)) {
+            return "The exit node is locked by your organization"
+        }
+
         if (isTunnelLive()) {
             try {
                 socketManager.disableGateway()
@@ -549,7 +568,12 @@ class TunnelManager private constructor(
      * so a deleted, disabled or site-less resource is skipped.
      */
     private suspend fun resolveSavedExitNode(orgId: String): SiteResource? {
-        val savedResourceId = accountManager.getExitNode(accountManager.activeUserId, orgId) ?: return null
+        val userId = accountManager.activeUserId
+        val savedResourceId = effectiveExitNode(
+            accountManager.getServerSettings(userId, orgId),
+            accountManager.getExitNode(userId, orgId),
+            configManager.orgConfig(orgId)
+        ) ?: return null
 
         return try {
             val gateway = authManager.apiClient.listGatewayResources(orgId)
@@ -578,9 +602,9 @@ class TunnelManager private constructor(
             val activeAccount = accountManager.activeAccount
             if (activeAccount != null) {
                 accountManager.setUserOrganization(activeAccount.userId, orgId)
-                // currentOrg may not have caught up yet, so name the org explicitly.
-                refreshClientSettings(activeAccount.userId, orgId)
             }
+            // currentOrg may not have caught up yet, so name the org explicitly.
+            refreshClientSettings(orgId)
 
         } catch (e: Exception) {
             Log.e(tag, "Failed to switch organization", e)
@@ -807,7 +831,8 @@ internal class ReadinessEpoch {
 /** The exit nodes available in the current org and the selected one's site resource ID, if any. */
 data class ExitNodeUiState(
     val nodes: List<SiteResource>,
-    val activeId: Int?
+    val activeId: Int?,
+    val locked: Boolean = false
 )
 
 data class TunnelState(
