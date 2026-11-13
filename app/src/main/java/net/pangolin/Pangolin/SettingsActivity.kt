@@ -60,6 +60,7 @@ class SettingsActivity : BaseNavigationActivity() {
         private companion object {
             // How often the org's settings are re-fetched while this screen is visible.
             const val SERVER_SETTINGS_POLL_INTERVAL_MS = 10_000L
+            const val EXCLUDED_APPS_ENTRY = "excludedAppsEntry"
         }
 
         private var isTunnelActive = false
@@ -527,10 +528,6 @@ class SettingsActivity : BaseNavigationActivity() {
             } else {
                 super.onDisplayPreferenceDialog(preference)
             }
-        }
-
-        private companion object {
-            const val EXCLUDED_APPS_ENTRY = "excludedAppsEntry"
         }
     }
 }

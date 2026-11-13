@@ -18,7 +18,7 @@ data class Config(
     // FQDN wildcard patterns the DNS proxy resolves; other names go to the system's DNS. Empty
     // matches everything. No Settings screen sets it: it comes from the server or the org's
     // section of pangolin.json, as on the other clients.
-    val matchDomains: List<String>? = null
+    val matchDomains: List<String>? = null,
     // Package names of apps whose traffic bypasses the VPN (in-app exclusion list)
     val excludedApplications: Set<String> = emptySet()
 )
