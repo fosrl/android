@@ -167,14 +167,15 @@ class SettingsActivity : BaseNavigationActivity() {
                 isVisible = false
                 isPersistent = false
                 isIconSpaceReserved = false
-                order = -2
+                order = -3
             })
             preferenceScreen?.addPreference(Preference(requireContext()).apply {
                 key = "org_reset"
+                layoutResource = R.layout.preference_button
                 isVisible = false
                 isPersistent = false
                 isIconSpaceReserved = false
-                order = Int.MAX_VALUE
+                order = -2
                 setOnPreferenceClickListener {
                     configManager.resetActiveOrgConfig()
                     showScopedValues()
@@ -207,20 +208,29 @@ class SettingsActivity : BaseNavigationActivity() {
             }
 
             val org = configManager.activeOrg.value ?: return true
-            val choices = arrayOf<CharSequence>("All Organizations", "Only ${org.name}")
-            MaterialAlertDialogBuilder(requireContext())
+            val content = layoutInflater.inflate(R.layout.dialog_settings_scope, null)
+            val dialog = MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Apply This Change To")
-                .setItems(choices) { _, which ->
-                    scopedStore.scope = if (which == 0) SettingsScope.GLOBAL else SettingsScope.ORG
-                    when (preference) {
-                        is androidx.preference.SwitchPreferenceCompat -> preference.isChecked = newValue as Boolean
-                        is EditTextPreference -> preference.text = newValue as String
-                    }
-                    onApplied()
-                    showOrgMode()
-                }
+                .setView(content)
                 .setNegativeButton("Cancel", null)
-                .show()
+                .create()
+            fun choose(scope: SettingsScope) {
+                dialog.dismiss()
+                scopedStore.scope = scope
+                when (preference) {
+                    is androidx.preference.SwitchPreferenceCompat -> preference.isChecked = newValue as Boolean
+                    is EditTextPreference -> preference.text = newValue as String
+                }
+                onApplied()
+                showOrgMode()
+            }
+            content.findViewById<com.google.android.material.button.MaterialButton>(R.id.scope_all)
+                .setOnClickListener { choose(SettingsScope.GLOBAL) }
+            content.findViewById<com.google.android.material.button.MaterialButton>(R.id.scope_org).apply {
+                text = "Only ${org.name}"
+                setOnClickListener { choose(SettingsScope.ORG) }
+            }
+            dialog.show()
             return false
         }
 

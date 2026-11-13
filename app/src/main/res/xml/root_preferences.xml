@@ -4,18 +4,21 @@
         app:layout="@layout/preference_category_material_card">
 
         <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
             android:key="persistentVpnNotification"
             android:title="@string/persistent_vpn_notification_title"
             android:summary="@string/persistent_vpn_notification_summary"
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
             android:key="overrideDns"
             android:summary="When enabled, the client uses custom DNS servers to resolve internal resources and aliases. This overrides your system's default DNS settings. Queries that cannot be resolved as a Pangolin resource will be forwarded to your configured Upstream DNS Server."
             android:title="Enable Aliases (DNS Override)"
             android:defaultValue="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
             android:key="tunnelDns"
             android:summary="When enabled, DNS queries are routed through the tunnel for remote resolution. To ensure queries are tunneled correctly, you must define the DNS server as a Pangolin resource and enter its address as an Upstream DNS Server."
             android:title="DNS Over Tunnel"
@@ -29,6 +32,7 @@
             android:title="Secondary Upstream DNS Server"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
             android:key="logCollectionEnabled"
             android:summary="When enabled, tunnel logs are saved to a file that can be downloaded for troubleshooting."
             android:title="Enable Log Collection"
@@ -42,6 +46,7 @@
             app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
             android:key="exitNodeTakesPrecedence"
             android:summary="When enabled, routes for individual resources are not added to the system and their aliases are not resolved, so all traffic is sent through the exit node instead of directly to resources."
             android:title="Exit Node Takes Precedence Over Resources"
