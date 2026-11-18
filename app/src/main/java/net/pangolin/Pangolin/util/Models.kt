@@ -11,7 +11,6 @@ data class Config(
     val dnsTunnelEnabled: Boolean? = null,
     val primaryDNSServer: String? = null,
     val secondaryDNSServer: String? = null,
-    val logCollectionEnabled: Boolean? = null,
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
     val exitNodeTakesPrecedence: Boolean? = null

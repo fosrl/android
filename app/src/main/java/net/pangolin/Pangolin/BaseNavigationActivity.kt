@@ -91,12 +91,6 @@ abstract class BaseNavigationActivity : AppCompatActivity() {
                     finish()
                 }
             }
-            R.id.nav_logs -> {
-                if (this !is LogsActivity) {
-                    startActivity(Intent(this, LogsActivity::class.java))
-                    finish()
-                }
-            } 
         }
     }
 

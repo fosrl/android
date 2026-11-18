@@ -28,12 +28,6 @@
             android:key="secondaryDNSServer"
             android:title="Secondary Upstream DNS Server"
             app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:key="logCollectionEnabled"
-            android:summary="When enabled, tunnel logs are saved to a file that can be downloaded for troubleshooting."
-            android:title="Enable Log Collection"
-            android:defaultValue="false"
-            app:iconSpaceReserved="false" />
         <EditTextPreference
             android:defaultValue="1280"
             android:key="mtu"

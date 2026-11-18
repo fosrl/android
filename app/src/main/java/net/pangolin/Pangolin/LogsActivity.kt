@@ -9,10 +9,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.navigation.NavigationView
-import net.pangolin.Pangolin.util.ConfigManager
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -22,10 +19,10 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class LogsActivity : BaseNavigationActivity() {
+/** Opened from About. Logs are always collected; this shows the file and shares it. */
+class LogsActivity : AppCompatActivity() {
 
     private val tag = "LogsActivity"
-    private lateinit var configManager: ConfigManager
     private lateinit var logStatusText: TextView
     private lateinit var downloadLogsButton: Button
     private lateinit var logFileInfoText: TextView
@@ -34,14 +31,9 @@ class LogsActivity : BaseNavigationActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_logs)
 
-        configManager = ConfigManager.getInstance(this)
-
-        // Setup navigation
-        setupNavigation(
-            findViewById(R.id.drawer_layout),
-            findViewById(R.id.nav_view),
-            findViewById(R.id.toolbar)
-        )
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         // Initialize views
         logStatusText = findViewById(R.id.logStatusText)
@@ -76,43 +68,31 @@ class LogsActivity : BaseNavigationActivity() {
         updateLogStatus()
     }
 
-    override fun getSelectedNavItemId(): Int {
-        return R.id.nav_logs
-    }
-
     private fun updateLogStatus() {
-        val config = configManager.config.value
-        val logCollectionEnabled = config.logCollectionEnabled ?: false
         val logFile = File(filesDir, "pangolin.log")
 
-        if (logCollectionEnabled) {
-            if (logFile.exists() && logFile.length() > 0) {
-                logStatusText.text = "Log collection is enabled. Logs are being saved."
-                downloadLogsButton.isEnabled = true
-                
-                // Show file info including backups
-                val totalSize = getTotalLogSize()
-                val backupCount = getBackupLogCount()
-                val fileSize = formatFileSize(logFile.length())
-                val totalSizeStr = formatFileSize(totalSize)
-                val lastModified = SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault())
-                    .format(Date(logFile.lastModified()))
-                
-                val backupInfo = if (backupCount > 0) {
-                    "\nBackup logs: $backupCount (Total: $totalSizeStr)"
-                } else {
-                    ""
-                }
-                
-                logFileInfoText.text = "Current log: $fileSize\nLast modified: $lastModified$backupInfo"
-                logFileInfoText.visibility = TextView.VISIBLE
+        if (logFile.exists() && logFile.length() > 0) {
+            logStatusText.text = "Logs are saved automatically."
+            downloadLogsButton.isEnabled = true
+
+            // Show file info including backups
+            val totalSize = getTotalLogSize()
+            val backupCount = getBackupLogCount()
+            val fileSize = formatFileSize(logFile.length())
+            val totalSizeStr = formatFileSize(totalSize)
+            val lastModified = SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault())
+                .format(Date(logFile.lastModified()))
+
+            val backupInfo = if (backupCount > 0) {
+                "\nBackup logs: $backupCount (Total: $totalSizeStr)"
             } else {
-                logStatusText.text = "Log collection is enabled, but no logs have been generated yet. Connect to the tunnel to generate logs."
-                downloadLogsButton.isEnabled = false
-                logFileInfoText.visibility = TextView.GONE
+                ""
             }
+
+            logFileInfoText.text = "Current log: $fileSize\nLast modified: $lastModified$backupInfo"
+            logFileInfoText.visibility = TextView.VISIBLE
         } else {
-            logStatusText.text = "Log collection is disabled. Enable it in Settings to collect logs."
+            logStatusText.text = "No logs yet. Connect to generate logs."
             downloadLogsButton.isEnabled = false
             logFileInfoText.visibility = TextView.GONE
         }

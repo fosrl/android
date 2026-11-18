@@ -286,12 +286,10 @@ class TunnelManager private constructor(
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: false
             val tunnelDns = config.dnsTunnelEnabled ?: false
-            val logCollectionEnabled = config.logCollectionEnabled ?: false
             val mtu = config.mtu ?: 1280
             val exitNodeTakesPrecedence = config.exitNodeTakesPrecedence ?: false
 
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
-            Log.d(tag, "Log collection enabled: $logCollectionEnabled")
 
             val fpCollector = AndroidFingerprintCollector(context)
             val initialFingerprint = fpCollector.gatherFingerprintInfo()
@@ -308,11 +306,9 @@ class TunnelManager private constructor(
                     .setAgent("Pangolin Android")
                     .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
-                
-                if (logCollectionEnabled) {
-                    initConfigBuilder.setLogFilePath(File(context.filesDir, "pangolin.log").absolutePath)
-                }
-                
+                    // Always collected, as on the other clients. Go rotates it at 10 MB, keeping 3 backups.
+                    .setLogFilePath(File(context.filesDir, "pangolin.log").absolutePath)
+
                 val initConfig = initConfigBuilder.build()
 
                 // Note: when this is left empty (no custom DNS configured), olm's
