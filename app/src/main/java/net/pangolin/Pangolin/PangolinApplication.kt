@@ -34,7 +34,10 @@ class PangolinApplication : Application(), StandbyDetector.StandbyListener {
         // Persist the Settings screen's defaults before anything reads them. Otherwise a
         // setting the user never opened Settings for is read with the code's fallback,
         // which can differ from what the Settings screen shows.
-        PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false)
+        // Settings are split across two screens. readAgain is true so the second file is read too
+        // (with false, only the first call ever runs); it still only fills in unset keys.
+        PreferenceManager.setDefaultValues(this, R.xml.general_settings, true)
+        PreferenceManager.setDefaultValues(this, R.xml.connection_settings, true)
 
         // Android creates Application before a system-started VpnService, so this graph is
         // available even when no Activity has been opened in the current process.

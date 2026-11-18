@@ -1,0 +1,18 @@
+<!-- App-wide settings. Unlike the Connection screen's, these are the same for every organization
+     and account. -->
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:layout="@layout/preference_category_material_card">
+
+        <SwitchPreferenceCompat
+            android:widgetLayout="@layout/preference_widget_material_switch"
+            android:key="persistentVpnNotification"
+            android:title="@string/persistent_vpn_notification_title"
+            android:summary="@string/persistent_vpn_notification_summary"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

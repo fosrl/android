@@ -1,6 +1,7 @@
 package net.pangolin.Pangolin
 
 import android.content.Intent
+import android.view.View
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -103,11 +104,27 @@ abstract class BaseNavigationActivity : AppCompatActivity() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START)
                 } else {
+                    // Let the next handler (a fragment back stack, or finishing the activity)
+                    // take this press, then handle the drawer again for the next one.
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
                 }
             }
         })
+    }
+
+    /**
+     * Shows a back arrow in place of the drawer icon, for a screen pushed within this activity.
+     * The arrow goes back like the system back button.
+     */
+    protected fun setShowsBackArrow(show: Boolean) {
+        toggle.isDrawerIndicatorEnabled = !show
+        supportActionBar?.setDisplayHomeAsUpEnabled(show)
+        toggle.setToolbarNavigationClickListener(
+            if (show) View.OnClickListener { onBackPressedDispatcher.onBackPressed() } else null
+        )
+        toggle.syncState()
     }
 
     /**

@@ -89,4 +89,27 @@ class ClientSettingsTest {
         assertEquals(20, effectiveExitNode(default, 20, org))
         assertEquals(10, effectiveExitNode(locked, 20, org))
     }
+
+    @Test
+    fun exitNodeAndMatchDomainsAreNotTheOrgsOwnSettings() {
+        val org = OrgConfig(exitNodeResourceId = 7, matchDomains = listOf("*.internal"))
+        assertEquals(false, org.hasOwnSettings)
+        assertEquals(true, org.copy(mtu = 1300).hasOwnSettings)
+        assertEquals(true, OrgConfig(primaryDNSServer = "").hasOwnSettings)
+    }
+
+    @Test
+    fun resettingKeepsExitNodeAndMatchDomains() {
+        val org = OrgConfig(
+            dnsOverrideEnabled = false,
+            mtu = 1300,
+            exitNodeResourceId = 7,
+            matchDomains = listOf("*.internal")
+        )
+        val reset = org.withoutOwnSettings()
+        assertEquals(false, reset.hasOwnSettings)
+        assertEquals(7, reset.exitNodeResourceId)
+        assertEquals(listOf("*.internal"), reset.matchDomains)
+        assertTrue(OrgConfig(mtu = 1300).withoutOwnSettings().isEmpty)
+    }
 }
