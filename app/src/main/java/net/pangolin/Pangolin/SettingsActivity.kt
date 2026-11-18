@@ -10,17 +10,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import android.view.ViewGroup
 import android.text.method.DigitsKeyListener
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import net.pangolin.Pangolin.databinding.SettingsActivityBinding
+import net.pangolin.Pangolin.util.ConfigManager
 import net.pangolin.Pangolin.util.DnsServerAddress
+import net.pangolin.Pangolin.util.ScopedPreferenceDataStore
+import net.pangolin.Pangolin.util.SettingsScope
 import net.pangolin.Pangolin.util.TunnelManager
 
 class SettingsActivity : BaseNavigationActivity() {
@@ -49,7 +55,14 @@ class SettingsActivity : BaseNavigationActivity() {
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {
+        private companion object {
+            // How often the org's settings are re-fetched while this screen is visible.
+            const val SERVER_SETTINGS_POLL_INTERVAL_MS = 10_000L
+        }
+
         private var isTunnelActive = false
+        private val configManager by lazy { ConfigManager.getInstance(requireContext()) }
+        private val scopedStore by lazy { ScopedPreferenceDataStore(configManager) }
         private val notificationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
@@ -87,6 +100,8 @@ class SettingsActivity : BaseNavigationActivity() {
                 infoPreference.order = -1
             }
             
+            setupOrgSettings()
+
             // Show "System DNS" as the summary when a DNS field is left empty
             val systemDnsSummaryProvider = Preference.SummaryProvider<EditTextPreference> { pref ->
                 if (pref.text.isNullOrEmpty()) "System DNS" else pref.text
@@ -108,62 +123,233 @@ class SettingsActivity : BaseNavigationActivity() {
                     }
                 }
             }
+
+            observeServerSettings()
         }
-        
+
+        /**
+         * Keeps the screen in step with what the org's server manages. The settings are fetched
+         * when the screen appears, then re-fetched every [SERVER_SETTINGS_POLL_INTERVAL_MS]
+         * while it stays visible, and every change is shown as it arrives. Android can't push
+         * these, and nothing runs once the screen is no longer started. A running tunnel still
+         * only picks the new values up when it reconnects.
+         */
+        private fun observeServerSettings() {
+            val tunnelManager = TunnelManager.getInstance() ?: return
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    launch {
+                        configManager.activeOrg.collect { showScopedValues() }
+                    }
+                    launch {
+                        while (true) {
+                            tunnelManager.refreshClientSettings()
+                            delay(SERVER_SETTINGS_POLL_INTERVAL_MS)
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Routes the settings that can differ per org through [scopedStore], and adds the org
+         * mode message at the top and the switch back to the global settings at the bottom.
+         */
+        private fun setupOrgSettings() {
+            val scopedKeys = ScopedPreferenceDataStore.BOOLEAN_KEYS + ScopedPreferenceDataStore.STRING_KEYS
+            for (key in scopedKeys) {
+                findPreference<Preference>(key)?.preferenceDataStore = scopedStore
+            }
+
+            preferenceScreen?.addPreference(Preference(requireContext()).apply {
+                key = "org_mode_info"
+                isSelectable = false
+                isVisible = false
+                isPersistent = false
+                isIconSpaceReserved = false
+                order = -3
+            })
+            preferenceScreen?.addPreference(Preference(requireContext()).apply {
+                key = "org_reset"
+                layoutResource = R.layout.preference_button
+                isVisible = false
+                isPersistent = false
+                isIconSpaceReserved = false
+                order = -2
+                setOnPreferenceClickListener {
+                    configManager.resetActiveOrgConfig()
+                    showScopedValues()
+                    true
+                }
+            })
+
+            // Switches have no listener of their own beyond this one
+            findPreference<Preference>(ScopedPreferenceDataStore.KEY_EXIT_NODE_PRECEDENCE)
+                ?.setOnPreferenceChangeListener { preference, newValue -> confirmScope(preference, newValue) }
+            for (key in ScopedPreferenceDataStore.STRING_KEYS) {
+                findPreference<Preference>(key)
+                    ?.setOnPreferenceChangeListener { preference, newValue -> confirmScope(preference, newValue) }
+            }
+
+            showScopedValues()
+        }
+
+        /**
+         * Picks where a change is saved. Settings apply as soon as they change, so this is asked
+         * here rather than on a save button. Returns true to let the change through; false when
+         * it's waiting on the user, in which case [onApplied] runs once it has been applied.
+         */
+        private fun confirmScope(preference: Preference, newValue: Any, onApplied: () -> Unit = {}): Boolean {
+            val known = configManager.knownScope
+            if (known != null) {
+                scopedStore.scope = known
+                view?.post { showOrgMode() }
+                return true
+            }
+
+            val org = configManager.activeOrg.value ?: return true
+            val content = layoutInflater.inflate(R.layout.dialog_settings_scope, null)
+            val dialog = MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Apply This Change To")
+                .setView(content)
+                .setNegativeButton("Cancel", null)
+                .create()
+            fun choose(scope: SettingsScope) {
+                dialog.dismiss()
+                scopedStore.scope = scope
+                when (preference) {
+                    is androidx.preference.SwitchPreferenceCompat -> preference.isChecked = newValue as Boolean
+                    is EditTextPreference -> preference.text = newValue as String
+                }
+                onApplied()
+                showOrgMode()
+            }
+            content.findViewById<com.google.android.material.button.MaterialButton>(R.id.scope_all)
+                .setOnClickListener { choose(SettingsScope.GLOBAL) }
+            content.findViewById<com.google.android.material.button.MaterialButton>(R.id.scope_org).apply {
+                text = "Only ${org.name}"
+                setOnClickListener { choose(SettingsScope.ORG) }
+            }
+            dialog.show()
+            return false
+        }
+
+        /** Shows what the active org uses, without that counting as a change. */
+        private fun showScopedValues() {
+            scopedStore.suppressWrites = true
+            for (key in ScopedPreferenceDataStore.BOOLEAN_KEYS) {
+                findPreference<androidx.preference.SwitchPreferenceCompat>(key)?.let {
+                    it.isChecked = scopedStore.getBoolean(key, it.isChecked)
+                }
+            }
+            for (key in ScopedPreferenceDataStore.STRING_KEYS) {
+                findPreference<EditTextPreference>(key)?.let {
+                    it.text = scopedStore.getString(key, it.text)
+                }
+            }
+            updatePreferencesEnabled()
+            updateDnsSettings()
+            scopedStore.suppressWrites = false
+
+            showOrgMode()
+        }
+
+        private fun showOrgMode() {
+            val org = configManager.activeOrg.value
+            findPreference<Preference>("org_mode_info")?.apply {
+                isVisible = org != null
+                title = org?.let {
+                    if (configManager.isOrgMode) "${it.name} is using its own settings"
+                    else "${it.name} is using your global settings"
+                }
+                summary = if (org?.serverSettings != null) "Settings set by your organization can't be changed." else null
+            }
+            findPreference<Preference>("org_reset")?.apply {
+                isVisible = configManager.isOrgMode
+                title = "Use Global Settings for ${org?.name}"
+            }
+        }
+
         private fun setupDnsSettingsDependencies() {
             val overrideDns = findPreference<androidx.preference.SwitchPreferenceCompat>("overrideDns")
             val tunnelDns = findPreference<androidx.preference.SwitchPreferenceCompat>("tunnelDns")
-            val primaryDns = findPreference<EditTextPreference>("primaryDNSServer")
-            val secondaryDns = findPreference<EditTextPreference>("secondaryDNSServer")
-            
-            // Update DNS settings based on current state
-            fun updateDnsSettings() {
-                val isDnsOverrideEnabled = overrideDns?.isChecked ?: true
-                
-                // If DNS override is off, force tunnel DNS off and disable it
-                if (!isDnsOverrideEnabled) {
-                    tunnelDns?.isChecked = false
-                    tunnelDns?.isEnabled = false
-                } else {
-                    // Only re-enable if tunnel is not active
-                    tunnelDns?.isEnabled = !isTunnelActive
-                }
-                
-                // Show/hide DNS input boxes based on DNS override setting
-                primaryDns?.isVisible = isDnsOverrideEnabled
-                secondaryDns?.isVisible = isDnsOverrideEnabled
-            }
-            
+
             // Set up listeners
-            overrideDns?.setOnPreferenceChangeListener { _, newValue ->
+            overrideDns?.setOnPreferenceChangeListener { preference, newValue ->
                 val enabled = newValue as Boolean
-                if (!enabled) {
-                    tunnelDns?.isChecked = false
+                val applied = {
+                    if (!enabled) {
+                        tunnelDns?.isChecked = false
+                    }
+                    // Delay update to allow preference change to complete
+                    view?.postDelayed({ updateDnsSettings() }, 100)
+                    Unit
                 }
-                // Delay update to allow preference change to complete
-                view?.postDelayed({ updateDnsSettings() }, 100)
-                true
+                val allowed = confirmScope(preference, newValue, applied)
+                if (allowed) applied()
+                allowed
             }
             
-            tunnelDns?.setOnPreferenceChangeListener { _, _ ->
-                // Delay update to allow preference change to complete
-                view?.postDelayed({ updateDnsSettings() }, 100)
-                true
+            tunnelDns?.setOnPreferenceChangeListener { preference, newValue ->
+                val applied = {
+                    // Delay update to allow preference change to complete
+                    view?.postDelayed({ updateDnsSettings() }, 100)
+                    Unit
+                }
+                val allowed = confirmScope(preference, newValue, applied)
+                if (allowed) applied()
+                allowed
             }
             
             // Initial update
             updateDnsSettings()
         }
+
+        // Update DNS settings based on current state
+        private fun updateDnsSettings() {
+            val overrideDns = findPreference<androidx.preference.SwitchPreferenceCompat>("overrideDns")
+            val tunnelDns = findPreference<androidx.preference.SwitchPreferenceCompat>("tunnelDns")
+            val primaryDns = findPreference<EditTextPreference>("primaryDNSServer")
+            val secondaryDns = findPreference<EditTextPreference>("secondaryDNSServer")
+            val isDnsOverrideEnabled = overrideDns?.isChecked ?: true
+
+            // If DNS override is off, force tunnel DNS off and disable it
+            if (!isDnsOverrideEnabled) {
+                if (tunnelDns?.isEnabled == true && tunnelDns.key !in scopedStore.managedKeys()) {
+                    tunnelDns.isChecked = false
+                }
+                tunnelDns?.isEnabled = false
+            } else {
+                // Only re-enable if tunnel is not active
+                tunnelDns?.isEnabled = !isTunnelActive && tunnelDns?.key !in scopedStore.managedKeys()
+            }
+
+            // Show/hide DNS input boxes based on DNS override setting
+            primaryDns?.isVisible = isDnsOverrideEnabled
+            secondaryDns?.isVisible = isDnsOverrideEnabled
+        }
         
         private fun updateLockInfo() {
             val infoPreference = findPreference<Preference>("tunnel_lock_info")
+            val isManaged = scopedStore.managedKeys().isNotEmpty()
             infoPreference?.apply {
-                isVisible = isTunnelActive
-                title = "Tunnel active"
-                summary = "Connection settings cannot be changed while the tunnel is active. Please disconnect first."
+                isVisible = isTunnelActive || isManaged
+                title = when {
+                    isTunnelActive -> "Tunnel active"
+                    else -> "Some settings are managed by your organization"
+                }
+                summary = buildString {
+                    if (isTunnelActive) {
+                        append("Connection settings cannot be changed while the tunnel is active. Please disconnect first.")
+                    }
+                    if (isManaged) {
+                        if (isNotEmpty()) append(' ')
+                        append("Settings set by your organization can't be changed. Changes take effect the next time the tunnel connects.")
+                    }
+                }
             }
         }
-        
+
         private fun updatePreferencesEnabled() {
             preferenceScreen?.let { screen ->
                 setPreferencesEnabledRecursive(screen, !isTunnelActive)
@@ -193,7 +379,7 @@ class SettingsActivity : BaseNavigationActivity() {
                     continue
                 }
                 
-                preference.isEnabled = enabled
+                preference.isEnabled = enabled && preference.key !in scopedStore.managedKeys()
                 
                 if (preference is androidx.preference.PreferenceGroup) {
                     setPreferencesEnabledRecursive(preference, enabled)
@@ -291,9 +477,9 @@ class SettingsActivity : BaseNavigationActivity() {
                             }
                         } else {
                             textInputLayout.error = null
+                            dialog.dismiss()
                             if (preference.callChangeListener(newValue)) {
                                 preference.text = newValue
-                                dialog.dismiss()
                             }
                         }
                     }

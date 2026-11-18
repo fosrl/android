@@ -307,6 +307,17 @@ public final class GoBackend implements Backend {
     }
 
     /**
+     * Returns the Private DNS hostname when Android's Private DNS is in strict mode, or null.
+     * Strict Private DNS sends all lookups (including on the VPN network) to that provider
+     * over TLS, bypassing the tunnel's DNS server, so Pangolin aliases cannot resolve.
+     */
+    @Nullable
+    public String getStrictPrivateDnsServerName() {
+        final SystemDnsMonitor monitor = systemDnsMonitor;
+        return monitor == null ? null : monitor.getStrictPrivateDnsServerName();
+    }
+
+    /**
      * Stops observing the device's real DNS servers.
      */
     public void stopSystemDnsMonitoring() {

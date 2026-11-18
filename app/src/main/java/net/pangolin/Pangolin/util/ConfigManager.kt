@@ -7,14 +7,28 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
 
-class ConfigManager private constructor(context: Context) {
+class ConfigManager private constructor(private val context: Context) {
     private val tag = "ConfigManager"
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    private val json = Json {
+        ignoreUnknownKeys = true
+        prettyPrint = true
+    }
 
     private val _config = MutableStateFlow(loadConfig())
     val config: StateFlow<Config> = _config.asStateFlow()
-    
+
+    private val _orgConfigs = MutableStateFlow(loadOrgConfigs())
+    val orgConfigs: StateFlow<Map<String, OrgConfig>> = _orgConfigs.asStateFlow()
+
+    // Set by TunnelManager.refreshClientSettings.
+    private val _activeOrg = MutableStateFlow<ActiveOrg?>(null)
+    val activeOrg: StateFlow<ActiveOrg?> = _activeOrg.asStateFlow()
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence" -> {
@@ -31,7 +45,9 @@ class ConfigManager private constructor(context: Context) {
     private fun loadConfig(): Config {
         return try {
             Config(
-                dnsOverrideEnabled = prefs.getBoolean("overrideDns", false),
+                // Must match android:defaultValue in root_preferences.xml (and olm's default):
+                // the Settings screen shows aliases as enabled until the user changes it.
+                dnsOverrideEnabled = prefs.getBoolean("overrideDns", true),
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
                 primaryDNSServer = prefs.getString("primaryDNSServer", null),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
@@ -48,7 +64,7 @@ class ConfigManager private constructor(context: Context) {
     fun save(config: Config): Boolean {
         return try {
             prefs.edit().apply {
-                putBoolean("overrideDns", config.dnsOverrideEnabled ?: false)
+                putBoolean("overrideDns", config.dnsOverrideEnabled ?: true)
                 putBoolean("tunnelDns", config.dnsTunnelEnabled ?: false)
                 putString("primaryDNSServer", config.primaryDNSServer)
                 putString("secondaryDNSServer", config.secondaryDNSServer)
@@ -61,6 +77,106 @@ class ConfigManager private constructor(context: Context) {
             true
         } catch (e: Exception) {
             Log.e(tag, "Error saving config: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Re-reads the global configuration from storage and publishes it. Callers that act on the
+     * configuration (starting the tunnel, showing log status) use this instead of the
+     * cached value so they never act on a stale copy.
+     */
+    fun reload(): Config {
+        val config = loadConfig()
+        _config.value = config
+        return config
+    }
+
+    fun globalBoolean(key: String, defValue: Boolean): Boolean = prefs.getBoolean(key, defValue)
+
+    fun globalString(key: String, defValue: String?): String? = prefs.getString(key, defValue)
+
+    fun putGlobalBoolean(key: String, value: Boolean) {
+        prefs.edit().putBoolean(key, value).apply()
+    }
+
+    fun putGlobalString(key: String, value: String?) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    fun setActiveOrg(org: ActiveOrg?) {
+        _activeOrg.value = org
+    }
+
+    fun orgConfig(orgId: String): OrgConfig? = _orgConfigs.value[orgId]
+
+    /**
+     * The settings for orgId: server, then its section of pangolin.json, then global. The global
+     * ones are re-read from storage, so what the tunnel starts with is always what the Settings
+     * screen saved, even if a change notification was missed.
+     */
+    fun effectiveConfig(orgId: String?, server: ClientSettings?): Config {
+        return effectiveConfig(reload(), orgId?.let { orgConfig(it) }, server)
+    }
+
+    /** The settings shown for and used by the active org, or the global ones without one. */
+    fun activeEffectiveConfig(): Config {
+        val org = _activeOrg.value
+        return effectiveConfig(org?.id, org?.serverSettings)
+    }
+
+    /** Whether the active org has its own settings rather than using the global ones. */
+    val isOrgMode: Boolean
+        get() = _activeOrg.value?.let { orgConfig(it.id)?.isEmpty == false } ?: false
+
+    /**
+     * Where a change goes without asking: an org with its own settings keeps its changes, and
+     * with no org only the global settings exist. Null means the user has to choose.
+     */
+    val knownScope: SettingsScope?
+        get() = when {
+            _activeOrg.value == null -> SettingsScope.GLOBAL
+            isOrgMode -> SettingsScope.ORG
+            else -> null
+        }
+
+    /** Saves a change to the active org's section of pangolin.json. */
+    fun updateActiveOrgConfig(transform: (OrgConfig) -> OrgConfig): Boolean {
+        val orgId = _activeOrg.value?.id ?: return false
+        val configs = _orgConfigs.value.toMutableMap()
+        val updated = transform(configs[orgId] ?: OrgConfig())
+        if (updated.isEmpty) configs.remove(orgId) else configs[orgId] = updated
+        return saveOrgConfigs(configs)
+    }
+
+    /** Removes the active org's own settings so it uses the global settings again. */
+    fun resetActiveOrgConfig(): Boolean {
+        val orgId = _activeOrg.value?.id ?: return false
+        return saveOrgConfigs(_orgConfigs.value - orgId)
+    }
+
+    private fun orgConfigFile(): File = File(File(context.filesDir, "Pangolin"), "pangolin.json")
+
+    private fun loadOrgConfigs(): Map<String, OrgConfig> {
+        val file = orgConfigFile()
+        if (!file.exists()) return emptyMap()
+        return try {
+            json.decodeFromString<PangolinFile>(file.readText()).orgs
+        } catch (e: Exception) {
+            Log.e(tag, "Error loading pangolin.json: ${e.message}", e)
+            emptyMap()
+        }
+    }
+
+    private fun saveOrgConfigs(configs: Map<String, OrgConfig>): Boolean {
+        return try {
+            val file = orgConfigFile()
+            file.parentFile?.mkdirs()
+            file.writeText(json.encodeToString(PangolinFile(configs)))
+            _orgConfigs.value = configs
+            true
+        } catch (e: Exception) {
+            Log.e(tag, "Error saving pangolin.json: ${e.message}", e)
             false
         }
     }

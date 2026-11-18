@@ -13,8 +13,8 @@ android {
         applicationId = "net.pangolin.Pangolin"
         minSdk = 24
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.8.2"
+        versionCode = 30
+        versionName = "0.8.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
