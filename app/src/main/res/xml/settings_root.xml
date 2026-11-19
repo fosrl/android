@@ -7,7 +7,7 @@
         <Preference
             android:key="general"
             android:title="General"
-            android:summary="Persistent notification. Applies to every organization and account."
+            android:summary="Persistent notification and excluded apps. Applies to every organization and account."
             android:icon="@drawable/ic_settings"
             app:fragment="net.pangolin.Pangolin.SettingsActivity$GeneralSettingsFragment" />
 
