@@ -7,17 +7,31 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
 
-class ConfigManager private constructor(context: Context) {
+class ConfigManager private constructor(private val context: Context) {
     private val tag = "ConfigManager"
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    private val json = Json {
+        ignoreUnknownKeys = true
+        prettyPrint = true
+    }
 
     private val _config = MutableStateFlow(loadConfig())
     val config: StateFlow<Config> = _config.asStateFlow()
-    
+
+    private val _orgConfigs = MutableStateFlow(loadOrgConfigs())
+    val orgConfigs: StateFlow<Map<String, OrgConfig>> = _orgConfigs.asStateFlow()
+
+    // Set by TunnelManager.refreshClientSettings.
+    private val _activeOrg = MutableStateFlow<ActiveOrg?>(null)
+    val activeOrg: StateFlow<ActiveOrg?> = _activeOrg.asStateFlow()
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence" -> {
+            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence" -> {
                 Log.d(tag, "Preference changed: $key, reloading config")
                 _config.value = loadConfig()
             }
@@ -31,13 +45,12 @@ class ConfigManager private constructor(context: Context) {
     private fun loadConfig(): Config {
         return try {
             Config(
-                // Must match android:defaultValue in root_preferences.xml (and olm's default):
+                // Must match android:defaultValue in connection_settings.xml (and olm's default):
                 // the Settings screen shows aliases as enabled until the user changes it.
                 dnsOverrideEnabled = prefs.getBoolean("overrideDns", true),
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
                 primaryDNSServer = prefs.getString("primaryDNSServer", null),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
-                logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false),
                 mtu = prefs.getString("mtu", null)?.toIntOrNull(),
                 persistentVpnNotification = prefs.getBoolean("persistentVpnNotification", false),
                 exitNodeTakesPrecedence = prefs.getBoolean("exitNodeTakesPrecedence", false)
@@ -55,7 +68,6 @@ class ConfigManager private constructor(context: Context) {
                 putBoolean("tunnelDns", config.dnsTunnelEnabled ?: false)
                 putString("primaryDNSServer", config.primaryDNSServer)
                 putString("secondaryDNSServer", config.secondaryDNSServer)
-                putBoolean("logCollectionEnabled", config.logCollectionEnabled ?: false)
                 putBoolean("persistentVpnNotification", config.persistentVpnNotification)
                 putBoolean("exitNodeTakesPrecedence", config.exitNodeTakesPrecedence ?: false)
                 if (config.mtu != null) putString("mtu", config.mtu.toString()) else remove("mtu")
@@ -70,7 +82,7 @@ class ConfigManager private constructor(context: Context) {
     }
 
     /**
-     * Re-reads the configuration from storage and publishes it. Callers that act on the
+     * Re-reads the global configuration from storage and publishes it. Callers that act on the
      * configuration (starting the tunnel, showing log status) use this instead of the
      * cached value so they never act on a stale copy.
      */
@@ -78,6 +90,111 @@ class ConfigManager private constructor(context: Context) {
         val config = loadConfig()
         _config.value = config
         return config
+    }
+
+    fun globalBoolean(key: String, defValue: Boolean): Boolean = prefs.getBoolean(key, defValue)
+
+    fun globalString(key: String, defValue: String?): String? = prefs.getString(key, defValue)
+
+    fun putGlobalBoolean(key: String, value: Boolean) {
+        prefs.edit().putBoolean(key, value).apply()
+    }
+
+    fun putGlobalString(key: String, value: String?) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    fun setActiveOrg(org: ActiveOrg?) {
+        _activeOrg.value = org
+    }
+
+    fun orgConfig(orgId: String): OrgConfig? = _orgConfigs.value[orgId]
+
+    /**
+     * The settings for orgId: server, then its section of pangolin.json, then global. The global
+     * ones are re-read from storage, so what the tunnel starts with is always what the Settings
+     * screen saved, even if a change notification was missed.
+     */
+    fun effectiveConfig(orgId: String?, server: ClientSettings?): Config {
+        return effectiveConfig(reload(), orgId?.let { orgConfig(it) }, server)
+    }
+
+    /** The settings shown for and used by the active org, or the global ones without one. */
+    fun activeEffectiveConfig(): Config {
+        val org = _activeOrg.value
+        return effectiveConfig(org?.id, org?.serverSettings)
+    }
+
+    /** Whether the active org has its own settings rather than using the ones for all orgs. */
+    val isOrgMode: Boolean
+        get() = _activeOrg.value?.let { orgConfig(it.id)?.hasOwnSettings } ?: false
+
+    /**
+     * Where changes on the Connection screen are saved: the active org's own settings once it
+     * has them, otherwise the ones for all organizations.
+     */
+    val activeScope: SettingsScope
+        get() = if (isOrgMode) SettingsScope.ORG else SettingsScope.GLOBAL
+
+    /** Saves a change to the active org's section of pangolin.json. */
+    fun updateActiveOrgConfig(transform: (OrgConfig) -> OrgConfig): Boolean {
+        val orgId = _activeOrg.value?.id ?: return false
+        val configs = _orgConfigs.value.toMutableMap()
+        val updated = transform(configs[orgId] ?: OrgConfig())
+        if (updated.isEmpty) configs.remove(orgId) else configs[orgId] = updated
+        return saveOrgConfigs(configs)
+    }
+
+    /**
+     * Gives the active org its own settings, starting as a copy of the ones for all
+     * organizations, so nothing it uses changes until they're edited. Every setting is copied,
+     * so later changes to the settings for all organizations don't affect it. Values it already
+     * has are kept, and what its server manages still applies on top.
+     */
+    fun giveActiveOrgOwnSettings(): Boolean = updateActiveOrgConfig { org ->
+        org.copy(
+            // Defaults must match android:defaultValue in connection_settings.xml.
+            dnsOverrideEnabled = org.dnsOverrideEnabled ?: prefs.getBoolean("overrideDns", true),
+            dnsTunnelEnabled = org.dnsTunnelEnabled ?: prefs.getBoolean("tunnelDns", false),
+            // An empty string means System DNS, like a global setting left empty.
+            primaryDNSServer = org.primaryDNSServer ?: prefs.getString("primaryDNSServer", null).orEmpty(),
+            secondaryDNSServer = org.secondaryDNSServer ?: prefs.getString("secondaryDNSServer", null).orEmpty(),
+            mtu = org.mtu ?: prefs.getString("mtu", null)?.toIntOrNull() ?: DEFAULT_MTU,
+            exitNodeTakesPrecedence = org.exitNodeTakesPrecedence
+                ?: prefs.getBoolean("exitNodeTakesPrecedence", false)
+        )
+    }
+
+    /**
+     * Removes the active org's own settings so it uses the ones for all organizations again. Its
+     * exit node and match domains aren't part of them, so they're kept.
+     */
+    fun resetActiveOrgConfig(): Boolean = updateActiveOrgConfig { it.withoutOwnSettings() }
+
+    private fun orgConfigFile(): File = File(File(context.filesDir, "Pangolin"), "pangolin.json")
+
+    private fun loadOrgConfigs(): Map<String, OrgConfig> {
+        val file = orgConfigFile()
+        if (!file.exists()) return emptyMap()
+        return try {
+            json.decodeFromString<PangolinFile>(file.readText()).orgs
+        } catch (e: Exception) {
+            Log.e(tag, "Error loading pangolin.json: ${e.message}", e)
+            emptyMap()
+        }
+    }
+
+    private fun saveOrgConfigs(configs: Map<String, OrgConfig>): Boolean {
+        return try {
+            val file = orgConfigFile()
+            file.parentFile?.mkdirs()
+            file.writeText(json.encodeToString(PangolinFile(configs)))
+            _orgConfigs.value = configs
+            true
+        } catch (e: Exception) {
+            Log.e(tag, "Error saving pangolin.json: ${e.message}", e)
+            false
+        }
     }
 
     fun updateConfig(block: (Config) -> Config) {
@@ -90,6 +207,9 @@ class ConfigManager private constructor(context: Context) {
     }
 
     companion object {
+        /** The MTU when none is set, as in connection_settings.xml and the tunnel. */
+        const val DEFAULT_MTU = 1280
+
         @Volatile
         private var instance: ConfigManager? = null
 
