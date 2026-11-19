@@ -1,0 +1,23 @@
+<!-- The Settings screen: app-wide settings and connection settings, each on its own screen. -->
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:layout="@layout/preference_category_material_card">
+
+        <Preference
+            android:key="general"
+            android:title="General"
+            android:summary="Persistent notification. Applies to every organization and account."
+            android:icon="@drawable/ic_settings"
+            app:fragment="net.pangolin.Pangolin.SettingsActivity$GeneralSettingsFragment" />
+
+        <Preference
+            android:key="connection"
+            android:title="Connection"
+            android:summary="DNS and advanced settings. Can be saved for all organizations or only one."
+            android:icon="@drawable/ic_public"
+            app:fragment="net.pangolin.Pangolin.SettingsActivity$ConnectionSettingsFragment" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -49,6 +49,11 @@ class AboutActivity : BaseNavigationActivity() {
             openUrl("https://pangolin.net/privacy")
         }
 
+        // Logs open on top of About, which Back returns to.
+        binding.content.tvLogs.setOnClickListener {
+            startActivity(Intent(this, LogsActivity::class.java))
+        }
+
         binding.fab.hide()
     }
 

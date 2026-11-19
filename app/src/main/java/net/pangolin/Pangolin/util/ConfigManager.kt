@@ -31,7 +31,7 @@ class ConfigManager private constructor(private val context: Context) {
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "logCollectionEnabled", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence", ExcludedApplications.PREF_KEY -> {
+            "overrideDns", "tunnelDns", "primaryDNSServer", "secondaryDNSServer", "mtu", "persistentVpnNotification", "exitNodeTakesPrecedence", ExcludedApplications.PREF_KEY -> {
                 Log.d(tag, "Preference changed: $key, reloading config")
                 _config.value = loadConfig()
             }
@@ -45,13 +45,12 @@ class ConfigManager private constructor(private val context: Context) {
     private fun loadConfig(): Config {
         return try {
             Config(
-                // Must match android:defaultValue in root_preferences.xml (and olm's default):
+                // Must match android:defaultValue in connection_settings.xml (and olm's default):
                 // the Settings screen shows aliases as enabled until the user changes it.
                 dnsOverrideEnabled = prefs.getBoolean("overrideDns", true),
                 dnsTunnelEnabled = prefs.getBoolean("tunnelDns", false),
                 primaryDNSServer = prefs.getString("primaryDNSServer", null),
                 secondaryDNSServer = prefs.getString("secondaryDNSServer", null),
-                logCollectionEnabled = prefs.getBoolean("logCollectionEnabled", false),
                 mtu = prefs.getString("mtu", null)?.toIntOrNull(),
                 persistentVpnNotification = prefs.getBoolean("persistentVpnNotification", false),
                 exitNodeTakesPrecedence = prefs.getBoolean("exitNodeTakesPrecedence", false),
@@ -71,7 +70,6 @@ class ConfigManager private constructor(private val context: Context) {
                 putBoolean("tunnelDns", config.dnsTunnelEnabled ?: false)
                 putString("primaryDNSServer", config.primaryDNSServer)
                 putString("secondaryDNSServer", config.secondaryDNSServer)
-                putBoolean("logCollectionEnabled", config.logCollectionEnabled ?: false)
                 putBoolean("persistentVpnNotification", config.persistentVpnNotification)
                 putBoolean("exitNodeTakesPrecedence", config.exitNodeTakesPrecedence ?: false)
                 putStringSet(ExcludedApplications.PREF_KEY, config.excludedApplications)
@@ -130,20 +128,16 @@ class ConfigManager private constructor(private val context: Context) {
         return effectiveConfig(org?.id, org?.serverSettings)
     }
 
-    /** Whether the active org has its own settings rather than using the global ones. */
+    /** Whether the active org has its own settings rather than using the ones for all orgs. */
     val isOrgMode: Boolean
-        get() = _activeOrg.value?.let { orgConfig(it.id)?.isEmpty == false } ?: false
+        get() = _activeOrg.value?.let { orgConfig(it.id)?.hasOwnSettings } ?: false
 
     /**
-     * Where a change goes without asking: an org with its own settings keeps its changes, and
-     * with no org only the global settings exist. Null means the user has to choose.
+     * Where changes on the Connection screen are saved: the active org's own settings once it
+     * has them, otherwise the ones for all organizations.
      */
-    val knownScope: SettingsScope?
-        get() = when {
-            _activeOrg.value == null -> SettingsScope.GLOBAL
-            isOrgMode -> SettingsScope.ORG
-            else -> null
-        }
+    val activeScope: SettingsScope
+        get() = if (isOrgMode) SettingsScope.ORG else SettingsScope.GLOBAL
 
     /** Saves a change to the active org's section of pangolin.json. */
     fun updateActiveOrgConfig(transform: (OrgConfig) -> OrgConfig): Boolean {
@@ -154,11 +148,31 @@ class ConfigManager private constructor(private val context: Context) {
         return saveOrgConfigs(configs)
     }
 
-    /** Removes the active org's own settings so it uses the global settings again. */
-    fun resetActiveOrgConfig(): Boolean {
-        val orgId = _activeOrg.value?.id ?: return false
-        return saveOrgConfigs(_orgConfigs.value - orgId)
+    /**
+     * Gives the active org its own settings, starting as a copy of the ones for all
+     * organizations, so nothing it uses changes until they're edited. Every setting is copied,
+     * so later changes to the settings for all organizations don't affect it. Values it already
+     * has are kept, and what its server manages still applies on top.
+     */
+    fun giveActiveOrgOwnSettings(): Boolean = updateActiveOrgConfig { org ->
+        org.copy(
+            // Defaults must match android:defaultValue in connection_settings.xml.
+            dnsOverrideEnabled = org.dnsOverrideEnabled ?: prefs.getBoolean("overrideDns", true),
+            dnsTunnelEnabled = org.dnsTunnelEnabled ?: prefs.getBoolean("tunnelDns", false),
+            // An empty string means System DNS, like a global setting left empty.
+            primaryDNSServer = org.primaryDNSServer ?: prefs.getString("primaryDNSServer", null).orEmpty(),
+            secondaryDNSServer = org.secondaryDNSServer ?: prefs.getString("secondaryDNSServer", null).orEmpty(),
+            mtu = org.mtu ?: prefs.getString("mtu", null)?.toIntOrNull() ?: DEFAULT_MTU,
+            exitNodeTakesPrecedence = org.exitNodeTakesPrecedence
+                ?: prefs.getBoolean("exitNodeTakesPrecedence", false)
+        )
     }
+
+    /**
+     * Removes the active org's own settings so it uses the ones for all organizations again. Its
+     * exit node and match domains aren't part of them, so they're kept.
+     */
+    fun resetActiveOrgConfig(): Boolean = updateActiveOrgConfig { it.withoutOwnSettings() }
 
     private fun orgConfigFile(): File = File(File(context.filesDir, "Pangolin"), "pangolin.json")
 
@@ -196,6 +210,9 @@ class ConfigManager private constructor(private val context: Context) {
     }
 
     companion object {
+        /** The MTU when none is set, as in connection_settings.xml and the tunnel. */
+        const val DEFAULT_MTU = 1280
+
         @Volatile
         private var instance: ConfigManager? = null
 

@@ -4,11 +4,12 @@ import androidx.preference.PreferenceDataStore
 
 /**
  * Backs the settings that can differ per org. Reads return what the active org actually uses, so
- * the settings screen shows effective values; writes go to the global settings or the org's
- * section of pangolin.json depending on [scope].
+ * the Connection screen shows effective values; writes go to the active org's own settings once
+ * it has them, otherwise to the ones for all organizations.
  */
 class ScopedPreferenceDataStore(private val configManager: ConfigManager) : PreferenceDataStore() {
-    var scope = SettingsScope.GLOBAL
+    private val scope: SettingsScope
+        get() = configManager.activeScope
 
     /** Set while refreshing what's displayed, which must not count as a change. */
     var suppressWrites = false

@@ -19,6 +19,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsServiceConnection
 import androidx.browser.customtabs.CustomTabsSession
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -46,6 +47,9 @@ class SignInCodeActivity : AppCompatActivity() {
     private var hasAutoOpenedBrowser = false
     private var hasLaunchedBrowser = false
     private var isPolling = false
+    private var pollDeadlineMs = 0L
+    private var hasShownSuccess = false
+    private var pendingSuccess = false
     private var currentCode: String? = null
     private var expiresInSeconds: Long = 300
     private var includeUsernameInDeviceURL = false
@@ -152,6 +156,10 @@ class SignInCodeActivity : AppCompatActivity() {
                     if (!hasAutoOpenedBrowser) {
                         hasAutoOpenedBrowser = true
                         autoOpenBrowser(code)
+                        // Poll right away instead of waiting for the browser to signal us.
+                        // Not every browser can fire the callback deep link (Firefox ignores
+                        // the intent:// redirect), so the app has to notice verification itself.
+                        pollForToken(code)
                     }
                 } else {
                     // Hide UI elements when no code
@@ -288,6 +296,14 @@ class SignInCodeActivity : AppCompatActivity() {
             return
         }
         
+        if (pollDeadlineMs == 0L) {
+            pollDeadlineMs = System.currentTimeMillis() + expiresInSeconds * 1000
+        } else if (System.currentTimeMillis() > pollDeadlineMs) {
+            Log.w(tag, "Sign in code expired, stopping poll")
+            Toast.makeText(this, "Sign in code expired. Please try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
         isPolling = true
         lifecycleScope.launch {
             try {
@@ -414,8 +430,7 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun openLoginPage() {
-        // Reset polling state to allow fresh polling when user returns
-        isPolling = false
+        // The poll loop keeps running in the background, so only reopen the browser
         currentCode?.let { autoOpenBrowser(it) }
     }
 
@@ -496,6 +511,17 @@ class SignInCodeActivity : AppCompatActivity() {
     }
 
     private fun showSuccess() {
+        if (hasShownSuccess) return
+
+        // Android blocks activity launches from the background. Auth can now complete while the
+        // user is still in the browser, so wait until they return to the app to navigate.
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            pendingSuccess = true
+            return
+        }
+        pendingSuccess = false
+        hasShownSuccess = true
+
         Toast.makeText(this, "Authentication Successful!", Toast.LENGTH_LONG).show()
 
         // Reset flags
@@ -511,7 +537,12 @@ class SignInCodeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        
+
+        if (pendingSuccess) {
+            showSuccess()
+            return
+        }
+
         // If we launched the browser and user came back, start polling
         // This handles the case where the user closed the custom tab after completing login
         if (hasLaunchedBrowser && !isPolling) {

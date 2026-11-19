@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
@@ -122,6 +124,21 @@ class TunnelManager private constructor(
     init {
         goBackend = GoBackend(context)
         statusPollingManager = StatusPollingManager(context, socketManager)
+
+        // The Connection screen shows, and saves changes for, the active org. It changes with the
+        // account (switching, signing in or out) and the org, with or without a tunnel, so fetch
+        // its server settings and publish it whenever the current org does.
+        scope.launch {
+            authManager.currentOrg.map { it?.orgId }.distinctUntilChanged().collect {
+                try {
+                    refreshClientSettings()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(tag, "Could not refresh client settings after the org changed: ${e.message}")
+                }
+            }
+        }
 
         // Observe status updates
         // Note: Power state monitoring is now handled in the VpnService (GoBackend.java)
@@ -298,13 +315,11 @@ class TunnelManager private constructor(
             val secondaryDNS = config.secondaryDNSServer
             val overrideDns = config.dnsOverrideEnabled ?: true
             val tunnelDns = config.dnsTunnelEnabled ?: false
-            val logCollectionEnabled = config.logCollectionEnabled ?: false
-            val mtu = config.mtu ?: 1280
+            val mtu = config.mtu ?: ConfigManager.DEFAULT_MTU
             val exitNodeTakesPrecedence = config.exitNodeTakesPrecedence ?: false
             val excludedApplications = ExcludedApplications.forConfig(config, context.packageName)
 
             Log.d(tag, "DNS Configuration - overrideDns: $overrideDns, tunnelDns: $tunnelDns, primaryDNS: $primaryDNS, secondaryDNS: $secondaryDNS")
-            Log.d(tag, "Log collection enabled: $logCollectionEnabled")
 
             val fpCollector = AndroidFingerprintCollector(context)
             val initialFingerprint = fpCollector.gatherFingerprintInfo()
@@ -321,11 +336,9 @@ class TunnelManager private constructor(
                     .setAgent("Pangolin Android")
                     .setVersion(context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown")
                     .setSocketPath(File(context.filesDir, "pangolin.sock").absolutePath)
-                
-                if (logCollectionEnabled) {
-                    initConfigBuilder.setLogFilePath(File(context.filesDir, "pangolin.log").absolutePath)
-                }
-                
+                    // Always collected, as on the other clients. Go rotates it at 10 MB, keeping 3 backups.
+                    .setLogFilePath(File(context.filesDir, "pangolin.log").absolutePath)
+
                 val initConfig = initConfigBuilder.build()
 
                 // Note: when this is left empty (no custom DNS configured), olm's

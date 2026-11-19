@@ -58,7 +58,8 @@
         <activity
             android:name=".LogsActivity"
             android:exported="false"
-            android:label="Logs" />
+            android:label="Logs"
+            android:parentActivityName=".AboutActivity" />
         <activity
             android:name=".StatusActivity"
             android:exported="false"

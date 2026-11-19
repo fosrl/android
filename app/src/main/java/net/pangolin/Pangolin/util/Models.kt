@@ -11,7 +11,6 @@ data class Config(
     val dnsTunnelEnabled: Boolean? = null,
     val primaryDNSServer: String? = null,
     val secondaryDNSServer: String? = null,
-    val logCollectionEnabled: Boolean? = null,
     val mtu: Int? = null,
     val persistentVpnNotification: Boolean = false,
     val exitNodeTakesPrecedence: Boolean? = null,
@@ -41,6 +40,21 @@ data class OrgConfig(
 ) {
     val isEmpty: Boolean
         get() = this == OrgConfig()
+
+    /**
+     * Whether the org has its own values for the settings the user switches between the ones for
+     * all organizations and the org's own. Its exit node and match domains don't count: they
+     * aren't part of those settings.
+     */
+    val hasOwnSettings: Boolean
+        get() = dnsOverrideEnabled != null || dnsTunnelEnabled != null || primaryDNSServer != null ||
+            secondaryDNSServer != null || mtu != null || exitNodeTakesPrecedence != null
+
+    /** This org's section without its own settings, keeping its exit node and match domains. */
+    fun withoutOwnSettings(): OrgConfig = OrgConfig(
+        exitNodeResourceId = exitNodeResourceId,
+        matchDomains = matchDomains
+    )
 }
 
 /** Global settings live in SharedPreferences, so pangolin.json only holds the org section. */
