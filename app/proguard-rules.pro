@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Settings sub-screens are named only by string in res/xml/settings_root.xml (app:fragment) and
+# created by reflection in SettingsActivity.onPreferenceStartFragment, so R8 can't see they're used.
+-keep class * extends androidx.fragment.app.Fragment {
+    public <init>();
+}
