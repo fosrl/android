@@ -12,6 +12,13 @@
             android:summary="@string/persistent_vpn_notification_summary"
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
+        <!-- Opens ExcludedAppsActivity. The list belongs to this device, so it's the same for
+             every organization. -->
+        <Preference
+            android:key="excludedAppsEntry"
+            android:title="@string/excluded_apps_title"
+            android:persistent="false"
+            app:iconSpaceReserved="false" />
 
     </PreferenceCategory>
 
